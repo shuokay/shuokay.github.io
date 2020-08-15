@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"shuokay.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":false,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="参数是机器学习中很重要的一个部分, 参数是用户和机器学习框架进行交互的一种方式. 这篇文章将会介绍 DMLC 的参数模块, 设计该该轻量级的 C++ 模块的目的就是支持通用的机器学习库, 其具备以下几个优点:">
+<meta property="og:type" content="article">
+<meta property="og:title" content="MXNet 中 Parameter 模块的设计">
+<meta property="og:url" content="http://shuokay.com/2017/05/20/mxnet-parameter/index.html">
+<meta property="og:site_name" content="Memo">
+<meta property="og:description" content="参数是机器学习中很重要的一个部分, 参数是用户和机器学习框架进行交互的一种方式. 这篇文章将会介绍 DMLC 的参数模块, 设计该该轻量级的 C++ 模块的目的就是支持通用的机器学习库, 其具备以下几个优点:">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2017-05-20T02:58:23.000Z">
+<meta property="article:modified_time" content="2020-07-25T03:30:25.068Z">
+<meta property="article:author" content="yushu.gao">
+<meta property="article:tag" content="MXnet">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://shuokay.com/2017/05/20/mxnet-parameter/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>MXNet 中 Parameter 模块的设计 | Memo</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Memo</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://shuokay.com/2017/05/20/mxnet-parameter/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yushu.gao">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Memo">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          MXNet 中 Parameter 模块的设计
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2017-05-20 10:58:23" itemprop="dateCreated datePublished" datetime="2017-05-20T10:58:23+08:00">2017-05-20</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Framework/" itemprop="url" rel="index"><span itemprop="name">Framework</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Framework/MXNet/" itemprop="url" rel="index"><span itemprop="name">MXNet</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>参数是机器学习中很重要的一个部分, 参数是用户和机器学习框架进行交互的一种方式. 这篇文章将会介绍 DMLC 的参数模块, 设计该该轻量级的 C++ 模块的目的就是支持通用的机器学习库, 其具备以下几个优点:</p>
+<a id="more"></a>
+<ul>
+<li>类型字段, 默认值和约束的声明很简单</li>
+<li>自动检查是否满足约束, 如果不满足的话抛出异常</li>
+<li>自动生成易读的参数文档</li>
+<li>序列化到 JSON 中, 反序列化到 <code>std::map(std::string, std::string)</code> 中.</li>
+</ul>
+<h1 id="使用参数模块"><a href="#使用参数模块" class="headerlink" title="使用参数模块"></a>使用参数模块</h1><h2 id="声明参数"><a href="#声明参数" class="headerlink" title="声明参数"></a>声明参数</h2><p>在 dmlc 的 parameter 模块中, 每一个参数都可以声明成一个 structure. 因此, 可以非常高效的获取 parameter 的各个字段, 例如:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">weight -= param.learning_rate * gradient;</span><br></pre></td></tr></table></figure>
+
+<p>和普通的 structure 唯一的区别是需要声明所有的字段以及其默认值和约束. 例如声明 MyParam 的参数结构:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;dmlc/parameter.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="comment">// declare the parameter, normally put it in header file.</span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">MyParam</span> :</span> <span class="keyword">public</span> dmlc::Parameter&lt;MyParam&gt; &#123;</span><br><span class="line">  <span class="keyword">float</span> learning_rate;</span><br><span class="line">  <span class="keyword">int</span> num_hidden;</span><br><span class="line">  <span class="keyword">int</span> activation;</span><br><span class="line">  <span class="built_in">std</span>::<span class="built_in">string</span> name;</span><br><span class="line">  <span class="comment">// declare parameters</span></span><br><span class="line">  DMLC_DECLARE_PARAMETER(MyParam) &#123;</span><br><span class="line">    DMLC_DECLARE_FIELD(num_hidden).set_range(<span class="number">0</span>, <span class="number">1000</span>)</span><br><span class="line">        .describe(<span class="string">"Number of hidden unit in the fully connected layer."</span>);</span><br><span class="line">    DMLC_DECLARE_FIELD(learning_rate).set_default(<span class="number">0.01f</span>)</span><br><span class="line">        .describe(<span class="string">"Learning rate of SGD optimization."</span>);</span><br><span class="line">    DMLC_DECLARE_FIELD(activation).add_enum(<span class="string">"relu"</span>, <span class="number">1</span>).add_enum(<span class="string">"sigmoid"</span>, <span class="number">2</span>)</span><br><span class="line">        .describe(<span class="string">"Activation function type."</span>);</span><br><span class="line">    DMLC_DECLARE_FIELD(name).set_default(<span class="string">"layer"</span>)</span><br><span class="line">        .describe(<span class="string">"Name of the net."</span>);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="comment">// register the parameter, this is normally in a cc file.</span></span><br><span class="line">DMLC_REGISTER_PARAMETER(MyParam);</span><br></pre></td></tr></table></figure>
+
+<p>从以上代码可知, 不同之处是在 <code>DMLC_DECLARE_PARAMETER(MyParam)</code> 后面这一部分, 这部分声明了所有的字段. 这个例子声明了 <code>float</code>, <code>int</code> 和 <code>string</code> 类型的参数. 这个实例代码的特点是:</p>
+<ul>
+<li>对于数值型的参数, 可以通过 <code>.set_range(begin, end)</code> 来限定范围</li>
+<li>可以定义枚举类型, 这个例子中是 activation. 用户只能设置 <code>sigmoid</code> 和 <code>relu</code> 两种类型的激活函数字段, 并且分别映射到 1 和 2 上去</li>
+<li><code>describe</code> 函数增加对字段的描述, 用来生成用户易读的文档.</li>
+</ul>
+<h2 id="设置参数"><a href="#设置参数" class="headerlink" title="设置参数"></a>设置参数</h2><p>声明了参数之后, 我们可以像普通的 structure 一样声明该 structure. 不同的地方是, <code>MyParam</code> structure 带有成员函数, 目的是使得对 parameter 的操作方便一些. 为了从外部数据源设置参数, 使用 <code>Init</code> 函数:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">()</span> </span>&#123;</span><br><span class="line">   MyParam param;</span><br><span class="line">   <span class="built_in">std</span>::<span class="built_in">vector</span>&lt;<span class="built_in">std</span>::pair&lt;<span class="built_in">std</span>::<span class="built_in">string</span>, <span class="built_in">std</span>::<span class="built_in">string</span>&gt; &gt; param_data = &#123;</span><br><span class="line">    &#123;<span class="string">"num_hidden"</span>, <span class="string">"100"</span>&#125;,</span><br><span class="line">    &#123;<span class="string">"activation"</span>, <span class="string">"relu"</span>&#125;,</span><br><span class="line">    &#123;<span class="string">"name"</span>, <span class="string">"myname"</span>&#125;</span><br><span class="line">   &#125;;</span><br><span class="line">   <span class="comment">// set the parameters</span></span><br><span class="line">   param.Init(param_data);</span><br><span class="line">   <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>调用完 <code>Init</code> 之后 <code>param</code> 就被 <code>param_data</code> 中的特定的 key 值填充了. 更重要的是, <code>Init</code> 函数会自动检查 parameter range, 并且在出现错误的时候抛出 <code>dmlc::ParamError</code> 异常以及详细的错误信息</p>
+<h2 id="生成用户易读的文档"><a href="#生成用户易读的文档" class="headerlink" title="生成用户易读的文档"></a>生成用户易读的文档</h2><p>参数模块的另外一个特点是生成用户易读的文档. 这在构建 language binding(例如 Python, R)的时候非常有用. 获取描述文档的方法是:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">std</span>::<span class="built_in">string</span> docstring = MyParam::__DOC__();</span><br></pre></td></tr></table></figure>
+
+<p>另外该模块还提供了结构化的获取字段信息的方法:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">std</span>::<span class="built_in">vector</span>&lt;dmlc::ParamFieldInfo&gt; fields = MyParam::__FIELDS__();</span><br></pre></td></tr></table></figure>
+
+<h2 id="参数序列化"><a href="#参数序列化" class="headerlink" title="参数序列化"></a>参数序列化</h2><p>之中最常用的序列化方法是使用下面的代码把参数转化成 <code>std::map&lt;string, string&gt;</code> 表示:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">std</span>::<span class="built_in">map</span>&lt;<span class="built_in">string</span>, <span class="built_in">string</span>&gt; dict = param.__DICT__();</span><br></pre></td></tr></table></figure>
+
+<p>对 <code>std::map&lt;string, string&gt; dict = param.__DICT__();</code> 进行序列化就比较简单了. 这种序列化的方法根据设备和平台的不同而不同. 然而, 这种序列化方法不是很紧凑, 只推荐用来序列化一般的参数.<br>直接序列化到 JSON 以及从 JSON 文件中 load 参数也是支持的.</p>
+<h2 id="应用实例"><a href="#应用实例" class="headerlink" title="应用实例"></a>应用实例</h2><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// This is an example program showing usage of parameter module</span></span><br><span class="line"><span class="comment">// Build, on root folder, type</span></span><br><span class="line"><span class="comment">//</span></span><br><span class="line"><span class="comment">//   make example</span></span><br><span class="line"><span class="comment">//</span></span><br><span class="line"><span class="comment">// Example usage:</span></span><br><span class="line"><span class="comment">//</span></span><br><span class="line"><span class="comment">//   example/parameter num_hidden=100 name=aaa activation=relu</span></span><br><span class="line"><span class="comment">//</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;dmlc/parameter.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">MyParam</span> :</span> <span class="keyword">public</span> dmlc::Parameter&lt;MyParam&gt; &#123;</span><br><span class="line">  <span class="keyword">float</span> learning_rate;</span><br><span class="line">  <span class="keyword">int</span> num_hidden;</span><br><span class="line">  <span class="keyword">int</span> activation;</span><br><span class="line">  <span class="built_in">std</span>::<span class="built_in">string</span> name;</span><br><span class="line">  <span class="comment">// declare parameters in header file</span></span><br><span class="line">  DMLC_DECLARE_PARAMETER(MyParam) &#123;</span><br><span class="line">    DMLC_DECLARE_FIELD(num_hidden).set_range(<span class="number">0</span>, <span class="number">1000</span>)</span><br><span class="line">        .describe(<span class="string">"Number of hidden unit in the fully connected layer."</span>);</span><br><span class="line">    DMLC_DECLARE_FIELD(learning_rate).set_default(<span class="number">0.01f</span>)</span><br><span class="line">        .describe(<span class="string">"Learning rate of SGD optimization."</span>);</span><br><span class="line">    DMLC_DECLARE_FIELD(activation).add_enum(<span class="string">"relu"</span>, <span class="number">1</span>).add_enum(<span class="string">"sigmoid"</span>, <span class="number">2</span>)</span><br><span class="line">        .describe(<span class="string">"Activation function type."</span>);</span><br><span class="line">    DMLC_DECLARE_FIELD(name).set_default(<span class="string">"mnet"</span>)</span><br><span class="line">        .describe(<span class="string">"Name of the net."</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// user can also set nhidden besides num_hidden</span></span><br><span class="line">    DMLC_DECLARE_ALIAS(num_hidden, nhidden);</span><br><span class="line">    DMLC_DECLARE_ALIAS(activation, act);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="comment">// register it in cc file</span></span><br><span class="line">DMLC_REGISTER_PARAMETER(MyParam);</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">(<span class="keyword">int</span> argc, <span class="keyword">char</span> *argv[])</span> </span>&#123;</span><br><span class="line">  <span class="keyword">if</span> (argc == <span class="number">1</span>) &#123;</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"Usage: [key=value] ...\n"</span>);</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  MyParam param;</span><br><span class="line">  <span class="built_in">std</span>::<span class="built_in">map</span>&lt;<span class="built_in">std</span>::<span class="built_in">string</span>, <span class="built_in">std</span>::<span class="built_in">string</span>&gt; kwargs;</span><br><span class="line">  <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; argc; ++i) &#123;</span><br><span class="line">    <span class="keyword">char</span> name[<span class="number">256</span>], val[<span class="number">256</span>];</span><br><span class="line">    <span class="keyword">if</span> (<span class="built_in">sscanf</span>(argv[i], <span class="string">"%[^=]=%[^\n]"</span>, name, val) == <span class="number">2</span>) &#123;</span><br><span class="line">      kwargs[name] = val;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"Docstring\n---------\n%s"</span>, MyParam::__DOC__().c_str());</span><br><span class="line"></span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"start to set parameters ...\n"</span>);</span><br><span class="line">  param.Init(kwargs);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"-----\n"</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"param.num_hidden=%d\n"</span>, param.num_hidden);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"param.learning_rate=%f\n"</span>, param.learning_rate);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"param.name=%s\n"</span>, param.name.c_str());</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"param.activation=%d\n"</span>, param.activation);</span><br><span class="line">  <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h1 id="工作原理"><a href="#工作原理" class="headerlink" title="工作原理"></a>工作原理</h1><p>构建这样一个模块需要一些技巧, 因为需要反射–获取结构体中的字段信息, 而C++不支持该功能<br>例如下面这段代码, Init 函数是怎么知道 <code>num_hidden</code> 的位置并且在 <code>Init</code> 函数中正确设置的呢?</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;vector&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;string&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;dmlc/parameter.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="comment">// declare the parameter, normally put it in header file.</span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">MyParam</span> :</span> <span class="keyword">public</span> dmlc::Parameter&lt;MyParam&gt; &#123;</span><br><span class="line">  <span class="keyword">float</span> learning_rate;</span><br><span class="line">  <span class="keyword">int</span> num_hidden;</span><br><span class="line">  <span class="comment">// declare parameters</span></span><br><span class="line">  DMLC_DECLARE_PARAMETER(MyParam) &#123;</span><br><span class="line">    DMLC_DECLARE_FIELD(num_hidden);</span><br><span class="line">    DMLC_DECLARE_FIELD(learning_rate).set_default(<span class="number">0.01f</span>);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="comment">// register the parameter, this is normally in a cc file.</span></span><br><span class="line">DMLC_REGISTER_PARAMETER(MyParam);</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">(<span class="keyword">int</span> argc, <span class="keyword">char</span> *argv[])</span> </span>&#123;</span><br><span class="line">  MyParam param;</span><br><span class="line">  <span class="built_in">std</span>::<span class="built_in">vector</span>&lt;<span class="built_in">std</span>::pair&lt;<span class="built_in">std</span>::<span class="built_in">string</span>, <span class="built_in">std</span>::<span class="built_in">string</span>&gt; &gt; param_data = &#123;</span><br><span class="line">    &#123;<span class="string">"num_hidden"</span>, <span class="string">"100"</span>&#125;,</span><br><span class="line">  &#125;;</span><br><span class="line">  param.Init(param_data);</span><br><span class="line">  <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里面的关键技巧在<code>DMLC_DECLARE_PARAMETER(MyParam)</code>中, 这是在参数模块中定义的一个宏. 如果把这个宏展开, 大约是下面这样的代码:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">Parameter</span>&lt;MyParam&gt; &#123;</span></span><br><span class="line">  <span class="keyword">template</span>&lt;<span class="keyword">typename</span> ValueType&gt;</span><br><span class="line">  <span class="keyword">inline</span> FieldEntry&lt;ValueType&gt;&amp;</span><br><span class="line">  DECLARE(ParamManagerSingleton&lt;MyParam&gt; *manager,</span><br><span class="line">      <span class="keyword">const</span> <span class="built_in">std</span>::<span class="built_in">string</span>&amp; key,</span><br><span class="line">      ValueType&amp; ref)&#123;</span><br><span class="line">  <span class="comment">// offset gives a generic way to access the address of the field</span></span><br><span class="line">  <span class="comment">// from beginning of the structure.</span></span><br><span class="line">  <span class="keyword">size_t</span> offset = ((<span class="keyword">char</span>*)&amp;ref - (<span class="keyword">char</span>*)<span class="keyword">this</span>);</span><br><span class="line">  parameter::FieldEntry&lt;ValueType&gt; *e =</span><br><span class="line">        <span class="keyword">new</span> parameter::FieldEntry&lt;ValueType&gt;(key, offset);</span><br><span class="line">  manager-&gt;AddEntry(key, e);</span><br><span class="line">  <span class="keyword">return</span> *e;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">MyParam</span> :</span> <span class="keyword">public</span> dmlc::Parameter&lt;MyParam&gt; &#123;</span><br><span class="line">  <span class="keyword">float</span> learning_rate;</span><br><span class="line">  <span class="keyword">int</span> num_hidden;</span><br><span class="line">  <span class="comment">// declare parameters</span></span><br><span class="line">  <span class="keyword">inline</span> <span class="keyword">void</span> __DECLARE__(ParamManagerSingleton&lt;MyParam&gt; *manager) &#123;</span><br><span class="line">    <span class="keyword">this</span>-&gt;DECLARE(manager, <span class="string">"num_hidden"</span>, num_hidden);</span><br><span class="line">  <span class="keyword">this</span>-&gt;DECLARE(manager, <span class="string">"learning_rate"</span>, learning_rate).set_default(<span class="number">0.01f</span>);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="comment">// This code is only used to show the general idea.</span></span><br><span class="line"><span class="comment">// This code will only run once, the real code is done via singleton declaration pattern.</span></span><br><span class="line">&#123;</span><br><span class="line">  <span class="keyword">static</span> ParamManagerSingleton&lt;MyParam&gt; manager;</span><br><span class="line">  MyParam tmp;</span><br><span class="line">  tmp-&gt;__DECLARE__(&amp;manager);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这段代码并不是实际参数模块中使用的代码, 但是, 大体上展示了该模块是怎么工作的. 关键的地方是, structure 的 layout 对于所有对象的实例来说都是固定的, 为了说明怎么访问每一个字段, 可以:</p>
+<ul>
+<li>创建 MyParam 的一个实例, 调用 <strong>DECLARE</strong> 函数.</li>
+<li>字段和 structure header 的相对位置记录在一个全局的 singleton 中.</li>
+<li>调用 <code>Init</code> 的时候, 可以在 singleton 中获取 <code>offset</code> 信息, 通过 <code>(ValueType*)((char*)this + offset)</code> 访问字段的地址.</li>
+</ul>
+<p>通过 C++ 的泛型编程, 我们可以为机器学习库构建一个简单有用的参数模块, 该模块在 dmlc 项目中已广泛使用, 希望该模块对你也有帮助.</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/MXnet/" rel="tag"># MXnet</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2017/03/10/dependency-engine-for-deep-learning/" rel="prev" title="深度学习中的依赖引擎">
+      <i class="fa fa-chevron-left"></i> 深度学习中的依赖引擎
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2017/05/29/mxnet-source-code-overview/" rel="next" title="MXNet 源码分析-概览">
+      MXNet 源码分析-概览 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#使用参数模块"><span class="nav-number">1.</span> <span class="nav-text">使用参数模块</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#声明参数"><span class="nav-number">1.1.</span> <span class="nav-text">声明参数</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#设置参数"><span class="nav-number">1.2.</span> <span class="nav-text">设置参数</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#生成用户易读的文档"><span class="nav-number">1.3.</span> <span class="nav-text">生成用户易读的文档</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#参数序列化"><span class="nav-number">1.4.</span> <span class="nav-text">参数序列化</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#应用实例"><span class="nav-number">1.5.</span> <span class="nav-text">应用实例</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#工作原理"><span class="nav-number">2.</span> <span class="nav-text">工作原理</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yushu.gao</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">87</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">32</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">94</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yushu.gao</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>

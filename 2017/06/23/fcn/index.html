@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"shuokay.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":false,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="FCN 是一种有效的对图像语义分割的方法, 方法十分简单, 分割效果非常好. 本文记录使用 FCN 做语义分割的过程. 本文记录的方法和 FCN 原始论文并不完全相同, 但是, 基本思想是一致的.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="FCN 图像语义分割实践">
+<meta property="og:url" content="http://shuokay.com/2017/06/23/fcn/index.html">
+<meta property="og:site_name" content="Memo">
+<meta property="og:description" content="FCN 是一种有效的对图像语义分割的方法, 方法十分简单, 分割效果非常好. 本文记录使用 FCN 做语义分割的过程. 本文记录的方法和 FCN 原始论文并不完全相同, 但是, 基本思想是一致的.">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://shuokay.com/content/images/fcn/segmentation.png">
+<meta property="og:image" content="http://shuokay.com/content/images/fcn/test.png">
+<meta property="article:published_time" content="2017-06-23T08:35:36.000Z">
+<meta property="article:modified_time" content="2020-07-25T03:30:25.065Z">
+<meta property="article:author" content="yushu.gao">
+<meta property="article:tag" content="Deep Learning">
+<meta property="article:tag" content="CNN">
+<meta property="article:tag" content="FCN">
+<meta property="article:tag" content="Semantic Segmentation">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://shuokay.com/content/images/fcn/segmentation.png">
+
+<link rel="canonical" href="http://shuokay.com/2017/06/23/fcn/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>FCN 图像语义分割实践 | Memo</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Memo</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://shuokay.com/2017/06/23/fcn/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yushu.gao">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Memo">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          FCN 图像语义分割实践
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2017-06-23 16:35:36" itemprop="dateCreated datePublished" datetime="2017-06-23T16:35:36+08:00">2017-06-23</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/CNN/" itemprop="url" rel="index"><span itemprop="name">CNN</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/CNN/Semantic-Segmentation/" itemprop="url" rel="index"><span itemprop="name">Semantic Segmentation</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>FCN 是一种有效的对图像语义分割的方法, 方法十分简单, 分割效果非常好. 本文记录使用 FCN 做语义分割的过程. 本文记录的方法和 FCN 原始论文并不完全相同, 但是, 基本思想是一致的.</p>
+<a id="more"></a>
+
+<h1 id="快速解释"><a href="#快速解释" class="headerlink" title="快速解释"></a>快速解释</h1><p>图像语义分割的目的就是对于图像中每一个像素点, 给分配一个标签, 表明该像素点所属的目标. 例如下图中, 该图像经过语义分割之后, 猫的像素点和狗的像素点分别用不同的颜色表示, 表明模型完成了对该图片的语义分割.<br>分割是比检测跟进一步的任务, 检测只需要找到目标的 bounding box. 本文记录的分割更进一步的是 instance 的语义分割. 例如, 在一张合照中, 本文的分割方法会把所有的人标注为同一个类别”人”, 但是, 在 instance 的语义分割中, 会把每个人都认为是不同的目标实体, 分割结果中, 每个人的颜色都不一样.</p>
+<center><img src="/content/images/fcn/segmentation.png" width=500></center>
+我认为, FCN 的关键点有两个:
+1. 去掉了 CNN 中通常会有的 full connect, 取而代之的是 conv
+2. 使用 deconv(transpose conv) 来实现上采样, 从而使得缩小之后的 feature map 可以重建到原始输入图片的大小.
+
+<p>这两点也是实现 FCN 所必须的, 尤其是第二点, 目前除了 deconv 似乎没有更好的/更直观的方法. 而去掉 full connect 就对输入图片的图片就不需要是相同尺寸的, 甚至说可以是任意尺寸(这么说有一点点不严格, 要看整个网络中长宽最小的 feature map, 只要要求改 feature map 的长宽至少是 1 就可以了)</p>
+<h1 id="代码实现"><a href="#代码实现" class="headerlink" title="代码实现"></a>代码实现</h1><p>这次没有使用 mxnet 实现而是使用了 TensorFlow.<br>首先是 load vgg19 的模型, 从该模型上 transfer. 由于 vgg19 是在 ImageNet 上面训练的, 而且是把输入图像 crop 到了 \(224 \times 224\), 因此, 我也把输入图像 crop 到了 \(224 \times 224\). 虽然下面的代码支持任意尺寸大于 \(224 \times 224\) 的输入, 但是, 如果是完全任意尺寸的话, 基本上没办法进行矩阵话计算, 导致的结果就是每次只能输入一张图片训练, 速度会非常慢. 因此, 在训练阶段还是把所有的图像 resize 到相同的大小. 当然, <code>predict</code> 的输入图像只需要长宽都大于 224 就可以了.<br>解释一下为什么图片的尺寸要大于 \(224 \times 224\). 从下面代码中可以看到, 在 conv 的操作中, feature map 的长宽都没有变化, 只有在 pooling 操作的时候发生变化, 每次减少 \(\dfrac{1}{2}\), 共减少了 5 次, 这样, feature map 的大小变为 \(\dfrac{224}{2^5} = 7\), 然后用了一个 \(7 \times 7\) 的 global conv, 得到 \(1 \times 1\) 的 feature map, 因此输入图像的长和宽都不能小于 224.</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> __future__ <span class="keyword">import</span> print_function, division</span><br><span class="line"><span class="keyword">import</span> tensorflow <span class="keyword">as</span> tf</span><br><span class="line"><span class="keyword">import</span> numpy <span class="keyword">as</span> np</span><br><span class="line"><span class="keyword">import</span> cv2</span><br><span class="line"><span class="keyword">import</span> scipy.io</span><br><span class="line"><span class="keyword">import</span> commentjson <span class="keyword">as</span> json</span><br><span class="line">conf = json.load(open(<span class="string">"./config.json"</span>))</span><br><span class="line">logging.basicConfig(</span><br><span class="line">    level=logging.DEBUG,</span><br><span class="line">    format=<span class="string">"%(asctime)s %(filename)s %(funcName)s(): %(lineno)i: %(levelname)s: %(message)s"</span>, )</span><br><span class="line">logger = logging.getLogger(__name__)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">get_variable</span><span class="params">(weights, name=None)</span>:</span></span><br><span class="line">    init = tf.constant_initializer(weights, dtype=tf.float32)</span><br><span class="line">    <span class="keyword">return</span> tf.get_variable(name=name, initializer=init, shape=weights.shape)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">weights_variable</span><span class="params">(shape, stddev=<span class="number">0.02</span>, name=None)</span>:</span></span><br><span class="line">    init = tf.truncated_normal(shape, stddev=stddev)</span><br><span class="line">    <span class="keyword">return</span> tf.Varialbe(init) <span class="keyword">if</span> name <span class="keyword">is</span> <span class="literal">None</span> <span class="keyword">else</span> tf.get_variable(</span><br><span class="line">        name, initializer=init)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">bias_variable</span><span class="params">(shape, name=None)</span>:</span></span><br><span class="line">    init = tf.constant(<span class="number">0.0</span>, shape=shape)</span><br><span class="line">    <span class="keyword">return</span> tf.Varialbe(init) <span class="keyword">if</span> name <span class="keyword">is</span> <span class="literal">None</span> <span class="keyword">else</span> tf.get_variable(</span><br><span class="line">        name, initializer=init)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">conv2d_basic</span><span class="params">(x, W, bias)</span>:</span></span><br><span class="line">    conv = tf.nn.conv2d(x, W, strides=[<span class="number">1</span>, <span class="number">1</span>, <span class="number">1</span>, <span class="number">1</span>], padding=<span class="string">"SAME"</span>)</span><br><span class="line">    <span class="keyword">return</span> tf.nn.bias_add(conv, bias)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">conv2d_transpose_stride</span><span class="params">(x, W, b, output_shape=None, stride=<span class="number">2</span>)</span>:</span></span><br><span class="line">    <span class="keyword">if</span> output_shape <span class="keyword">is</span> <span class="literal">None</span>:</span><br><span class="line">        output_shape = x.get_shape().as_list()</span><br><span class="line">        output_shape[<span class="number">1</span>] *= <span class="number">2</span></span><br><span class="line">        output_shape[<span class="number">2</span>] *= <span class="number">2</span></span><br><span class="line">        output_shape[<span class="number">3</span>] *= W.get_shape().as_list()[<span class="number">2</span>]</span><br><span class="line">    conv = tf.nn.conv2d_transpose(x, W, output_shape, strides=[<span class="number">1</span>, stride, stride, <span class="number">1</span>], padding=<span class="string">"SAME"</span>)</span><br><span class="line">    <span class="keyword">return</span> tf.nn.bias_add(conv, b)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">avg_pool_2x2</span><span class="params">(x)</span>:</span></span><br><span class="line">    <span class="keyword">return</span> tf.nn.avg_pool(x, ksize=(<span class="number">1</span>, <span class="number">2</span>, <span class="number">2</span>, <span class="number">1</span>), strides=(<span class="number">1</span>, <span class="number">2</span>, <span class="number">2</span>, <span class="number">1</span>), padding=<span class="string">"SAME"</span>)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">max_pool_2x2</span><span class="params">(x)</span>:</span></span><br><span class="line">    <span class="keyword">return</span> tf.nn.max_pool(x, ksize=(<span class="number">1</span>, <span class="number">2</span>, <span class="number">2</span>, <span class="number">1</span>), strides=(<span class="number">1</span>, <span class="number">2</span>, <span class="number">2</span>, <span class="number">1</span>), padding=<span class="string">"SAME"</span>)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">vgg</span><span class="params">(weights, image)</span>:</span></span><br><span class="line">    layers = (</span><br><span class="line">    <span class="string">'conv1_1'</span>, <span class="string">'relu1_1'</span>, <span class="string">'conv1_2'</span>, <span class="string">'relu1_2'</span>, <span class="string">'pool1'</span>,</span><br><span class="line">    <span class="string">'conv2_1'</span>, <span class="string">'relu2_1'</span>, <span class="string">'conv2_2'</span>, <span class="string">'relu2_2'</span>, <span class="string">'pool2'</span>,</span><br><span class="line">    <span class="string">'conv3_1'</span>, <span class="string">'relu3_1'</span>, <span class="string">'conv3_2'</span>, <span class="string">'relu3_2'</span>, <span class="string">'conv3_3'</span>, <span class="string">'relu3_3'</span>, <span class="string">'conv3_4'</span>, <span class="string">'relu3_4'</span>, <span class="string">'pool3'</span>,</span><br><span class="line">    <span class="string">'conv4_1'</span>, <span class="string">'relu4_1'</span>, <span class="string">'conv4_2'</span>, <span class="string">'relu4_2'</span>, <span class="string">'conv4_3'</span>, <span class="string">'relu4_3'</span>, <span class="string">'conv4_4'</span>, <span class="string">'relu4_4'</span>, <span class="string">'pool4'</span>,</span><br><span class="line">    <span class="string">'conv5_1'</span>, <span class="string">'relu5_1'</span>, <span class="string">'conv5_2'</span>, <span class="string">'relu5_2'</span>, <span class="string">'conv5_3'</span>, <span class="string">'relu5_3'</span>, <span class="string">'conv5_4'</span>, <span class="string">'relu5_4'</span>, <span class="string">'pool5'</span>,</span><br><span class="line">    )</span><br><span class="line">    net = &#123;&#125;</span><br><span class="line">    current = image</span><br><span class="line">    <span class="keyword">for</span> idx, name <span class="keyword">in</span> enumerate(layers):</span><br><span class="line">        kind = name[:<span class="number">4</span>]</span><br><span class="line">        <span class="keyword">if</span> kind == <span class="string">"conv"</span>:</span><br><span class="line">            kernels, bias = weights[idx][<span class="number">0</span>][<span class="number">0</span>][<span class="number">0</span>][<span class="number">0</span>]</span><br><span class="line">            kernels = get_variable(np.transpose(kernels, (<span class="number">1</span>, <span class="number">0</span>, <span class="number">2</span>, <span class="number">3</span>)), name=name+<span class="string">'_w'</span>)</span><br><span class="line">            bias = get_variable(bias.reshape(<span class="number">-1</span>), name=name+<span class="string">'_b'</span>)</span><br><span class="line">            current = conv2d_basic(current, kernels, bias)</span><br><span class="line">        <span class="keyword">elif</span> kind == <span class="string">'relu'</span>:</span><br><span class="line">            current = tf.nn.relu(current, name=name)</span><br><span class="line">        <span class="keyword">elif</span> kind == <span class="string">"pool"</span>:</span><br><span class="line">            current = avg_pool_2x2(current)</span><br><span class="line">        net[name] = current</span><br><span class="line">    <span class="keyword">return</span> net</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">inference</span><span class="params">(image, keep_prob)</span>:</span></span><br><span class="line">    image = image-tf.constant([<span class="number">123.68</span>, <span class="number">116.779</span>, <span class="number">103.939</span>])</span><br><span class="line">    modelpath = conf[<span class="string">"vgg"</span>]</span><br><span class="line">    model_data = scipy.io.loadmat(modelpath)</span><br><span class="line">    weights = np.squeeze(model_data[<span class="string">'layers'</span>])</span><br><span class="line">    <span class="keyword">with</span> tf.variable_scope(<span class="string">"inference"</span>):</span><br><span class="line">        image_net = vgg(weights, image)</span><br><span class="line">        conv_final_layer = image_net[<span class="string">"conv5_3"</span>]</span><br><span class="line">        pool5 = max_pool_2x2(conv_final_layer)</span><br><span class="line">        W6 = weights_variable([<span class="number">7</span>, <span class="number">7</span>, <span class="number">512</span>, <span class="number">4096</span>], name=<span class="string">"W6"</span>)</span><br><span class="line">        b6 = bias_variable([<span class="number">4096</span>], name=<span class="string">"b6"</span>)</span><br><span class="line">        conv6 = conv2d_basic(pool5, W6, b6)</span><br><span class="line">        relu6 = tf.nn.relu(conv6, name=<span class="string">"relu6"</span>)</span><br><span class="line">        relu_dropout6 = tf.nn. dropout(relu6, keep_prob=keep_prob)</span><br><span class="line">        W7 = weights_variable([<span class="number">1</span>, <span class="number">1</span>, <span class="number">4096</span>, <span class="number">4096</span>], name=<span class="string">"W7"</span>)</span><br><span class="line">        b7 = bias_variable([<span class="number">4096</span>], name=<span class="string">"b7"</span>)</span><br><span class="line">        conv7 = conv2d_basic(relu_dropout6, W7, b7)</span><br><span class="line">        relu7 = tf.nn.relu(conv7, name=<span class="string">"relu7"</span>)</span><br><span class="line">        relu_dropout7 = tf.nn.dropout(relu7, keep_prob=keep_prob)</span><br><span class="line">        W8 = weights_variable([<span class="number">1</span>, <span class="number">1</span>, <span class="number">4096</span>, conf[<span class="string">"num_of_classes"</span>]], name=<span class="string">"W8"</span>)</span><br><span class="line">        b8 = bias_variable([conf[<span class="string">"num_of_classes"</span>]], name=<span class="string">"b8"</span>)</span><br><span class="line">        conv8 = conv2d_basic(relu_dropout7, W8, b8)</span><br><span class="line"></span><br><span class="line">        <span class="comment"># upscale</span></span><br><span class="line">        deconv_shape1 = image_net[<span class="string">"pool4"</span>].get_shape()</span><br><span class="line">        W_t1 = weights_variable([<span class="number">4</span>, <span class="number">4</span>, deconv_shape1[<span class="number">3</span>].value, conf[<span class="string">"num_of_classes"</span>]], name=<span class="string">"W_t1"</span>)</span><br><span class="line">        b_t1 = bias_variable([deconv_shape1[<span class="number">3</span>].value], name=<span class="string">"b_t1"</span>)</span><br><span class="line">        conv_t1 = conv2d_transpose_stride(conv8, W_t1, b_t1, output_shape=tf.shape(image_net[<span class="string">"pool4"</span>]))</span><br><span class="line">        fuse_1 = tf.add(conv_t1, image_net[<span class="string">"pool4"</span>], name=<span class="string">"fuse_1"</span>)</span><br><span class="line"></span><br><span class="line">        deconv_shape2 = image_net[<span class="string">"pool3"</span>].get_shape()</span><br><span class="line">        W_t2 = weights_variable([<span class="number">4</span>, <span class="number">4</span>, deconv_shape2[<span class="number">3</span>].value, deconv_shape1[<span class="number">3</span>].value], name=<span class="string">"W_t2"</span>)</span><br><span class="line">        b_t2 = bias_variable([deconv_shape2[<span class="number">3</span>].value], name=<span class="string">"b_t2"</span>)</span><br><span class="line">        conv_t2 = conv2d_transpose_stride(fuse_1, W_t2, b_t2, output_shape=tf.shape(image_net[<span class="string">"pool3"</span>]))</span><br><span class="line">        fuse_2 = tf.add(conv_t2, image_net[<span class="string">"pool3"</span>], name=<span class="string">"fuse_2"</span>)</span><br><span class="line"></span><br><span class="line">        shape = tf.shape(image)</span><br><span class="line">        deconv_shape3 = tf.stack([shape[<span class="number">0</span>], shape[<span class="number">1</span>], shape[<span class="number">2</span>], conf[<span class="string">"num_of_classes"</span>]])</span><br><span class="line">        W_t3 = weights_variable([<span class="number">16</span>, <span class="number">16</span>, conf[<span class="string">"num_of_classes"</span>], deconv_shape2[<span class="number">3</span>].value], name=<span class="string">"W_t3"</span>)</span><br><span class="line">        b_t3 = bias_variable([conf[<span class="string">"num_of_classes"</span>]], name=<span class="string">"b_t3"</span>)</span><br><span class="line">        conv_t3 = conv2d_transpose_stride(fuse_2, W_t3, b_t3, output_shape=deconv_shape3, stride=<span class="number">8</span>)</span><br><span class="line"></span><br><span class="line">        pred = tf.argmax(conv_t3, dimension=<span class="number">3</span>, name=<span class="string">"prediction"</span>)</span><br><span class="line">    <span class="keyword">return</span> tf.expand_dims(pred, dim=<span class="number">3</span>), conv_t3</span><br></pre></td></tr></table></figure>
+
+<p>结果如下, 视觉效果不是很好, 不过我懒得改了😂:</p>
+<center><img src="/content/images/fcn/test.png" width=800></center>
+预测结果已经很准了, 但是, 仔细观察还是有一些差别, 尤其是骑车后面骑自行的人, 仔细观察会有一些噪点和毛刺.
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Deep-Learning/" rel="tag"># Deep Learning</a>
+              <a href="/tags/CNN/" rel="tag"># CNN</a>
+              <a href="/tags/FCN/" rel="tag"># FCN</a>
+              <a href="/tags/Semantic-Segmentation/" rel="tag"># Semantic Segmentation</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2017/06/03/mxnet-source-code-Bind/" rel="prev" title="MXNet 源码分析-Bind">
+      <i class="fa fa-chevron-left"></i> MXNet 源码分析-Bind
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2017/06/23/cross-entropy/" rel="next" title="怎样理解 Cross Entropy">
+      怎样理解 Cross Entropy <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#快速解释"><span class="nav-number">1.</span> <span class="nav-text">快速解释</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#代码实现"><span class="nav-number">2.</span> <span class="nav-text">代码实现</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yushu.gao</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">87</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">32</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">94</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yushu.gao</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS-MML_HTMLorMML';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+</body>
+</html>
