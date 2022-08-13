@@ -20,15 +20,15 @@
     var CONFIG = {"hostname":"shuokay.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":false,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
   </script>
 
-  <meta name="description" content="对Linux不太熟悉的同学，CUDA和MKL的安装最好选择默认路径，因为后面给出的例子都是在默认安装路径的下的配置。教程不是非常详细，如果了解Linux的一些基本内容，该教程可以帮助你顺利完成CAFFE的安装。如果对Linux比较熟悉，完全可以抛开本教程，按照官方教程安装成功，本教程主要是写给对于Linux不是很熟悉的同学。">
+  <meta name="description" content="对 Linux 不太熟悉的同学，CUDA 和 MKL 的安装最好选择默认路径，因为后面给出的例子都是在默认安装路径的下的配置。教程不是非常详细，如果了解 Linux 的一些基本内容，该教程可以帮助你顺利完成 CAFFE 的安装。如果对 Linux 比较熟悉，完全可以抛开本教程，按照官方教程安装成功，本教程主要是写给对于 Linux 不是很熟悉的同学。">
 <meta property="og:type" content="article">
 <meta property="og:title" content="在 Ubuntu 12.04 上面安装 CAFFE">
 <meta property="og:url" content="http://shuokay.com/install-caffe/index.html">
 <meta property="og:site_name" content="Memo">
-<meta property="og:description" content="对Linux不太熟悉的同学，CUDA和MKL的安装最好选择默认路径，因为后面给出的例子都是在默认安装路径的下的配置。教程不是非常详细，如果了解Linux的一些基本内容，该教程可以帮助你顺利完成CAFFE的安装。如果对Linux比较熟悉，完全可以抛开本教程，按照官方教程安装成功，本教程主要是写给对于Linux不是很熟悉的同学。">
+<meta property="og:description" content="对 Linux 不太熟悉的同学，CUDA 和 MKL 的安装最好选择默认路径，因为后面给出的例子都是在默认安装路径的下的配置。教程不是非常详细，如果了解 Linux 的一些基本内容，该教程可以帮助你顺利完成 CAFFE 的安装。如果对 Linux 比较熟悉，完全可以抛开本教程，按照官方教程安装成功，本教程主要是写给对于 Linux 不是很熟悉的同学。">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2016-05-10T09:09:16.000Z">
-<meta property="article:modified_time" content="2022-08-13T02:16:25.727Z">
+<meta property="article:modified_time" content="2022-08-13T05:37:21.925Z">
 <meta property="article:author" content="yushu.gao">
 <meta property="article:tag" content="Caffe">
 <meta property="article:tag" content="Ubuntu">
@@ -213,21 +213,21 @@
     <div class="post-body" itemprop="articleBody">
 
       
-        <p>对Linux不太熟悉的同学，CUDA和MKL的安装最好选择默认路径，因为后面给出的例子都是在默认安装路径的下的配置。<br>教程不是非常详细，如果了解Linux的一些基本内容，该教程可以帮助你顺利完成CAFFE的安装。<br>如果对Linux比较熟悉，完全可以抛开本教程，按照官方教程安装成功，本教程主要是写给对于Linux不是很熟悉的同学。</p>
+        <p>对 Linux 不太熟悉的同学，CUDA 和 MKL 的安装最好选择默认路径，因为后面给出的例子都是在默认安装路径的下的配置。<br>教程不是非常详细，如果了解 Linux 的一些基本内容，该教程可以帮助你顺利完成 CAFFE 的安装。<br>如果对 Linux 比较熟悉，完全可以抛开本教程，按照官方教程安装成功，本教程主要是写给对于 Linux 不是很熟悉的同学。</p>
 <span id="more"></span>
 <h1 id="安装环境"><a href="#安装环境" class="headerlink" title="安装环境"></a>安装环境</h1><p>Ubuntu 12.04 LTS</p>
 <h1 id="安装依赖"><a href="#安装依赖" class="headerlink" title="安装依赖"></a>安装依赖</h1><ul>
-<li>安装gcc等编译工具</li>
+<li>安装 gcc 等编译工具</li>
 </ul>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">apt-get install build-essential</span><br></pre></td></tr></table></figure>
 
 <ul>
-<li>fortran编译工具（安装python wrapper 时候需要fortran编译器)</li>
+<li>fortran 编译工具（安装 python wrapper 时候需要 fortran 编译器)</li>
 </ul>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">apt-get install gfortran</span><br></pre></td></tr></table></figure>
 
 <ul>
-<li>安装git (下载 caffe的时候会用到)</li>
+<li>安装 git (下载 caffe 的时候会用到)</li>
 </ul>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">apt-get install git</span><br></pre></td></tr></table></figure>
 
@@ -237,56 +237,56 @@
  <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo apt-get install libprotobuf-dev libleveldb-dev libsnappy-dev libopencv-dev libboost-all-dev libhdf5-serial-dev</span><br></pre></td></tr></table></figure>
 
 <ul>
-<li>安装glog</li>
+<li>安装 glog</li>
 </ul>
  <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">wget http://google-glog.googlecode.com/files/glog-0.3.3.tar.gz</span><br><span class="line">tar xf glog-0.3.3.tar.gz</span><br><span class="line">./configure; make install</span><br></pre></td></tr></table></figure>
 
-<h1 id="安装CUDA-toolkit"><a href="#安装CUDA-toolkit" class="headerlink" title="安装CUDA toolkit"></a>安装CUDA toolkit</h1><p>*下载cuda toolkit</p>
+<h1 id="安装-CUDA-toolkit"><a href="#安装-CUDA-toolkit" class="headerlink" title="安装 CUDA toolkit"></a>安装 CUDA toolkit</h1><p>*下载 cuda toolkit</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">wget http://developer.download.nvidia.com/compute/cuda/6_0/rel/installers/cuda_6.0.37_linux_64.run</span><br></pre></td></tr></table></figure>
 
 <ul>
-<li>如果你要安装driver(不安装也不会有问题，如果没有GPU的话，一定不能安装driver，因为CUDA找不到GPU，安装会失败)，还要切换到text模式，然后停掉图形界面，方法如下</li>
+<li>如果你要安装 driver(不安装也不会有问题，如果没有 GPU 的话，一定不能安装 driver，因为 CUDA 找不到 GPU，安装会失败)，还要切换到 text 模式，然后停掉图形界面，方法如下</li>
 </ul>
  <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo service lightdm stop</span><br></pre></td></tr></table></figure>
 
-<p>** 添加 cuda_6.0.37_linux_64.run 的执行权限:</p>
+<p>** 添加 cuda_6.0.37_linux_64.run 的执行权限：</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">chmod</span> a+x cuda_6.0.37_linux_64.run</span><br></pre></td></tr></table></figure>
 
 <ul>
-<li>安装cuda_6.0.37_linux_64.run:</li>
+<li>安装 cuda_6.0.37_linux_64.run:</li>
 </ul>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./ cuda_6.0.37_linux_64.run</span><br></pre></td></tr></table></figure>
 
 <p>记住安装的路径（A），后面配置<code>Makefile.config</code>会用到</p>
-<h1 id="安装-BLAS"><a href="#安装-BLAS" class="headerlink" title="安装 BLAS"></a>安装 BLAS</h1><p>可以安装网站上提供的任意一个（ATLAS、MKL、OpenBLAS），目前我安装过ATLAS和MKL，MKL 的数度大约是ATLAS的7倍, 其中MKL是Intel官方推出的线性计算库，下载需要注册帐号，并且收费.</p>
+<h1 id="安装-BLAS"><a href="#安装-BLAS" class="headerlink" title="安装 BLAS"></a>安装 BLAS</h1><p>可以安装网站上提供的任意一个（ATLAS、MKL、OpenBLAS），目前我安装过 ATLAS 和 MKL，MKL 的数度大约是 ATLAS 的 7 倍，其中 MKL 是 Intel 官方推出的线性计算库，下载需要注册帐号，并且收费。</p>
 <ul>
-<li>安装ATLAS</li>
+<li>安装 ATLAS</li>
 </ul>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo apt-get install libatlas-base-dev</span><br></pre></td></tr></table></figure>
 
 <ul>
-<li><p>安装MKL：<br>** 下载并解压MKL<br>** 进入到解压的目录：</p>
+<li><p>安装 MKL：<br>** 下载并解压 MKL<br>** 进入到解压的目录：</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">chmod</span> a+x install.sh&amp;&amp;./install.sh</span><br></pre></td></tr></table></figure></li>
 </ul>
-<h1 id="安装CAFFE"><a href="#安装CAFFE" class="headerlink" title="安装CAFFE"></a>安装CAFFE</h1><ul>
-<li>把代码clone到本地</li>
+<h1 id="安装-CAFFE"><a href="#安装-CAFFE" class="headerlink" title="安装 CAFFE"></a>安装 CAFFE</h1><ul>
+<li>把代码 clone 到本地</li>
 </ul>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git <span class="built_in">clone</span> https://github.com/BVLC/caffe.git</span><br></pre></td></tr></table></figure>
 
 <ul>
-<li>切换到caffe目录</li>
+<li>切换到 caffe 目录</li>
 </ul>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> caffe</span><br></pre></td></tr></table></figure>
 
 <ul>
-<li>复制Makefile.config</li>
+<li>复制 Makefile.config</li>
 </ul>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cp</span> Makefile.config.example Makefile.config</span><br></pre></td></tr></table></figure>
 
 <ul>
-<li><p>编辑Makefile.config<br>  ** 配置CUDA_DIR<br>  <code>CUDA_DIR := /usr/local/cuda</code> （cuda的安装路径，即上面A指定的目录）<br>  ** 配置BLAS<br>  <code>BLAS := atlas</code><br>  或者<br>  <code>BLAS := mkl</code>，此种配置需要继续配置mkl的include和lib，如下：<br>  <code>BLAS_INCLUDE := /opt/intel/mkl/include</code>（mkl的位置，此处使用的是MKL默认路径）<br>  <code>BLAS_LIB := /opt/intel/mkl/lib/intel64</code>（mkl的位置，此处使用的是MKL默认路径）</p>
+<li><p>编辑 Makefile.config<br>  ** 配置 CUDA_DIR<br>  <code>CUDA_DIR := /usr/local/cuda</code> （cuda 的安装路径，即上面 A 指定的目录）<br>  ** 配置 BLAS<br>  <code>BLAS := atlas</code><br>  或者<br>  <code>BLAS := mkl</code>，此种配置需要继续配置 mkl 的 include 和 lib，如下：<br>  <code>BLAS_INCLUDE := /opt/intel/mkl/include</code>（mkl的位置，此处使用的是MKL默认路径）<br>  <code>BLAS_LIB := /opt/intel/mkl/lib/intel64</code>（mkl的位置，此处使用的是MKL默认路径）</p>
 </li>
-<li><p>配置Python</p>
+<li><p>配置 Python</p>
 </li>
 </ul>
 <figure class="highlight makefile"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">PYTHON_INCLUDE := /usr/local/<span class="keyword">include</span>/python2.7 \</span><br><span class="line">                /usr/local/lib/python2.7/dist-packages/numpy/core/<span class="keyword">include</span> \</span><br><span class="line">                /usr/<span class="keyword">include</span>/python2.7</span><br><span class="line">PYTHON_LIB := /usr/local/lib /usr/lib</span><br></pre></td></tr></table></figure>
@@ -297,17 +297,17 @@
 <figure class="highlight makefile"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">INCLUDE_DIRS := <span class="variable">$(PYTHON_INCLUDE)</span> /usr/local/<span class="keyword">include</span></span><br><span class="line">LIBRARY_DIRS := <span class="variable">$(PYTHON_LIB)</span> /usr/local/lib /usr/lib</span><br></pre></td></tr></table></figure>
 
 <ul>
-<li>编译CAFFE</li>
+<li>编译 CAFFE</li>
 </ul>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">make all</span><br><span class="line">make <span class="built_in">test</span></span><br><span class="line">make runtest</span><br></pre></td></tr></table></figure>
 
-<p>到此就完成了CAFFE安装的主体部分。为了使CAFFE能够使用，还需要配置环境变量, 方法如下:<br>配置<code>LD_LIBRARY_PATH</code>，最好写入到 <del>&#x2F;.bashrc中(如果写入到&#96;</del>&#x2F;.bashrc<code>, 写入并保存之后记得 </code>source ~&#x2F;.bashrc&#96;)：</p>
+<p>到此就完成了 CAFFE 安装的主体部分。为了使 CAFFE 能够使用，还需要配置环境变量，方法如下：<br>配置<code>LD_LIBRARY_PATH</code>，最好写入到 <del>&#x2F;.bashrc 中 (如果写入到&#96;</del>&#x2F;.bashrc<code>, 写入并保存之后记得 </code>source ~&#x2F;.bashrc&#96;)：</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">export</span> LD_LIBRARY_PATH=/usr/local/cuda/lib64/:/opt/intel/mkl/lib/intel64:<span class="variable">$LD_LIBRARY_PATH</span></span><br></pre></td></tr></table></figure>
 
-<p>到此处caffe的安装工作已完成。下面是安装python wrapper的过程(optional)<br>切换到 caffe&#x2F;python，选用豆瓣的源:</p>
+<p>到此处 caffe 的安装工作已完成。下面是安装 python wrapper 的过程 (optional)<br>切换到 caffe&#x2F;python，选用豆瓣的源:</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">pip install numpy <span class="comment"># (如果跳过这一步，后面会出错，我猜是requirements.txt中package顺序的问题)</span></span><br><span class="line">pip install -r /path/to/caffe/python/requirements.txt  –i  http://pypi.douban.com/simple/</span><br></pre></td></tr></table></figure>
 
-<p>切换到 caffe的根目录然后</p>
+<p>切换到 caffe 的根目录然后</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">make pycaffe</span><br></pre></td></tr></table></figure>
 
     </div>
@@ -393,7 +393,7 @@
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
-          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%AE%89%E8%A3%85%E7%8E%AF%E5%A2%83"><span class="nav-number">1.</span> <span class="nav-text">安装环境</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%AE%89%E8%A3%85%E4%BE%9D%E8%B5%96"><span class="nav-number">2.</span> <span class="nav-text">安装依赖</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%AE%89%E8%A3%85CUDA-toolkit"><span class="nav-number">3.</span> <span class="nav-text">安装CUDA toolkit</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%AE%89%E8%A3%85-BLAS"><span class="nav-number">4.</span> <span class="nav-text">安装 BLAS</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%AE%89%E8%A3%85CAFFE"><span class="nav-number">5.</span> <span class="nav-text">安装CAFFE</span></a></li></ol></div>
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%AE%89%E8%A3%85%E7%8E%AF%E5%A2%83"><span class="nav-number">1.</span> <span class="nav-text">安装环境</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%AE%89%E8%A3%85%E4%BE%9D%E8%B5%96"><span class="nav-number">2.</span> <span class="nav-text">安装依赖</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%AE%89%E8%A3%85-CUDA-toolkit"><span class="nav-number">3.</span> <span class="nav-text">安装 CUDA toolkit</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%AE%89%E8%A3%85-BLAS"><span class="nav-number">4.</span> <span class="nav-text">安装 BLAS</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%AE%89%E8%A3%85-CAFFE"><span class="nav-number">5.</span> <span class="nav-text">安装 CAFFE</span></a></li></ol></div>
       </div>
       <!--/noindex-->
 
@@ -506,5 +506,11 @@
 
   
 
+
+<script type="text/javascript" src="https://viewer.diagrams.net/js/viewer-static.min.js"></script>
+<style>
+.geDiagramContainer { width: 100% !important; }
+</style>
 </body>
+
 </html>

@@ -20,15 +20,15 @@
     var CONFIG = {"hostname":"shuokay.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":false,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
   </script>
 
-  <meta name="description" content="Softmax 是在神经网络的中应用极其普遍的一种操作, 搞清楚 softmax 极其对对应的 cross entropy loss function 的意义及数学推导过程可以有好的帮助理解源码. 在这篇文章中, 详细地记录了 softmax, cross entropy loss, 和其对应的梯度的推导过程, 最后, 附加了 MXNet 中的梯度计算代码, 可以帮助直观的理解开源代码中梯度的计算">
+  <meta name="description" content="Softmax 是在神经网络的中应用极其普遍的一种操作，搞清楚 softmax 极其对对应的 cross entropy loss function 的意义及数学推导过程可以有好的帮助理解源码。在这篇文章中，详细地记录了 softmax, cross entropy loss, 和其对应的梯度的推导过程，最后，附加了 MXNet 中的梯度计算代码，可以帮助直观的理解开源代码中梯度的计算过程。">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Softmax 输出及其反向传播推导">
 <meta property="og:url" content="http://shuokay.com/softmax-loss/index.html">
 <meta property="og:site_name" content="Memo">
-<meta property="og:description" content="Softmax 是在神经网络的中应用极其普遍的一种操作, 搞清楚 softmax 极其对对应的 cross entropy loss function 的意义及数学推导过程可以有好的帮助理解源码. 在这篇文章中, 详细地记录了 softmax, cross entropy loss, 和其对应的梯度的推导过程, 最后, 附加了 MXNet 中的梯度计算代码, 可以帮助直观的理解开源代码中梯度的计算">
+<meta property="og:description" content="Softmax 是在神经网络的中应用极其普遍的一种操作，搞清楚 softmax 极其对对应的 cross entropy loss function 的意义及数学推导过程可以有好的帮助理解源码。在这篇文章中，详细地记录了 softmax, cross entropy loss, 和其对应的梯度的推导过程，最后，附加了 MXNet 中的梯度计算代码，可以帮助直观的理解开源代码中梯度的计算过程。">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2016-07-20T09:32:20.000Z">
-<meta property="article:modified_time" content="2022-08-13T02:16:25.734Z">
+<meta property="article:modified_time" content="2022-08-13T05:44:52.241Z">
 <meta property="article:author" content="yushu.gao">
 <meta property="article:tag" content="CNN">
 <meta property="article:tag" content="MXNet">
@@ -218,7 +218,7 @@
     <div class="post-body" itemprop="articleBody">
 
       
-        <p>Softmax 是在神经网络的中应用极其普遍的一种操作, 搞清楚 softmax 极其对对应的 cross entropy loss function 的意义及数学推导过程可以有好的帮助理解源码. 在这篇文章中, 详细地记录了 softmax, cross entropy loss, 和其对应的梯度的推导过程, 最后, 附加了 MXNet 中的梯度计算代码, 可以帮助直观的理解开源代码中梯度的计算过程.</p>
+        <p>Softmax 是在神经网络的中应用极其普遍的一种操作，搞清楚 softmax 极其对对应的 cross entropy loss function 的意义及数学推导过程可以有好的帮助理解源码。在这篇文章中，详细地记录了 softmax, cross entropy loss, 和其对应的梯度的推导过程，最后，附加了 MXNet 中的梯度计算代码，可以帮助直观的理解开源代码中梯度的计算过程。</p>
 <span id="more"></span>
 <h1 id="Softmax-Function"><a href="#Softmax-Function" class="headerlink" title="Softmax Function"></a>Softmax Function</h1><p>首先给出 Softmax function 的定义</p>
 
@@ -226,38 +226,38 @@
 y_c=\zeta(\textbf{z})_c = \dfrac{e^{z_c}}{\sum_{d=1}^C{e^{z_d}}} \text{  for } c=1, \dots, C
 \]
 
-<p>其中, \(\textbf{z}\) 是输入, C 维的向量, \(\textbf{y}\) 是输出, C 维向量. 而且, \(y\) 的取值范围是 \(\lbrack 0,1 \rbrack\). 这样, C 个类别的概率分别是</p>
+<p>其中，\(\textbf{z}\) 是输入，C 维的向量，\(\textbf{y}\) 是输出，C 维向量。而且，\(y\) 的取值范围是 \(\lbrack 0,1 \rbrack\). 这样，C 个类别的概率分别是</p>
 
 \[
 \left\lbrack\matrix{P(t=1\vert\textbf{z})\cr \vdots \cr  P(t=C\vert\textbf{z})}\right\rbrack=\left\lbrack\matrix{\zeta(\textbf{z}_1)\cr \vdots \cr  \zeta(\textbf{z}_C)}\right\rbrack = \dfrac{1}{\sum_{d=1}^C{e^{z_d}}}\left\lbrack\matrix{e^{z_1} \cr \vdots \cr e^{e^{z_C}} }\right\rbrack
 \]
 
 
-<h1 id="Softmax-函数的导数"><a href="#Softmax-函数的导数" class="headerlink" title="Softmax 函数的导数"></a>Softmax 函数的导数</h1><p>先给出 softmax 的导数, 后面会用到. 首先, 为了方便, 定义符号 \(\sum_C&#x3D;\sum_{d&#x3D;1}^C{e^{z_d}}\text{ for } c&#x3D;1 \dots C\), 所以, 给定一个feature vector, 输出类别 \(c\) 的概率是 \(y_c&#x3D;\dfrac{e^{z_c}}{\sum_c}\).</p>
+<h1 id="Softmax-函数的导数"><a href="#Softmax-函数的导数" class="headerlink" title="Softmax 函数的导数"></a>Softmax 函数的导数</h1><p>先给出 softmax 的导数，后面会用到。首先，为了方便，定义符号 \(\sum_C&#x3D;\sum_{d&#x3D;1}^C{e^{z_d}}\text{ for } c&#x3D;1 \dots C\), 所以，给定一个 feature vector, 输出类别 \(c\) 的概率是 \(y_c&#x3D;\dfrac{e^{z_c}}{\sum_c}\).</p>
 
 \[\begin{array}{l}if\;i = j:\;\dfrac{{\partial {y_i}}}{{\partial {z_j}}} = \dfrac{{\partial {y_i}}}{{\partial {z_i}}} = \dfrac{{\partial \dfrac{{{e^{{z_i}}}}}{{\sum\nolimits_C {} }}}}{{\partial {z_i}}} = \dfrac{{{e^{{z_i}}} \cdot \sum\nolimits_C {}  - {e^{{z_i}}} \cdot {e^{{z_i}}}}}{{{{\left( {\sum\nolimits_C {} } \right)}^2}}} = \dfrac{{{e^{{z_i}}}\left( {\sum\nolimits_C {}  - {e^{{z_i}}}} \right)}}{{\sum\nolimits_C {}  \cdot \sum\nolimits_C {} }}{\rm{ = }}\dfrac{{{e^{{z_i}}}}}{{\sum\nolimits_C {} }} \cdot \dfrac{{\sum\nolimits_C {}  - {e^{{z_i}}}}}{{\sum\nolimits_C {} }} = {y_i} \cdot \left( {1 - {y_i}} \right)\\if\;i \ne j:\;\dfrac{{\partial {y_i}}}{{\partial {z_j}}} = \dfrac{{\partial \dfrac{{{e^{{z_i}}}}}{{\sum\nolimits_C {} }}}}{{\partial {z_j}}} = \dfrac{{0 \cdot \sum\nolimits_C {}  - {e^{{z_i}}} \cdot {e^{{z_j}}}}}{{{{\left( {\sum\nolimits_C {} } \right)}^2}}} =  - \dfrac{{{e^{{z_i}}}}}{{\sum\nolimits_C {} }} \cdot \dfrac{{{e^{{z_j}}}}}{{\sum\nolimits_C {} }} =  - {y_i} \cdot {y_j}\end{array}\]
 
 
-<h1 id="损失函数-cross-entropy-loss-function"><a href="#损失函数-cross-entropy-loss-function" class="headerlink" title="损失函数 cross entropy loss function"></a>损失函数 cross entropy loss function</h1><p>目标函数本质上是通过最大似然推倒出来的, cross entropy 不过是个高大上的名词.</p>
+<h1 id="损失函数-cross-entropy-loss-function"><a href="#损失函数-cross-entropy-loss-function" class="headerlink" title="损失函数 cross entropy loss function"></a>损失函数 cross entropy loss function</h1><p>目标函数本质上是通过最大似然推倒出来的，cross entropy 不过是个高大上的名词。</p>
 
 \[
 \underset{\theta}{\arg\max} \cal{L}(\theta \vert \textbf{t,z})
 \]
 
-<p>把上述似然函数写成联合分布的形式:</p>
+<p>把上述似然函数写成联合分布的形式：</p>
 
 \[
 P(\textbf{t,x}\vert \theta)=P(\textbf{t}\vert \textbf{z}, \theta)P(\textbf{z}\vert \theta)
 \]
 
 
-<p>\(\textbf{z}\) 的分布对于结果没有影响, 只需要关心 \(P(\textbf{t}\vert \textbf{z}, \theta)\). 对于固定的 \(\theta\), 可以记成\(P(\textbf{t}\vert \textbf{z})\), 又因为各个 \(t_i\) 是独立的, 只有一个 \(t_i\) 是激活的, 所以,</p>
+<p>\(\textbf{z}\) 的分布对于结果没有影响，只需要关心 \(P(\textbf{t}\vert \textbf{z}, \theta)\). 对于固定的 \(\theta\), 可以记成\(P(\textbf{t}\vert \textbf{z})\), 又因为各个 \(t_i\) 是独立的，只有一个 \(t_i\) 是激活的，所以，</p>
 
 \[
 P(\textbf{t}\vert\textbf{z})=\prod_{i=c}^{C}P\left( t_c \vert \textbf{z}\right)^{t_c}=\prod_{i=c}^C\zeta(\textbf{z})_c^{t_c}=\prod_{i=c}^{C}y_c^{t_c}
 \]
 
-<p>maximizing 上面的式子, 相当于 minimizing 上述式子去对数, 再取负数, 最终得到的优化目标是:</p>
+<p>maximizing 上面的式子，相当于 minimizing 上述式子去对数，再取负数，最终得到的优化目标是：</p>
 
 \[
 -\log \prod_{i=c}^{C}y_c^{t_c}=-\sum_{i=c}^{C}t_c \cdot \log(y_c)
@@ -269,7 +269,7 @@ P(\textbf{t}\vert\textbf{z})=\prod_{i=c}^{C}P\left( t_c \vert \textbf{z}\right)^
 \xi(X, Y) = \sum_{i=1}^n \xi(\textbf{t}_i, \textbf{y}_i) = - \sum_{i=1}^n \sum_{i=c}^C t_{ic} \cdot \log(y_{ic})
 \]
 
-<p>当且仅当样本 \(i\)属于类别 \(c\) 的时候, \(t_{ic}&#x3D;1\)</p>
+<p>当且仅当样本 \(i\) 属于类别 \(c\) 的时候，\(t_{ic}&#x3D;1\)</p>
 <h1 id="corss-entropy-loss-function-的梯度"><a href="#corss-entropy-loss-function-的梯度" class="headerlink" title="corss entropy loss function 的梯度"></a>corss entropy loss function 的梯度</h1>
 \[
 \begin{align}
@@ -538,5 +538,11 @@ P(\textbf{t}\vert\textbf{z})=\prod_{i=c}^{C}P\left( t_c \vert \textbf{z}\right)^
 
   
 
+
+<script type="text/javascript" src="https://viewer.diagrams.net/js/viewer-static.min.js"></script>
+<style>
+.geDiagramContainer { width: 100% !important; }
+</style>
 </body>
+
 </html>

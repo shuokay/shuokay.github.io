@@ -28,7 +28,7 @@
 <meta property="og:description" content="Linux 系统上 samba 服务的安装和使用方法">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2015-12-31T17:19:10.000Z">
-<meta property="article:modified_time" content="2022-08-13T02:16:25.733Z">
+<meta property="article:modified_time" content="2022-08-13T05:45:08.529Z">
 <meta property="article:author" content="yushu.gao">
 <meta property="article:tag" content="Samba">
 <meta name="twitter:card" content="summary">
@@ -221,7 +221,7 @@
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo apt-get install samba</span><br></pre></td></tr></table></figure>
 
 <ul>
-<li>设置用户密码, 该用户必须是系统中已经存在的用户, 该密码和登录系统的密码是相互独立的</li>
+<li>设置用户密码，该用户必须是系统中已经存在的用户，该密码和登录系统的密码是相互独立的</li>
 </ul>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo smbpasswd -a &lt;user_name&gt;</span><br></pre></td></tr></table></figure>
 
@@ -230,7 +230,7 @@
 </ul>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo emacs -nw /etc/samba/smb.conf</span><br></pre></td></tr></table></figure>
 
-<p><code>/etc/samba/smb.conf</code> 配置示例:</p>
+<p><code>/etc/samba/smb.conf</code> 配置示例：</p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">[gaoyushu]</span><br><span class="line">path = /</span><br><span class="line">valid users = gaoyushu</span><br><span class="line">read only = no</span><br></pre></td></tr></table></figure>
 
 <ul>
@@ -238,7 +238,7 @@
 </ul>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo service smbd restart</span><br></pre></td></tr></table></figure>
 
-<p>在docker中需要使用下面的命令启动：</p>
+<p>在 docker 中需要使用下面的命令启动：</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo smbd -D -p 8008</span><br></pre></td></tr></table></figure>
 
 <ul>
@@ -246,19 +246,19 @@
 </ul>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">testparm</span><br></pre></td></tr></table></figure>
 
-<p><code>/etc/samba/smb.conf</code> 配置示例:</p>
+<p><code>/etc/samba/smb.conf</code> 配置示例：</p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">[&lt;folder_name&gt;]</span><br><span class="line">path = /home/&lt;user_name&gt;/&lt;folder_name&gt;</span><br><span class="line">valid users = &lt;user_name&gt;</span><br><span class="line">read only = no</span><br></pre></td></tr></table></figure>
 
-<h1 id="用户端安装和配置"><a href="#用户端安装和配置" class="headerlink" title="用户端安装和配置"></a>用户端安装和配置</h1><p>为了方便在命令行使用, 使用 CIFS, 其它不考虑.</p>
+<h1 id="用户端安装和配置"><a href="#用户端安装和配置" class="headerlink" title="用户端安装和配置"></a>用户端安装和配置</h1><p>为了方便在命令行使用，使用 CIFS, 其它不考虑。</p>
 <ul>
-<li>赋予用户 samba 的权限. 有两种方法, 一种方法是直接直接赋予当前用户 samba 的权限, 另外一种方法是, 也是比ijao规范的做法是建立一个 samba group, 然后, 把用户加入到该group.</li>
+<li>赋予用户 samba 的权限。有两种方法，一种方法是直接直接赋予当前用户 samba 的权限，另外一种方法是，也是比 ijao 规范的做法是建立一个 samba group, 然后，把用户加入到该 group.</li>
 </ul>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">sudo groupadd samba</span><br><span class="line">sudo adduser gys samba</span><br></pre></td></tr></table></figure>
 
 <ul>
 <li>通过 <code>visudo</code> 配置权限</li>
 </ul>
-<p>在 <code>group</code> 部分, 加入一下内容</p>
+<p>在 <code>group</code> 部分，加入一下内容</p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"># Members of the admin group may gain root privileges</span><br><span class="line">%admin ALL=(ALL) ALL</span><br><span class="line">%samba   ALL=(ALL) /bin/mount,/bin/umount,/sbin/mount.cifs,/sbin/umount.cifs</span><br></pre></td></tr></table></figure>
 
 <ul>
@@ -471,5 +471,11 @@
 
   
 
+
+<script type="text/javascript" src="https://viewer.diagrams.net/js/viewer-static.min.js"></script>
+<style>
+.geDiagramContainer { width: 100% !important; }
+</style>
 </body>
+
 </html>

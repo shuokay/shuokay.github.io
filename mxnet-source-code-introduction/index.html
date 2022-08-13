@@ -20,19 +20,19 @@
     var CONFIG = {"hostname":"shuokay.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":false,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
   </script>
 
-  <meta name="description" content="过去两年用mxnet定制了很多op, 深入学习了mxnet源码. 本系列以mxnet v0.7.0 代码为主, 深入分析mxnet的源码, 做一个阶段性的总结, 同时也希望能在mxnet上进行深度开发的同学提供帮助.">
+  <meta name="description" content="过去两年用 mxnet 定制了很多 op, 深入学习了 mxnet 源码。本系列以 mxnet v0.7.0 代码为主，深入分析 mxnet 的源码，做一个阶段性的总结，同时也希望能在 mxnet 上进行深度开发的同学提供帮助。">
 <meta property="og:type" content="article">
 <meta property="og:title" content="MXNet 源码详解--顶层架构">
 <meta property="og:url" content="http://shuokay.com/mxnet-source-code-introduction/index.html">
 <meta property="og:site_name" content="Memo">
-<meta property="og:description" content="过去两年用mxnet定制了很多op, 深入学习了mxnet源码. 本系列以mxnet v0.7.0 代码为主, 深入分析mxnet的源码, 做一个阶段性的总结, 同时也希望能在mxnet上进行深度开发的同学提供帮助.">
+<meta property="og:description" content="过去两年用 mxnet 定制了很多 op, 深入学习了 mxnet 源码。本系列以 mxnet v0.7.0 代码为主，深入分析 mxnet 的源码，做一个阶段性的总结，同时也希望能在 mxnet 上进行深度开发的同学提供帮助。">
 <meta property="og:locale" content="zh_CN">
-<meta property="og:image" content="http://shuokay.com/content/images/mxnet-source-code-introduction/overview.png">
+<meta property="og:image" content="http://shuokay.com/mxnet-source-code-introduction/overview.png">
 <meta property="article:published_time" content="2020-07-18T08:10:46.000Z">
-<meta property="article:modified_time" content="2022-08-13T02:16:25.730Z">
+<meta property="article:modified_time" content="2022-08-13T04:46:13.643Z">
 <meta property="article:author" content="yushu.gao">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="http://shuokay.com/content/images/mxnet-source-code-introduction/overview.png">
+<meta name="twitter:image" content="http://shuokay.com/mxnet-source-code-introduction/overview.png">
 
 <link rel="canonical" href="http://shuokay.com/mxnet-source-code-introduction/">
 
@@ -204,9 +204,11 @@
     <div class="post-body" itemprop="articleBody">
 
       
-        <p>过去两年用mxnet定制了很多op, 深入学习了mxnet源码. 本系列以mxnet v0.7.0 代码为主, 深入分析mxnet的源码, 做一个阶段性的总结, 同时也希望能在mxnet上进行深度开发的同学提供帮助.</p>
+        <p>过去两年用 mxnet 定制了很多 op, 深入学习了 mxnet 源码。本系列以 mxnet v0.7.0 代码为主，深入分析 mxnet 的源码，做一个阶段性的总结，同时也希望能在 mxnet 上进行深度开发的同学提供帮助。</p>
 <span id="more"></span>
-<p><img src="/content/images/mxnet-source-code-introduction/overview.png"><br>mxnet 的顶层架构如上图所示:<br><strong>KVStore</strong>: 提供kv存储, 其中一个使用实例是训练参数的存储和更新.<br><strong>Data Loading</strong>: 提供了一个高效灵活的Data IO的方法, 保证在训练的时候系统供数的速度<br><strong>NDArray</strong>: 用来存储计算数据, 同时提供了高效灵活的借口, 其它的类似数据结构还有 TBlob, mshadow::Tensor, mshadow::TensorContainer, 其中<code>TBlob</code>和m<code>shadow::Tensor</code>在op的开发中经常用到, 要深入理解和掌握.<br><strong>Symbolic Execution</strong>: 提供和静态图的优化和调度执行. v0.7.0 版本只有静态图, 最新的版本也提供和动态运算的能力.<br><strong>Symbol Construction</strong>: 提供了构建静态图的方法<br><strong>Storage Allocator</strong>: 提供了高效的内存管理, 包括CPU的内存和GPU的显存<br><strong>Runtime Dependency</strong>: 根据计算图的拓扑依赖, 实现依赖分析和计算调度<br><strong>Resource Manager</strong>: 全局资源管理, 包括随机数和临时空间<br><strong>Operators</strong>: op定义, 对于实现新的op来说最重要的一个部分.</p>
+<img src="/mxnet-source-code-introduction/overview.png" class="">
+
+<p>mxnet 的顶层架构如上图所示：<br><strong>KVStore</strong>: 提供 kv 存储，其中一个使用实例是训练参数的存储和更新。<br><strong>Data Loading</strong>: 提供了一个高效灵活的 Data IO 的方法，保证在训练的时候系统供数的速度<br><strong>NDArray</strong>: 用来存储计算数据，同时提供了高效灵活的借口，其它的类似数据结构还有 TBlob, mshadow::Tensor, mshadow::TensorContainer, 其中<code>TBlob</code>和 m<code>shadow::Tensor</code>在 op 的开发中经常用到，要深入理解和掌握。<br><strong>Symbolic Execution</strong>: 提供和静态图的优化和调度执行。v0.7.0 版本只有静态图，最新的版本也提供和动态运算的能力。<br><strong>Symbol Construction</strong>: 提供了构建静态图的方法<br><strong>Storage Allocator</strong>: 提供了高效的内存管理，包括 CPU 的内存和 GPU 的显存<br><strong>Runtime Dependency</strong>: 根据计算图的拓扑依赖，实现依赖分析和计算调度<br><strong>Resource Manager</strong>: 全局资源管理，包括随机数和临时空间<br><strong>Operators</strong>: op 定义，对于实现新的 op 来说最重要的一个部分。</p>
 
     </div>
 
@@ -399,5 +401,11 @@
 
   
 
+
+<script type="text/javascript" src="https://viewer.diagrams.net/js/viewer-static.min.js"></script>
+<style>
+.geDiagramContainer { width: 100% !important; }
+</style>
 </body>
+
 </html>

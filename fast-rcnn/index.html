@@ -20,27 +20,28 @@
     var CONFIG = {"hostname":"shuokay.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":false,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
   </script>
 
-  <meta name="description" content="Fast R-CNN 比 R-CNN 主要的优点就是速度快.那么, 具体是通过什么样的操作使得 Fast R-CNN 的速度要比 R-CNN 快很多呢? 答案就是: 在R-CNN 中, 在 region proposal 的forward 中, 每一个 region proposal 都需要单独计算, 而在 Fast R-CNN 中, region proposal 的计算过程是 share 的,">
+  <meta name="description" content="Fast R-CNN 比 R-CNN 主要的优点就是速度快。那么，具体是通过什么样的操作使得 Fast R-CNN 的速度要比 R-CNN 快很多呢？答案就是：在 R-CNN 中，在 region proposal 的 forward 中，每一个 region proposal 都需要单独计算，而在 Fast R-CNN 中，region proposal 的计算过程是 share 的，这样就减少">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Notes on Fast RCNN">
 <meta property="og:url" content="http://shuokay.com/fast-rcnn/index.html">
 <meta property="og:site_name" content="Memo">
-<meta property="og:description" content="Fast R-CNN 比 R-CNN 主要的优点就是速度快.那么, 具体是通过什么样的操作使得 Fast R-CNN 的速度要比 R-CNN 快很多呢? 答案就是: 在R-CNN 中, 在 region proposal 的forward 中, 每一个 region proposal 都需要单独计算, 而在 Fast R-CNN 中, region proposal 的计算过程是 share 的,">
+<meta property="og:description" content="Fast R-CNN 比 R-CNN 主要的优点就是速度快。那么，具体是通过什么样的操作使得 Fast R-CNN 的速度要比 R-CNN 快很多呢？答案就是：在 R-CNN 中，在 region proposal 的 forward 中，每一个 region proposal 都需要单独计算，而在 Fast R-CNN 中，region proposal 的计算过程是 share 的，这样就减少">
 <meta property="og:locale" content="zh_CN">
-<meta property="og:image" content="http://shuokay.com/content/images/fast-rcnn/fast-rcnn-global.png">
-<meta property="og:image" content="http://shuokay.com/content/images/fast-rcnn/fast-rcnn.png">
-<meta property="og:image" content="http://shuokay.com/content/images/fast-rcnn/spp.png">
-<meta property="og:image" content="http://shuokay.com/content/images/fast-rcnn/step1.png">
-<meta property="og:image" content="http://shuokay.com/content/images/fast-rcnn/step3.png">
+<meta property="og:image" content="http://shuokay.com/fast-rcnn/fast-rcnn-global.png">
+<meta property="og:image" content="http://shuokay.com/fast-rcnn/fast-rcnn.png">
+<meta property="og:image" content="http://shuokay.com/fast-rcnn/spp.png">
+<meta property="og:image" content="http://shuokay.com/fast-rcnn/step1.png">
+<meta property="og:image" content="http://shuokay.com/fast-rcnn/step2.png">
+<meta property="og:image" content="http://shuokay.com/fast-rcnn/step3.png">
 <meta property="article:published_time" content="2016-05-18T13:09:25.000Z">
-<meta property="article:modified_time" content="2022-08-13T02:16:25.725Z">
+<meta property="article:modified_time" content="2022-08-13T04:33:21.915Z">
 <meta property="article:author" content="yushu.gao">
 <meta property="article:tag" content="Deep Learning">
 <meta property="article:tag" content="CNN">
 <meta property="article:tag" content="Object Detection">
 <meta property="article:tag" content="Fast RCNN">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="http://shuokay.com/content/images/fast-rcnn/fast-rcnn-global.png">
+<meta name="twitter:image" content="http://shuokay.com/fast-rcnn/fast-rcnn-global.png">
 
 <link rel="canonical" href="http://shuokay.com/fast-rcnn/">
 
@@ -225,46 +226,44 @@
     <div class="post-body" itemprop="articleBody">
 
       
-        <p>Fast R-CNN 比 R-CNN 主要的优点就是速度快.<br>那么, 具体是通过什么样的操作使得 Fast R-CNN 的速度要比 R-CNN 快很多呢? 答案就是: 在R-CNN 中, 在 region proposal 的forward 中, 每一个 region proposal 都需要单独计算, 而在 Fast R-CNN 中, region proposal 的计算过程是 share 的, 这样就减少了很多重复的计算.<br>另外一个优点是 Fast RCNN 的训练过程是 end-to-end 的, 这样有两个好处, 一个是解决了在 RCNN 中的 post-hoc training 问题, 另外一个就是简化了训练过程.</p>
+        <p>Fast R-CNN 比 R-CNN 主要的优点就是速度快。<br>那么，具体是通过什么样的操作使得 Fast R-CNN 的速度要比 R-CNN 快很多呢？答案就是：在 R-CNN 中，在 region proposal 的 forward 中，每一个 region proposal 都需要单独计算，而在 Fast R-CNN 中，region proposal 的计算过程是 share 的，这样就减少了很多重复的计算。<br>另外一个优点是 Fast RCNN 的训练过程是 end-to-end 的，这样有两个好处，一个是解决了在 RCNN 中的 post-hoc training 问题，另外一个就是简化了训练过程。</p>
 <span id="more"></span>
-<center><img src="/content/images/fast-rcnn/fast-rcnn-global.png" width=360></center>
-# 过程详解
+<img src="/fast-rcnn/fast-rcnn-global.png" class="" width="500">
 
-<center><img src="/content/images/fast-rcnn/fast-rcnn.png", width=390></center>
-Fast RCNN 中非常重要的一个技术是RoI pooling(Region of Interest pooling), 名字很高大上, 实际上很简单. 其实和 SPP(spatial pyramid pooling) 是一样的. 后面有可能会详细讲一下 SPP, 这里做个简单介绍. 我门想一下, 是什么限制了 CNN 的输入必须是固定维度的? 在 CNN 中, pooling 和 convolution 操作都不需要固定维数的数据. 唯一导致输入维数要是固定的操作就是 Full Connection. 那么, 这就说明, 只需要通过某种方法, 保证 FC 的输入的维数是固定就可以了, 这时候 RoI Pooling 就盛大登场了. RoI Pooling 不管你来的feature map 长和宽是多少, 一律按照切分到固定的维数 \\(H \times W\\). RoI Pooling 是 SPP 的一个特例, 在RoI Pooling 中只有一个　pyramid. 引用一下 SPP 论文中图如下:
-<center><img src="/content/images/fast-rcnn/spp.png" width=360></center>
+<h1 id="过程详解"><a href="#过程详解" class="headerlink" title="过程详解"></a>过程详解</h1><img src="/fast-rcnn/fast-rcnn.png" class="" width="700">
+
+<p>Fast RCNN 中非常重要的一个技术是 RoI pooling(Region of Interest pooling), 名字很高大上，实际上很简单。其实和 SPP(spatial pyramid pooling) 是一样的。后面有可能会详细讲一下 SPP, 这里做个简单介绍。我门想一下，是什么限制了 CNN 的输入必须是固定维度的？在 CNN 中，pooling 和 convolution 操作都不需要固定维数的数据。唯一导致输入维数要是固定的操作就是 Full Connection. 那么，这就说明，只需要通过某种方法，保证 FC 的输入的维数是固定就可以了，这时候 RoI Pooling 就盛大登场了。RoI Pooling 不管你来的 feature map 长和宽是多少，一律按照切分到固定的维数 \(H \times W\). RoI Pooling 是 SPP 的一个特例，在 RoI Pooling 中只有一个 pyramid. 引用一下 SPP 论文中图如下：</p>
+<img src="/fast-rcnn/spp.png" class="" width="700">
 
 <h1 id="具体操作"><a href="#具体操作" class="headerlink" title="具体操作"></a>具体操作</h1><ol>
-<li>通过 region proposal 方法, 得到一些 candidate bounding boxes. <center><img src="/content/images/fast-rcnn/step1.png" width=390><center></li>
-<li>把整幅图片进行 forward, 在最后进行 full connect 之前, 对每个 bounding boxes 在 feature map 中对应的区域进行 SPP<center>&lt;img src&#x3D;”&#x2F;content&#x2F;images&#x2F;fast-rcnn&#x2F;step2.png”, width&#x3D;390&gt;</center></li>
+<li>通过 region proposal 方法，得到一些 candidate bounding boxes. <img src="/fast-rcnn/step1.png" class="" width="700"></li>
+<li>把整幅图片进行 forward, 在最后进行 full connect 之前，对每个 bounding boxes 在 feature map 中对应的区域进行 SPP <img src="/fast-rcnn/step2.png" class="" width="700">  <img src="/fast-rcnn/step3.png" class="" width="700"></li>
+<li>SPP 的结果 feed 到 full connect 中</li>
 </ol>
-<center><img src="/content/images/fast-rcnn/step3.png", width=390></center>
-3. SPP 的结果 feed 到 full connect 中
-
-<h1 id="训练技巧"><a href="#训练技巧" class="headerlink" title="训练技巧"></a>训练技巧</h1><h2 id="MiniBatch-抽取方法"><a href="#MiniBatch-抽取方法" class="headerlink" title="MiniBatch 抽取方法"></a>MiniBatch 抽取方法</h2><p>在 SPP 中, 如果 training example(也就是 RoI)来自不同的图片, 结果仍然是无法share computing, 所以, 没有任何加速效果. 为了能够 share computing, 作者在 load training minibatch 的时候做了一些手脚.</p>
+<h1 id="训练技巧"><a href="#训练技巧" class="headerlink" title="训练技巧"></a>训练技巧</h1><h2 id="MiniBatch-抽取方法"><a href="#MiniBatch-抽取方法" class="headerlink" title="MiniBatch 抽取方法"></a>MiniBatch 抽取方法</h2><p>在 SPP 中，如果 training example(也就是 RoI) 来自不同的图片，结果仍然是无法 share computing, 所以，没有任何加速效果。为了能够 share computing, 作者在 load training minibatch 的时候做了一些手脚。</p>
 <ol>
 <li><p>从所有的图片中 sample 得到 \(N\) 张图片</p>
 </li>
-<li><p>对这 \(N\) 张图片, 每张图片中再 sample \(R&#x2F;N\) 个RoI</p>
+<li><p>对这 \(N\) 张图片，每张图片中再 sample \(R&#x2F;N\) 个 RoI</p>
 </li>
-<li><p>把这 \(R\) 个 RoI 作为一个minibatch 进行训练</p>
+<li><p>把这 \(R\) 个 RoI 作为一个 minibatch 进行训练</p>
 </li>
 </ol>
-<p>这个做法的一个潜在缺点是网络收敛的速度非常慢(因为在每个 minibatch 内部样本类别都差不多, 是 correlated 的), 然而, 在作者的实验中发现这种担心是多余的, 原论文中 \(N&#x3D;2, R&#x3D;128\)</p>
-<h2 id="Multi-task-Loss"><a href="#Multi-task-Loss" class="headerlink" title="Multi-task Loss"></a>Multi-task Loss</h2><p>上面已经讲到, Fast R-CNN 的一个优点是 end-to-end 的训练, 这一特点是通过 Multi-task Loss 来实现的.<br>第一个 Loss 是用来训练bounding box 的类别的. 输出是一个离散的概率分布, 输出的节点个数是 \(K+1\), \(p&#x3D;\left(p_0,…,p_k\right)\), 其中\(K\) 数据集中的类别数, \(1\) 是background<br>第二个 Loss 是用来训练 bounding box regression offset 的, \(t^k&#x3D;\left(t^k_x, t^k_y, t^k_w, t^k_h\right)\).<br>每一个 RoI 都有两个 label, 一个是类别 \(u\), 另外一个是 bounding box regression target \(v\). Multi-task loss 定义为:</p>
+<p>这个做法的一个潜在缺点是网络收敛的速度非常慢 (因为在每个 minibatch 内部样本类别都差不多，是 correlated 的), 然而，在作者的实验中发现这种担心是多余的，原论文中 \(N&#x3D;2, R&#x3D;128\)</p>
+<h2 id="Multi-task-Loss"><a href="#Multi-task-Loss" class="headerlink" title="Multi-task Loss"></a>Multi-task Loss</h2><p>上面已经讲到，Fast R-CNN 的一个优点是 end-to-end 的训练，这一特点是通过 Multi-task Loss 来实现的。<br>第一个 Loss 是用来训练 bounding box 的类别的。输出是一个离散的概率分布，输出的节点个数是 \(K+1\), \(p&#x3D;\left(p_0,…,p_k\right)\), 其中\(K\) 数据集中的类别数，\(1\) 是 background<br>第二个 Loss 是用来训练 bounding box regression offset 的，\(t^k&#x3D;\left(t^k_x, t^k_y, t^k_w, t^k_h\right)\).<br>每一个 RoI 都有两个 label, 一个是类别 \(u\), 另外一个是 bounding box regression target \(v\). Multi-task loss 定义为：</p>
 
 $$
 L\left(p,u,t^u,v\right)=L_{p,u}+\lambda\left[u \geq 1\right]L_{loc}\left(t^u,v\right)
 $$
 
-<p>其中, \(L_{cls}(p,u)=-\log{p_u}\) 是针对 classify 的loss<br>另外一部分, \(L_{loc}\) 是定义在一个四元组上面的 bounding box 的损失函数. 对于类别 \(u\), 其ground truth 的bounding box 为 \(v&#x3D;\left(v_x, v_y, v_w, v_h\right)\), 其predict 得到的结果是 \(t^u&#x3D;{t^u_x, t^u_y, t^u_w, t^u_h}\).<br>针对bounding box regression 的loss 定义是:</p>
+<p>其中，\(L_{cls}(p,u)=-\log{p_u}\) 是针对 classify 的 loss<br>另外一部分，\(L_{loc}\) 是定义在一个四元组上面的 bounding box 的损失函数。对于类别 \(u\), 其 ground truth 的 bounding box 为 \(v&#x3D;\left(v_x, v_y, v_w, v_h\right)\), 其 predict 得到的结果是 \(t^u&#x3D;{t^u_x, t^u_y, t^u_w, t^u_h}\).<br>针对 bounding box regression 的 loss 定义是：</p>
 
 $$
 L_{loc}\left(t^u,v\right)=\sum_{i \in {x,y,w,h}}{\text{smooth}_{L_1}\left(t^u_i-v_i\right)}
 $$
 
 
-<p>在这里,</p>
+<p>在这里，</p>
 
 \[
 \text{smooth}_{L_1}\left(x\right) = \begin{cases}
@@ -361,7 +360,7 @@ $$
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
-          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%85%B7%E4%BD%93%E6%93%8D%E4%BD%9C"><span class="nav-number">1.</span> <span class="nav-text">具体操作</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%AE%AD%E7%BB%83%E6%8A%80%E5%B7%A7"><span class="nav-number">2.</span> <span class="nav-text">训练技巧</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#MiniBatch-%E6%8A%BD%E5%8F%96%E6%96%B9%E6%B3%95"><span class="nav-number">2.1.</span> <span class="nav-text">MiniBatch 抽取方法</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Multi-task-Loss"><span class="nav-number">2.2.</span> <span class="nav-text">Multi-task Loss</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Reference"><span class="nav-number">3.</span> <span class="nav-text">Reference</span></a></li></ol></div>
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%BF%87%E7%A8%8B%E8%AF%A6%E8%A7%A3"><span class="nav-number">1.</span> <span class="nav-text">过程详解</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%85%B7%E4%BD%93%E6%93%8D%E4%BD%9C"><span class="nav-number">2.</span> <span class="nav-text">具体操作</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%AE%AD%E7%BB%83%E6%8A%80%E5%B7%A7"><span class="nav-number">3.</span> <span class="nav-text">训练技巧</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#MiniBatch-%E6%8A%BD%E5%8F%96%E6%96%B9%E6%B3%95"><span class="nav-number">3.1.</span> <span class="nav-text">MiniBatch 抽取方法</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Multi-task-Loss"><span class="nav-number">3.2.</span> <span class="nav-text">Multi-task Loss</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Reference"><span class="nav-number">4.</span> <span class="nav-text">Reference</span></a></li></ol></div>
       </div>
       <!--/noindex-->
 
@@ -527,5 +526,11 @@ $$
 
   
 
+
+<script type="text/javascript" src="https://viewer.diagrams.net/js/viewer-static.min.js"></script>
+<style>
+.geDiagramContainer { width: 100% !important; }
+</style>
 </body>
+
 </html>

@@ -20,16 +20,16 @@
     var CONFIG = {"hostname":"shuokay.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":false,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
   </script>
 
-  <meta name="description" content="本篇记录下我使用使用深度学习做图片检索的过程.任务背景: 有很多图片, 而且这些图片没有”类”的概念, 也可以说我的每一类都只有一张图片. 所以, 这种情况下不能用常见的基于”识别”的图像检索. 在此之前, 使用 Bag of Visual Words 的方法做出了一个版本, 可以参考这篇.">
+  <meta name="description" content="本篇记录下我使用使用深度学习做图片检索的过程。任务背景：有很多图片，而且这些图片没有”类”的概念，也可以说我的每一类都只有一张图片。所以，这种情况下不能用常见的基于”识别”的图像检索。在此之前，使用 Bag of Visual Words 的方法做出了一个版本，可以参考这篇.">
 <meta property="og:type" content="article">
 <meta property="og:title" content="CNN 图像检索">
 <meta property="og:url" content="http://shuokay.com/dl-for-image-retrieval/index.html">
 <meta property="og:site_name" content="Memo">
-<meta property="og:description" content="本篇记录下我使用使用深度学习做图片检索的过程.任务背景: 有很多图片, 而且这些图片没有”类”的概念, 也可以说我的每一类都只有一张图片. 所以, 这种情况下不能用常见的基于”识别”的图像检索. 在此之前, 使用 Bag of Visual Words 的方法做出了一个版本, 可以参考这篇.">
+<meta property="og:description" content="本篇记录下我使用使用深度学习做图片检索的过程。任务背景：有很多图片，而且这些图片没有”类”的概念，也可以说我的每一类都只有一张图片。所以，这种情况下不能用常见的基于”识别”的图像检索。在此之前，使用 Bag of Visual Words 的方法做出了一个版本，可以参考这篇.">
 <meta property="og:locale" content="zh_CN">
-<meta property="og:image" content="http://shuokay.com/content/images/dl-for-image-retrieval/overview.png">
+<meta property="og:image" content="http://shuokay.com/dl-for-image-retrieval/overview.png">
 <meta property="article:published_time" content="2016-10-22T01:59:26.000Z">
-<meta property="article:modified_time" content="2022-08-13T02:16:25.725Z">
+<meta property="article:modified_time" content="2022-08-13T04:24:17.774Z">
 <meta property="article:author" content="yushu.gao">
 <meta property="article:tag" content="Deep Learning">
 <meta property="article:tag" content="CNN">
@@ -38,7 +38,7 @@
 <meta property="article:tag" content="FaceNet">
 <meta property="article:tag" content="Triplet Loss">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="http://shuokay.com/content/images/dl-for-image-retrieval/overview.png">
+<meta name="twitter:image" content="http://shuokay.com/dl-for-image-retrieval/overview.png">
 
 <link rel="canonical" href="http://shuokay.com/dl-for-image-retrieval/">
 
@@ -223,40 +223,42 @@
     <div class="post-body" itemprop="articleBody">
 
       
-        <p>本篇记录下我使用使用深度学习做图片检索的过程.<br>任务背景: 有很多图片, 而且这些图片没有”类”的概念, 也可以说我的每一类都只有一张图片. 所以, 这种情况下不能用常见的基于”识别”的图像检索. 在此之前, 使用 Bag of Visual Words 的方法做出了一个版本, 可以参考<a href="http://shuokay.com/2016/07/21/bovw/">这篇</a>.</p>
+        <p>本篇记录下我使用使用深度学习做图片检索的过程。<br>任务背景：有很多图片，而且这些图片没有”类”的概念，也可以说我的每一类都只有一张图片。所以，这种情况下不能用常见的基于”识别”的图像检索。在此之前，使用 Bag of Visual Words 的方法做出了一个版本，可以参考<a href="http://shuokay.com/2016/07/21/bovw/">这篇</a>.</p>
 <span id="more"></span>
 
-<h1 id="想法来源"><a href="#想法来源" class="headerlink" title="想法来源"></a>想法来源</h1><p>这个方法的灵感来源于 Google 的 <a target="_blank" rel="noopener" href="https://arxiv.org/abs/1503.03832">FaceNet</a>, 使用 triplet loss 直接优化图片特征的距离. 因为, 不需要图片的 label 信息, 我们不需要标注任何数据. 这就比较适合没有标注的数据. 另一方面, 因为每一“类”图片都只有一张, 因此, 我对每一张图片做了 data augmentation. 这样, 每一“类”图片中就有了多个 sample.</p>
-<h1 id="Overview"><a href="#Overview" class="headerlink" title="Overview"></a>Overview</h1><p>具体的过程如下图所示:</p>
-<center><img src="/content/images/dl-for-image-retrieval/overview.png" width=800></center>
-训练模型分为 3 个步骤:
-1. 获取一个 Base Model
-2. Transfer Base Model 训练 Triplet Model
-3. 把训练好的 Triplet Model 整理成用来获取图片特征的 Retrieval Model
+<h1 id="想法来源"><a href="#想法来源" class="headerlink" title="想法来源"></a>想法来源</h1><p>这个方法的灵感来源于 Google 的 <a target="_blank" rel="noopener" href="https://arxiv.org/abs/1503.03832">FaceNet</a>, 使用 triplet loss 直接优化图片特征的距离。因为，不需要图片的 label 信息，我们不需要标注任何数据。这就比较适合没有标注的数据。另一方面，因为每一“类”图片都只有一张，因此，我对每一张图片做了 data augmentation. 这样，每一“类”图片中就有了多个 sample.</p>
+<h1 id="Overview"><a href="#Overview" class="headerlink" title="Overview"></a>Overview</h1><p>具体的过程如下图所示：</p>
+<img src="/dl-for-image-retrieval/overview.png" class="">
 
-<h1 id="Triplet-Loss"><a href="#Triplet-Loss" class="headerlink" title="Triplet Loss"></a>Triplet Loss</h1><p>Triplet Loss 的想法很简单: 类内距离小, 类间距离大.</p>
+<p>训练模型分为 3 个步骤：</p>
+<ol>
+<li>获取一个 Base Model</li>
+<li>Transfer Base Model 训练 Triplet Model</li>
+<li>把训练好的 Triplet Model 整理成用来获取图片特征的 Retrieval Model</li>
+</ol>
+<h1 id="Triplet-Loss"><a href="#Triplet-Loss" class="headerlink" title="Triplet Loss"></a>Triplet Loss</h1><p>Triplet Loss 的想法很简单：类内距离小，类间距离大。</p>
 
 \[
 \left\|f\left(x_i^a\right)-f(x_i^p) \right\|_2^2+\alpha < \left\| f\left(x_i^a\right)-f\left(x_i^n\right) \right\|_2^2
 \]
 
-<p>其中, \(f(x) \in R^d\) 是图片 \(x\) 到特征空间 \(R^d\) 的映射.<br>\(x_i^a\), \(x_i^p\) 是同一张图片通过 data augmentation 得到的图片 forward 之后的向量<br>\(x_i^n\) 是 另外一张不同的图片或其 augmentation 之后的图片 forward 之后的向量<br>\(\alpha\) 是 margin, 正数, 在实验中我使用的是 <code>margin = 1</code></p>
-<h1 id="Base-Model"><a href="#Base-Model" class="headerlink" title="Base Model"></a>Base Model</h1><p>Base Model 是一个图像识别的模型, 例如 VGG16等, 在这个模型的基础上做的 transfer learning. 理论上讲, 不做 transfer learning, 直接使用 triplet learning 也可以完成训练的目的, 但是, 在实验中, 我发现, 使用 transfer learning 至少有两个好处:</p>
+<p>其中，\(f(x) \in R^d\) 是图片 \(x\) 到特征空间 \(R^d\) 的映射。<br>\(x_i^a\), \(x_i^p\) 是同一张图片通过 data augmentation 得到的图片 forward 之后的向量<br>\(x_i^n\) 是 另外一张不同的图片或其 augmentation 之后的图片 forward 之后的向量<br>\(\alpha\) 是 margin, 正数，在实验中我使用的是 <code>margin = 1</code></p>
+<h1 id="Base-Model"><a href="#Base-Model" class="headerlink" title="Base Model"></a>Base Model</h1><p>Base Model 是一个图像识别的模型，例如 VGG16 等，在这个模型的基础上做的 transfer learning. 理论上讲，不做 transfer learning, 直接使用 triplet learning 也可以完成训练的目的，但是，在实验中，我发现，使用 transfer learning 至少有两个好处：</p>
 <ol>
 <li>网络收敛速度更快</li>
-<li>最终训练到的 triplet model 的抽象能力更强.</li>
+<li>最终训练到的 triplet model 的抽象能力更强。</li>
 </ol>
-<p>关于第二点, 我的想法是, 直接使用 triplet 训练的话, 模型基本上还是非常 naviely 地去寻找 low level 的特征. 而从一个识别模型 transfer 训练的话, 因为识别模型具有高度的抽象能力, 所以, 可以说, triplet model 一出生就具备了很强的抽象能力. 这一点, 也体现在了实验结果上面.</p>
-<h1 id="代码实现"><a href="#代码实现" class="headerlink" title="代码实现"></a>代码实现</h1><p>代码实现分为两个步骤, 第一步是获取预训练的模型, 使用与训练模型初始化 Triplet Model 的网络参数, 和普通的 transfer learning 并没有什么差别, 第二步使用 Triplet Loss 来优化 Triplet Model.</p>
-<h2 id="获取-Base-Model"><a href="#获取-Base-Model" class="headerlink" title="获取 Base Model"></a>获取 Base Model</h2><p>Base Model 这里使用的是 VGG16, 当然也可以使用其它的模型. 我之所以使用识别模型作为 Base Model, 一方面是因为识别模型比较容易找得到, 另外一方面, 识别模型能对输入数据的抽象能力更好. 实验中首先使用 VGG16 的识别模型作为 Base Model, 确认和该方法有效. 具体的模型转换方法参考<a href="http://shuokay.com/2016/09/02/transfer-learning/">另外一篇文章</a>. 最终选用的是 Residual Network 的模型.</p>
-<h2 id="训练-Triplet-Model"><a href="#训练-Triplet-Model" class="headerlink" title="训练 Triplet Model"></a>训练 Triplet Model</h2><p>第一步, 修改 VGG16 的模型, 使之可以接受 3 各输入节点. 方法如下:</p>
+<p>关于第二点，我的想法是，直接使用 triplet 训练的话，模型基本上还是非常 naviely 地去寻找 low level 的特征。而从一个识别模型 transfer 训练的话，因为识别模型具有高度的抽象能力，所以，可以说，triplet model 一出生就具备了很强的抽象能力。这一点，也体现在了实验结果上面。</p>
+<h1 id="代码实现"><a href="#代码实现" class="headerlink" title="代码实现"></a>代码实现</h1><p>代码实现分为两个步骤，第一步是获取预训练的模型，使用与训练模型初始化 Triplet Model 的网络参数，和普通的 transfer learning 并没有什么差别，第二步使用 Triplet Loss 来优化 Triplet Model.</p>
+<h2 id="获取-Base-Model"><a href="#获取-Base-Model" class="headerlink" title="获取 Base Model"></a>获取 Base Model</h2><p>Base Model 这里使用的是 VGG16, 当然也可以使用其它的模型。我之所以使用识别模型作为 Base Model, 一方面是因为识别模型比较容易找得到，另外一方面，识别模型能对输入数据的抽象能力更好。实验中首先使用 VGG16 的识别模型作为 Base Model, 确认和该方法有效。具体的模型转换方法参考<a href="http://shuokay.com/2016/09/02/transfer-learning/">另外一篇文章</a>. 最终选用的是 Residual Network 的模型。</p>
+<h2 id="训练-Triplet-Model"><a href="#训练-Triplet-Model" class="headerlink" title="训练 Triplet Model"></a>训练 Triplet Model</h2><p>第一步，修改 VGG16 的模型，使之可以接受 3 各输入节点。方法如下：</p>
 <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">same = mx.sym.Variable(<span class="string">&#x27;same&#x27;</span>)</span><br><span class="line">diff = mx.sym.Variable(<span class="string">&#x27;diff&#x27;</span>)</span><br><span class="line">anchor = mx.sym.Variable(<span class="string">&#x27;anchor&#x27;</span>)</span><br><span class="line">concat = mx.symbol.Concat(*[same, diff, anchor], dim=<span class="number">0</span>, name=<span class="string">&#x27;concat&#x27;</span>)</span><br></pre></td></tr></table></figure>
 
-<p>然后从 <code>concat</code> 开始做正常的 forward 就可以了.<br>第二步是 Triplet Loss 的改造, 还是用代码来解释:</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># margin</span></span><br><span class="line">one = mx.sym.Variable(<span class="string">&#x27;one&#x27;</span>)</span><br><span class="line">one = mx.sym.Reshape(data=one, shape=(-<span class="number">1</span>, <span class="number">1</span>))</span><br><span class="line"><span class="comment"># 把 3 组 特征分开, 用于后面 triplet loss 的计算</span></span><br><span class="line"><span class="comment"># fp 对应于 positive 的输出, fn 对应于 negative 的输出, fa 对应于 anchor 的输出</span></span><br><span class="line">fp = mx.symbol.slice_axis(share_net, axis=<span class="number">0</span>, begin=<span class="number">0</span>, end=BATCH_SIZE)</span><br><span class="line">fn = mx.symbol.slice_axis(share_net, axis=<span class="number">0</span>, begin=BATCH_SIZE, end=<span class="number">2</span> * BATCH_SIZE)</span><br><span class="line">fa = mx.symbol.slice_axis(share_net, axis=<span class="number">0</span>, begin=<span class="number">2</span> * BATCH_SIZE, end=<span class="number">3</span> * BATCH_SIZE)</span><br><span class="line"><span class="comment"># triplet loss 的计算</span></span><br><span class="line">fs = fa - fp <span class="comment"># x_a-x_p</span></span><br><span class="line">fd = fa - fn <span class="comment"># x_a-x_n</span></span><br><span class="line">fs = fs * fs</span><br><span class="line">fd = fd * fd</span><br><span class="line">fs = mx.sym.<span class="built_in">sum</span>(fs, axis=<span class="number">1</span>, keepdims=<span class="number">1</span>)</span><br><span class="line">fd = mx.sym.<span class="built_in">sum</span>(fd, axis=<span class="number">1</span>, keepdims=<span class="number">1</span>)</span><br><span class="line">loss = fd - fs</span><br><span class="line">loss = one - loss</span><br><span class="line">loss = mx.sym.Activation(data=loss, act_type=<span class="string">&#x27;relu&#x27;</span>)</span><br><span class="line">loss = mx.sym.MakeLoss(loss)</span><br></pre></td></tr></table></figure>
+<p>然后从 <code>concat</code> 开始做正常的 forward 就可以了。<br>第二步是 Triplet Loss 的改造，还是用代码来解释：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># margin</span></span><br><span class="line">one = mx.sym.Variable(<span class="string">&#x27;one&#x27;</span>)</span><br><span class="line">one = mx.sym.Reshape(data=one, shape=(-<span class="number">1</span>, <span class="number">1</span>))</span><br><span class="line"><span class="comment"># 把 3 组 特征分开，用于后面 triplet loss 的计算</span></span><br><span class="line"><span class="comment"># fp 对应于 positive 的输出，fn 对应于 negative 的输出，fa 对应于 anchor 的输出</span></span><br><span class="line">fp = mx.symbol.slice_axis(share_net, axis=<span class="number">0</span>, begin=<span class="number">0</span>, end=BATCH_SIZE)</span><br><span class="line">fn = mx.symbol.slice_axis(share_net, axis=<span class="number">0</span>, begin=BATCH_SIZE, end=<span class="number">2</span> * BATCH_SIZE)</span><br><span class="line">fa = mx.symbol.slice_axis(share_net, axis=<span class="number">0</span>, begin=<span class="number">2</span> * BATCH_SIZE, end=<span class="number">3</span> * BATCH_SIZE)</span><br><span class="line"><span class="comment"># triplet loss 的计算</span></span><br><span class="line">fs = fa - fp <span class="comment"># x_a-x_p</span></span><br><span class="line">fd = fa - fn <span class="comment"># x_a-x_n</span></span><br><span class="line">fs = fs * fs</span><br><span class="line">fd = fd * fd</span><br><span class="line">fs = mx.sym.<span class="built_in">sum</span>(fs, axis=<span class="number">1</span>, keepdims=<span class="number">1</span>)</span><br><span class="line">fd = mx.sym.<span class="built_in">sum</span>(fd, axis=<span class="number">1</span>, keepdims=<span class="number">1</span>)</span><br><span class="line">loss = fd - fs</span><br><span class="line">loss = one - loss</span><br><span class="line">loss = mx.sym.Activation(data=loss, act_type=<span class="string">&#x27;relu&#x27;</span>)</span><br><span class="line">loss = mx.sym.MakeLoss(loss)</span><br></pre></td></tr></table></figure>
 
 <p>完整的代码在<a target="_blank" rel="noopener" href="https://github.com/shuokay/mxnet-ir">Github</a></p>
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>整个过程还是比较明确的, triplet 的方法也比较容易想得到, 尤其是看过 FaceNet 的论文之后. 使用这种方法的效果还是非常惊艳的, 准确率以及搜索结果的可解释性全面吊打 BoVW 的方法.</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>整个过程还是比较明确的，triplet 的方法也比较容易想得到，尤其是看过 FaceNet 的论文之后。使用这种方法的效果还是非常惊艳的，准确率以及搜索结果的可解释性全面吊打 BoVW 的方法。</p>
 
     </div>
 
@@ -511,5 +513,11 @@
 
   
 
+
+<script type="text/javascript" src="https://viewer.diagrams.net/js/viewer-static.min.js"></script>
+<style>
+.geDiagramContainer { width: 100% !important; }
+</style>
 </body>
+
 </html>

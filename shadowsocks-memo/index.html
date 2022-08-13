@@ -20,15 +20,15 @@
     var CONFIG = {"hostname":"shuokay.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":false,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
   </script>
 
-  <meta name="description" content="记录在云主机上搭建shadowsocks科学上网的方法。shadowsocks 的基本思路就是，分别在 server 端和 client 端安装相应的软件，使用的时候, 例如访问 Google， client 的数据先发送到 server 端然后，server 端把数据转发到 Google， Google 返回的数据也是类似的流程，需要经过我们的 server。">
+  <meta name="description" content="记录在云主机上搭建 shadowsocks 科学上网的方法。shadowsocks 的基本思路就是，分别在 server 端和 client 端安装相应的软件，使用的时候，例如访问 Google，client 的数据先发送到 server 端然后，server 端把数据转发到 Google，Google 返回的数据也是类似的流程，需要经过我们的 server。">
 <meta property="og:type" content="article">
 <meta property="og:title" content="shadowsocks Memo">
 <meta property="og:url" content="http://shuokay.com/shadowsocks-memo/index.html">
 <meta property="og:site_name" content="Memo">
-<meta property="og:description" content="记录在云主机上搭建shadowsocks科学上网的方法。shadowsocks 的基本思路就是，分别在 server 端和 client 端安装相应的软件，使用的时候, 例如访问 Google， client 的数据先发送到 server 端然后，server 端把数据转发到 Google， Google 返回的数据也是类似的流程，需要经过我们的 server。">
+<meta property="og:description" content="记录在云主机上搭建 shadowsocks 科学上网的方法。shadowsocks 的基本思路就是，分别在 server 端和 client 端安装相应的软件，使用的时候，例如访问 Google，client 的数据先发送到 server 端然后，server 端把数据转发到 Google，Google 返回的数据也是类似的流程，需要经过我们的 server。">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2016-01-01T03:59:55.000Z">
-<meta property="article:modified_time" content="2022-08-13T02:16:25.733Z">
+<meta property="article:modified_time" content="2022-08-13T05:45:01.155Z">
 <meta property="article:author" content="yushu.gao">
 <meta property="article:tag" content="VPN">
 <meta name="twitter:card" content="summary">
@@ -212,39 +212,39 @@
     <div class="post-body" itemprop="articleBody">
 
       
-        <p>记录在云主机上搭建shadowsocks科学上网的方法。<br>shadowsocks 的基本思路就是，分别在 server 端和 client 端安装相应的软件，使用的时候, 例如访问 Google， client 的数据先发送到 server 端然后，server 端把数据转发到 Google， Google 返回的数据也是类似的流程，需要经过我们的 server。</p>
+        <p>记录在云主机上搭建 shadowsocks 科学上网的方法。<br>shadowsocks 的基本思路就是，分别在 server 端和 client 端安装相应的软件，使用的时候，例如访问 Google，client 的数据先发送到 server 端然后，server 端把数据转发到 Google，Google 返回的数据也是类似的流程，需要经过我们的 server。</p>
 <span id="more"></span>
 
 <h1 id="购买云主机"><a href="#购买云主机" class="headerlink" title="购买云主机"></a>购买云主机</h1><p> Vultr 或者 Bandwagon</p>
-<h1 id="配置-server-端"><a href="#配置-server-端" class="headerlink" title="配置 server 端"></a>配置 server 端</h1><p>购买云主机之后就是一些初始化的配置, 如果之前配置过,下面部分步骤可以省略</p>
+<h1 id="配置-server-端"><a href="#配置-server-端" class="headerlink" title="配置 server 端"></a>配置 server 端</h1><p>购买云主机之后就是一些初始化的配置，如果之前配置过，下面部分步骤可以省略</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># update &amp; 安装需要的工具</span></span><br><span class="line">apt update</span><br><span class="line">apt install python-pip</span><br><span class="line">pip install -U setuptools</span><br><span class="line">pip install shadowsocks</span><br></pre></td></tr></table></figure>
 
-<p>在Ubuntu 10.04 上安装之后加密的用的so文件报错，使用下面的方法安装</p>
+<p>在 Ubuntu 10.04 上安装之后加密的用的 so 文件报错，使用下面的方法安装</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pip install -U git+https://github.com/shadowsocks/shadowsocks.git@master</span><br></pre></td></tr></table></figure>
 
-<p>注意防火墙配置允许端口的tcp协议。<br>接下来要启动 shadowsocks<br>启动 shadowsocks 有两种方法, 命令行方式和配置文件方式. 命令行方法:</p>
+<p>注意防火墙配置允许端口的 tcp 协议。<br>接下来要启动 shadowsocks<br>启动 shadowsocks 有两种方法，命令行方式和配置文件方式。命令行方法：</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">ssserver -p 8000 -k password -m rc4-md5 start</span><br><span class="line"><span class="comment"># 如果要作为 demon 启动的话, 加上选项 -d</span></span><br><span class="line"><span class="comment"># ssserver -p 8000 -k password -m rc4-md5 -d start</span></span><br></pre></td></tr></table></figure>
 
-<p>配置文件方法:<br>首先要写配置文件:</p>
+<p>配置文件方法：<br>首先要写配置文件：</p>
 <figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;server&quot;</span><span class="punctuation">:</span> <span class="string">&quot;IP&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;server_port&quot;</span><span class="punctuation">:</span> PORT<span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;local_address&quot;</span><span class="punctuation">:</span> <span class="string">&quot;127.0.0.1&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;local_port&quot;</span><span class="punctuation">:</span> <span class="number">1086</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;password&quot;</span><span class="punctuation">:</span> <span class="string">&quot;PASSWD&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;timeout&quot;</span><span class="punctuation">:</span> <span class="number">300</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;method&quot;</span><span class="punctuation">:</span> <span class="string">&quot;aes-256-cfb&quot;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
 
-<p>然后加载配置文件启动:</p>
+<p>然后加载配置文件启动：</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># -d 的作用是作为 daemon 启动</span></span><br><span class="line">ssserver -c /etc/shadowsocks.json -d start</span><br></pre></td></tr></table></figure>
 
-<p>停止 daemon 的话, 直接把上述对应命令的 <code>start</code> 改成 <code>stop</code></p>
-<h1 id="配置client-端"><a href="#配置client-端" class="headerlink" title="配置client 端"></a>配置client 端</h1><p>client 端安装方法和 server 相同, 只不过, 在使用的时候的命令不同<br>配置文件和 server 端的配置文件对应起来:</p>
+<p>停止 daemon 的话，直接把上述对应命令的 <code>start</code> 改成 <code>stop</code></p>
+<h1 id="配置-client-端"><a href="#配置-client-端" class="headerlink" title="配置 client 端"></a>配置 client 端</h1><p>client 端安装方法和 server 相同，只不过，在使用的时候的命令不同<br>配置文件和 server 端的配置文件对应起来：</p>
 <figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;server&quot;</span><span class="punctuation">:</span> <span class="string">&quot;108.61.246.176&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;server_port&quot;</span><span class="punctuation">:</span> <span class="number">8989</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;local_port&quot;</span><span class="punctuation">:</span> <span class="number">1080</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;password&quot;</span><span class="punctuation">:</span> <span class="string">&quot;mypassword&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;timeout&quot;</span><span class="punctuation">:</span> <span class="number">300</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;method&quot;</span><span class="punctuation">:</span> <span class="string">&quot;rc4-md5&quot;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
 
 <p>启动命令</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sslocal -c shadowsocks.json</span><br></pre></td></tr></table></figure>
 
-<p>接下来, 只需要把需要可选上网的应用的数据转发到 <code>127.0.0.1:1080</code> 就可以了.</p>
+<p>接下来，只需要把需要可选上网的应用的数据转发到 <code>127.0.0.1:1080</code> 就可以了。</p>
 <h1 id="Linux-命令行设置代理"><a href="#Linux-命令行设置代理" class="headerlink" title="Linux 命令行设置代理"></a>Linux 命令行设置代理</h1><p>设置两个环境变量 http_proxy 和 https_proxy</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">export</span> http_proxy=http://localhost:1080 https_proxy=https://localhost:1080</span><br></pre></td></tr></table></figure>
 
 <h1 id="MacOS-设置"><a href="#MacOS-设置" class="headerlink" title="MacOS 设置"></a>MacOS 设置</h1><h2 id="用户自定义规则"><a href="#用户自定义规则" class="headerlink" title="用户自定义规则"></a>用户自定义规则</h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">! Put user rules line by line in this file.</span><br><span class="line">! See https://adblockplus.org/en/filter-cheatsheet</span><br><span class="line">||live.com</span><br><span class="line">||live.net</span><br><span class="line">.officeapps.live.com</span><br><span class="line">.docs.live.net</span><br><span class="line">||onenote.com</span><br><span class="line">||github.com</span><br><span class="line">||githubusercontent.com</span><br><span class="line">||packagecontrol.io</span><br></pre></td></tr></table></figure>
 
-<h2 id="Google-Drive-不能同步"><a href="#Google-Drive-不能同步" class="headerlink" title="Google Drive 不能同步"></a>Google Drive 不能同步</h2><p>需要设置http代理，该代理要求和shadowsocks ng对应，默认代理为 <code>127.0.0.1：1087</code></p>
+<h2 id="Google-Drive-不能同步"><a href="#Google-Drive-不能同步" class="headerlink" title="Google Drive 不能同步"></a>Google Drive 不能同步</h2><p>需要设置 http 代理，该代理要求和 shadowsocks ng 对应，默认代理为 <code>127.0.0.1：1087</code></p>
 
     </div>
 
@@ -328,7 +328,7 @@
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
-          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%B4%AD%E4%B9%B0%E4%BA%91%E4%B8%BB%E6%9C%BA"><span class="nav-number">1.</span> <span class="nav-text">购买云主机</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E9%85%8D%E7%BD%AE-server-%E7%AB%AF"><span class="nav-number">2.</span> <span class="nav-text">配置 server 端</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E9%85%8D%E7%BD%AEclient-%E7%AB%AF"><span class="nav-number">3.</span> <span class="nav-text">配置client 端</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Linux-%E5%91%BD%E4%BB%A4%E8%A1%8C%E8%AE%BE%E7%BD%AE%E4%BB%A3%E7%90%86"><span class="nav-number">4.</span> <span class="nav-text">Linux 命令行设置代理</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#MacOS-%E8%AE%BE%E7%BD%AE"><span class="nav-number">5.</span> <span class="nav-text">MacOS 设置</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%94%A8%E6%88%B7%E8%87%AA%E5%AE%9A%E4%B9%89%E8%A7%84%E5%88%99"><span class="nav-number">5.1.</span> <span class="nav-text">用户自定义规则</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Google-Drive-%E4%B8%8D%E8%83%BD%E5%90%8C%E6%AD%A5"><span class="nav-number">5.2.</span> <span class="nav-text">Google Drive 不能同步</span></a></li></ol></li></ol></div>
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%B4%AD%E4%B9%B0%E4%BA%91%E4%B8%BB%E6%9C%BA"><span class="nav-number">1.</span> <span class="nav-text">购买云主机</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E9%85%8D%E7%BD%AE-server-%E7%AB%AF"><span class="nav-number">2.</span> <span class="nav-text">配置 server 端</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E9%85%8D%E7%BD%AE-client-%E7%AB%AF"><span class="nav-number">3.</span> <span class="nav-text">配置 client 端</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Linux-%E5%91%BD%E4%BB%A4%E8%A1%8C%E8%AE%BE%E7%BD%AE%E4%BB%A3%E7%90%86"><span class="nav-number">4.</span> <span class="nav-text">Linux 命令行设置代理</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#MacOS-%E8%AE%BE%E7%BD%AE"><span class="nav-number">5.</span> <span class="nav-text">MacOS 设置</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%94%A8%E6%88%B7%E8%87%AA%E5%AE%9A%E4%B9%89%E8%A7%84%E5%88%99"><span class="nav-number">5.1.</span> <span class="nav-text">用户自定义规则</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Google-Drive-%E4%B8%8D%E8%83%BD%E5%90%8C%E6%AD%A5"><span class="nav-number">5.2.</span> <span class="nav-text">Google Drive 不能同步</span></a></li></ol></li></ol></div>
       </div>
       <!--/noindex-->
 
@@ -441,5 +441,11 @@
 
   
 
+
+<script type="text/javascript" src="https://viewer.diagrams.net/js/viewer-static.min.js"></script>
+<style>
+.geDiagramContainer { width: 100% !important; }
+</style>
 </body>
+
 </html>

@@ -20,19 +20,19 @@
     var CONFIG = {"hostname":"shuokay.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":false,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
   </script>
 
-  <meta name="description" content="NumPy 是经常要使用到的数据操作工具, 各种函数&#x2F;方法非常多, 功能非常强大.">
+  <meta name="description" content="NumPy 是经常要使用到的数据操作工具，各种函数&#x2F;方法非常多, 功能非常强大。">
 <meta property="og:type" content="article">
 <meta property="og:title" content="NumPy Memo">
 <meta property="og:url" content="http://shuokay.com/numpy-memo/index.html">
 <meta property="og:site_name" content="Memo">
-<meta property="og:description" content="NumPy 是经常要使用到的数据操作工具, 各种函数&#x2F;方法非常多, 功能非常强大.">
+<meta property="og:description" content="NumPy 是经常要使用到的数据操作工具，各种函数&#x2F;方法非常多, 功能非常强大。">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2016-01-01T07:17:18.000Z">
-<meta property="article:modified_time" content="2022-08-13T02:16:25.732Z">
+<meta property="article:modified_time" content="2022-08-13T05:45:54.961Z">
 <meta property="article:author" content="yushu.gao">
 <meta property="article:tag" content="Memo">
-<meta property="article:tag" content="Python">
 <meta property="article:tag" content="NumPy">
+<meta property="article:tag" content="Python">
 <meta name="twitter:card" content="summary">
 
 <link rel="canonical" href="http://shuokay.com/numpy-memo/">
@@ -214,13 +214,13 @@
     <div class="post-body" itemprop="articleBody">
 
       
-        <p>NumPy 是经常要使用到的数据操作工具, 各种函数&#x2F;方法非常多, 功能非常强大.</p>
+        <p>NumPy 是经常要使用到的数据操作工具，各种函数&#x2F;方法非常多, 功能非常强大。</p>
 <span id="more"></span>
-<h1 id="flip-操作"><a href="#flip-操作" class="headerlink" title="flip 操作"></a>flip 操作</h1><p>在训练 CNN 进行图像识别的时候, 常用的一种操作是 mirror, 在 NumPy 中的方法是:</p>
+<h1 id="flip-操作"><a href="#flip-操作" class="headerlink" title="flip 操作"></a>flip 操作</h1><p>在训练 CNN 进行图像识别的时候，常用的一种操作是 mirror, 在 NumPy 中的方法是：</p>
 <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mat = mat[:,:,::-<span class="number">1</span>]</span><br></pre></td></tr></table></figure>
 
-<p>第一个 <code>:</code> 是指第一个维度不变, 即在 <code>channel * rows * cols</code> 这种情况下, <code>channel</code> 这个维度不变<br>第二个 <code>:</code> 是指第二个维度不变<br>第三个 <code>::-1</code> 是指第三个维度需要变化. 从 <code>[a,b,c]</code> 变成 <code>[c,b,a]</code></p>
-<h2 id="存储-numpy-数据"><a href="#存储-numpy-数据" class="headerlink" title="存储 numpy 数据"></a>存储 numpy 数据</h2><p>Python 的 pickle 方法在存储的内容大于 4G 的时候会报错, bug造成的, 如果是图像的 <code>numpy</code> 数据可以直接使用 <code>numpy</code> 的 <code>savez</code> 来保存数据.</p>
+<p>第一个 <code>:</code> 是指第一个维度不变，即在 <code>channel * rows * cols</code> 这种情况下，<code>channel</code> 这个维度不变<br>第二个 <code>:</code> 是指第二个维度不变<br>第三个 <code>::-1</code> 是指第三个维度需要变化。从 <code>[a,b,c]</code> 变成 <code>[c,b,a]</code></p>
+<h2 id="存储-numpy-数据"><a href="#存储-numpy-数据" class="headerlink" title="存储 numpy 数据"></a>存储 numpy 数据</h2><p>Python 的 pickle 方法在存储的内容大于 4G 的时候会报错，bug 造成的，如果是图像的 <code>numpy</code> 数据可以直接使用 <code>numpy</code> 的 <code>savez</code> 来保存数据。</p>
 <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">np.savez(<span class="string">&quot;dataset&quot;</span>, train_data=train_data, train_label=train_label, val_data=val_data, val_label=val_label)</span><br><span class="line"><span class="comment"># 数据被存储为 dataset.npz</span></span><br><span class="line"><span class="comment"># 读取数据</span></span><br><span class="line">dataset = np.load(<span class="string">&quot;./dataset&quot;</span>)</span><br><span class="line">train_data, train_label, val_data, val_label = dataset[<span class="string">&quot;train_data&quot;</span>], dataset[<span class="string">&quot;train_label&quot;</span>], dataset[<span class="string">&quot;val_data&quot;</span>], dataset[<span class="string">&quot;val_label&quot;</span>]</span><br></pre></td></tr></table></figure>
 
     </div>
@@ -232,8 +232,8 @@
       <footer class="post-footer">
           <div class="post-tags">
               <a href="/tags/Memo/" rel="tag"># Memo</a>
-              <a href="/tags/Python/" rel="tag"># Python</a>
               <a href="/tags/NumPy/" rel="tag"># NumPy</a>
+              <a href="/tags/Python/" rel="tag"># Python</a>
           </div>
 
         
@@ -420,5 +420,11 @@
 
   
 
+
+<script type="text/javascript" src="https://viewer.diagrams.net/js/viewer-static.min.js"></script>
+<style>
+.geDiagramContainer { width: 100% !important; }
+</style>
 </body>
+
 </html>

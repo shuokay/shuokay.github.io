@@ -20,15 +20,15 @@
     var CONFIG = {"hostname":"shuokay.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":false,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
   </script>
 
-  <meta name="description" content="为了理清 bagging, boosting, random forest 之间的关系和区别, 尝试总结一下各个方法的特点, 并做比较.">
+  <meta name="description" content="为了理清 bagging, boosting, random forest 之间的关系和区别，尝试总结一下各个方法的特点，并做比较。">
 <meta property="og:type" content="article">
 <meta property="og:title" content="集成学习方法总结和比较">
 <meta property="og:url" content="http://shuokay.com/ensemble-learning/index.html">
 <meta property="og:site_name" content="Memo">
-<meta property="og:description" content="为了理清 bagging, boosting, random forest 之间的关系和区别, 尝试总结一下各个方法的特点, 并做比较.">
+<meta property="og:description" content="为了理清 bagging, boosting, random forest 之间的关系和区别，尝试总结一下各个方法的特点，并做比较。">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2016-05-15T03:00:26.000Z">
-<meta property="article:modified_time" content="2022-08-13T02:16:25.725Z">
+<meta property="article:modified_time" content="2022-08-13T05:36:32.333Z">
 <meta property="article:author" content="yushu.gao">
 <meta property="article:tag" content="Machine Learning">
 <meta property="article:tag" content="Ensemble Learning">
@@ -217,36 +217,36 @@
     <div class="post-body" itemprop="articleBody">
 
       
-        <p>为了理清 bagging, boosting, random forest 之间的关系和区别, 尝试总结一下各个方法的特点, 并做比较.</p>
+        <p>为了理清 bagging, boosting, random forest 之间的关系和区别，尝试总结一下各个方法的特点，并做比较。</p>
 <span id="more"></span>
 
-<h1 id="Bagging"><a href="#Bagging" class="headerlink" title="Bagging"></a>Bagging</h1><p><strong>Bagging</strong> 是 bootstrap aggregating 的缩写, 其基本思想就是 bootstrap 和 aggregating 两个步骤. bootstrap 是一种<em>有放回的</em>抽样方法, 几年前在携程做数据分析实习的时候曾经研究过这个方法, 这里正好用上. 其基本过程如下:</p>
+<h1 id="Bagging"><a href="#Bagging" class="headerlink" title="Bagging"></a>Bagging</h1><p><strong>Bagging</strong> 是 bootstrap aggregating 的缩写，其基本思想就是 bootstrap 和 aggregating 两个步骤。bootstrap 是一种<em>有放回的</em>抽样方法，几年前在携程做数据分析实习的时候曾经研究过这个方法，这里正好用上。其基本过程如下：</p>
 <ol>
-<li>从训练样本中抽取 N 各样本, 有放回抽样</li>
+<li>从训练样本中抽取 N 各样本，有放回抽样</li>
 <li>根据 #1 中得到的样本计算统计量 T</li>
-<li>重复 #1 #2 过程 K 次, 得到 K 各统计量 T</li>
-<li>计算 #3 中 K 各统计量的方差, 作为统计量的方差</li>
+<li>重复 #1 #2 过程 K 次，得到 K 各统计量 T</li>
+<li>计算 #3 中 K 各统计量的方差，作为统计量的方差</li>
 </ol>
-<p>有了统计量的方法, 就可以做其它工作, 例如构造置信区间等等.<br>说完了 bootstrap, 就可以说 bootstrap aggregating 了. bagging 步骤如下:</p>
+<p>有了统计量的方法，就可以做其它工作，例如构造置信区间等等。<br>说完了 bootstrap, 就可以说 bootstrap aggregating 了。bagging 步骤如下：</p>
 <ol>
-<li>从原始样本中采用 bootstrap 方法进行抽样, 的到 N 各样本 (bootstrap)</li>
+<li>从原始样本中采用 bootstrap 方法进行抽样，的到 N 各样本 (bootstrap)</li>
 <li>在 #1 中的 N 各样本中分别训练 N 各模型</li>
-<li>对于一个输入数据进行预测时, 首先使用 #2 中的 N 各模型分别进行预测, 然后预测结果进行投票得到最终的结果. (aggregating)</li>
+<li>对于一个输入数据进行预测时，首先使用 #2 中的 N 各模型分别进行预测，然后预测结果进行投票得到最终的结果。(aggregating)</li>
 </ol>
-<h1 id="Boosting"><a href="#Boosting" class="headerlink" title="Boosting"></a>Boosting</h1><p>Boosting 中最常用的是<strong>AdaBoost</strong>, 其基本过程如下:</p>
+<h1 id="Boosting"><a href="#Boosting" class="headerlink" title="Boosting"></a>Boosting</h1><p>Boosting 中最常用的是<strong>AdaBoost</strong>, 其基本过程如下：</p>
 <ol>
 <li>(初始化步骤) 给所有的训练样本赋予一个权重 w</li>
-<li>在样本上训练算法, 得到模型</li>
-<li>对于 #2 中的算法进行测试, #2 中的模型测试结果错误的训练样本赋予一个较大的权值 W (实践中通过增加这些样本的数量实现)</li>
+<li>在样本上训练算法，得到模型</li>
+<li>对于 #2 中的算法进行测试，#2 中的模型测试结果错误的训练样本赋予一个较大的权值 W (实践中通过增加这些样本的数量实现)</li>
 <li>重复 #2 #3 步骤</li>
 </ol>
-<p>在预测的时候, 同样可以采用投票的方法.</p>
+<p>在预测的时候，同样可以采用投票的方法。</p>
 <h1 id="bagging-和-boosting-区别"><a href="#bagging-和-boosting-区别" class="headerlink" title="bagging 和 boosting 区别"></a>bagging 和 boosting 区别</h1><ol>
-<li>取样方法不一样, bagging 是均匀抽样, boosting 是通过预测结果进行抽样</li>
-<li>bagging 是独立随机抽样, 因此可以先得到 N 各训练集合, 然后并行的训练 N 各样本, boosting 的第 n 次抽样结果和第 n-1 次的模型结果有关, 因此, 只能串行地进行抽样.</li>
-<li>在实践中, boosting 的准确率会更高一些, 但是, 也出现 overfitting 的情况</li>
+<li>取样方法不一样，bagging 是均匀抽样，boosting 是通过预测结果进行抽样</li>
+<li>bagging 是独立随机抽样，因此可以先得到 N 各训练集合，然后并行的训练 N 各样本，boosting 的第 n 次抽样结果和第 n-1 次的模型结果有关，因此，只能串行地进行抽样。</li>
+<li>在实践中，boosting 的准确率会更高一些，但是，也出现 overfitting 的情况</li>
 </ol>
-<h1 id="Random-Forest"><a href="#Random-Forest" class="headerlink" title="Random Forest"></a>Random Forest</h1><p>Random forest 中有很多 decision tree, 每一棵 decision tree 在某个小的任务上精度比较高(所谓小的任务体现在其所选取的子特征), 但是, 在整个任务上(整个特征)精度比较低. 但是, 在 random forest 中有很多厉害的decision tree, 所以, 大家齐心协力的结果就是整个 forest 的能力就很强. 因此, forest 中与上述两个 ensemble 方法不同的一点是, forest 中的 decision tree 使用的是子特征. 在建立 decision tree 的时候, 要求还是<em>采样和完全分裂</em>, 采样是两个采样, 一是对训练样本进行采样, 二是对特征进行采样. 这里比较需要注意的是对特征的采样, 假设输入样本的特征数是 M, 那么, 只需要 m 各特征进行训练, 而且 m&lt;&lt;M.</p>
+<h1 id="Random-Forest"><a href="#Random-Forest" class="headerlink" title="Random Forest"></a>Random Forest</h1><p>Random forest 中有很多 decision tree, 每一棵 decision tree 在某个小的任务上精度比较高 (所谓小的任务体现在其所选取的子特征), 但是，在整个任务上 (整个特征) 精度比较低。但是，在 random forest 中有很多厉害的 decision tree, 所以，大家齐心协力的结果就是整个 forest 的能力就很强。因此，forest 中与上述两个 ensemble 方法不同的一点是，forest 中的 decision tree 使用的是子特征。在建立 decision tree 的时候，要求还是<em>采样和完全分裂</em>, 采样是两个采样，一是对训练样本进行采样，二是对特征进行采样。这里比较需要注意的是对特征的采样，假设输入样本的特征数是 M, 那么，只需要 m 各特征进行训练，而且 m&lt;&lt;M.</p>
 
     </div>
 
@@ -444,5 +444,11 @@
 
   
 
+
+<script type="text/javascript" src="https://viewer.diagrams.net/js/viewer-static.min.js"></script>
+<style>
+.geDiagramContainer { width: 100% !important; }
+</style>
 </body>
+
 </html>

@@ -20,15 +20,15 @@
     var CONFIG = {"hostname":"shuokay.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":false,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
   </script>
 
-  <meta name="description" content="BoVW (Bag of Visual Word) 是在传统图像检索领域里比较常用的一种方法. 大体可以分为三个步骤: 特征提取, 聚类(类似于寻找一组基), 计算图片在基上的坐标. 算法的创新点是对图片的特征寻找基. 这样, 在基固定的情况下, 所有的图片都可以使用这组基来唯一的表示. 而且, 由于基的维数是固定的, 也为相似度计算提供了极大的方便. 根据检索图片的不同, 可以选用不同的特征提取">
+  <meta name="description" content="BoVW (Bag of Visual Word) 是在传统图像检索领域里比较常用的一种方法。大体可以分为三个步骤：特征提取，聚类 (类似于寻找一组基), 计算图片在基上的坐标。算法的创新点是对图片的特征寻找基。这样，在基固定的情况下，所有的图片都可以使用这组基来唯一的表示。而且，由于基的维数是固定的，也为相似度计算提供了极大的方便。根据检索图片的不同，可以选用不同的特征提取方法。">
 <meta property="og:type" content="article">
 <meta property="og:title" content="BoVW 图像检索">
 <meta property="og:url" content="http://shuokay.com/bovw/index.html">
 <meta property="og:site_name" content="Memo">
-<meta property="og:description" content="BoVW (Bag of Visual Word) 是在传统图像检索领域里比较常用的一种方法. 大体可以分为三个步骤: 特征提取, 聚类(类似于寻找一组基), 计算图片在基上的坐标. 算法的创新点是对图片的特征寻找基. 这样, 在基固定的情况下, 所有的图片都可以使用这组基来唯一的表示. 而且, 由于基的维数是固定的, 也为相似度计算提供了极大的方便. 根据检索图片的不同, 可以选用不同的特征提取">
+<meta property="og:description" content="BoVW (Bag of Visual Word) 是在传统图像检索领域里比较常用的一种方法。大体可以分为三个步骤：特征提取，聚类 (类似于寻找一组基), 计算图片在基上的坐标。算法的创新点是对图片的特征寻找基。这样，在基固定的情况下，所有的图片都可以使用这组基来唯一的表示。而且，由于基的维数是固定的，也为相似度计算提供了极大的方便。根据检索图片的不同，可以选用不同的特征提取方法。">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2016-07-21T13:51:52.000Z">
-<meta property="article:modified_time" content="2022-08-13T02:16:25.723Z">
+<meta property="article:modified_time" content="2022-08-13T05:34:47.595Z">
 <meta property="article:author" content="yushu.gao">
 <meta property="article:tag" content="Image Retrieval">
 <meta property="article:tag" content="SIFT">
@@ -213,16 +213,16 @@
     <div class="post-body" itemprop="articleBody">
 
       
-        <p>BoVW (Bag of Visual Word) 是在传统图像检索领域里比较常用的一种方法. 大体可以分为三个步骤: 特征提取, 聚类(类似于寻找一组基), 计算图片在基上的坐标. 算法的创新点是对图片的特征寻找基. 这样, 在基固定的情况下, 所有的图片都可以使用这组基来唯一的表示. 而且, 由于基的维数是固定的, 也为相似度计算提供了极大的方便. 根据检索图片的不同, 可以选用不同的特征提取方法.</p>
+        <p>BoVW (Bag of Visual Word) 是在传统图像检索领域里比较常用的一种方法。大体可以分为三个步骤：特征提取，聚类 (类似于寻找一组基), 计算图片在基上的坐标。算法的创新点是对图片的特征寻找基。这样，在基固定的情况下，所有的图片都可以使用这组基来唯一的表示。而且，由于基的维数是固定的，也为相似度计算提供了极大的方便。根据检索图片的不同，可以选用不同的特征提取方法。</p>
 <span id="more"></span>
 
-<h1 id="特征提取"><a href="#特征提取" class="headerlink" title="特征提取"></a>特征提取</h1><p>根据检索图片的特点, 可以选用不同的特征提取方法, 最终, 图像中的特征要映射到一组基上面.</p>
-<h1 id="聚类"><a href="#聚类" class="headerlink" title="聚类"></a>聚类</h1><p>聚类的目的是为了给图片的特征寻找一组合适的基(大部分时候论文中叫做簇, 为了方便理解, 这里仍然使用基这个名词). 聚类的中心点的个数需要自定义. 一般情况, 聚类中心的数量要大于一张图片中的特征的数量. 假设一张图片中特征的数量是 \(n\), 我比较喜欢选择的聚类中心的数量是 \(kn^2\). 这样做的目的是为了图片特征表达的稀疏性. 为了理解这一点, 假设选择的聚类中心个数为\(2\), 那么, 每张图片中提取的特征的数量是\(100\), 那么, 这种情况下, 所有不同的坐标个数是 \(101\), 也就是说, 最理想的情况下, 这种方法能够检索的图像的数量是\(101\)张. 如果聚类中心数量为\(1000\), 好吧, 我暂时没有计算出来具体数字.o(╯□╰)o 反正是一个好大好大的数字.<br>由于从 train set 中提取的特征的数量特别多(比如, 每张图片1000个特征, 10000张图片的话就是1kw的特征), 如果直接聚类的话(聚类中心为 \(10^3\) 量级), 由于 sample 的数量特别多, 聚类时长无法接受, 常用的做法是先进行抽样, 然后用抽样得到的样本进行聚类. 抽样又有两种方法, 一种是对原始图片进行抽样, 然后对样本图片提取特征, 聚类. 另外一种做法是对全部图片的特征进行抽样, 然后对抽样特征进行聚类.</p>
-<h1 id="计算坐标"><a href="#计算坐标" class="headerlink" title="计算坐标"></a>计算坐标</h1><p>通过聚类, 我们得到了一个模型, 假设该,模型的聚类中心的数量是 \(\cal N\), 并且赋予聚类中心顺序, 那么, 使用该聚类模型对 train set 中的每一张图片的特征进行预测, 得到这张图片每一个特征所在的聚类中心\(P\), 计算\(P\) 的 histogram, 就的到了相应的 \(\cal N\) 维的特征. 如果每一张图片提取的特征的数量不同(例如 SIFT 特征)(即使相同, 也推荐做一下归一化), 那么, 还需要对 histogram 做一个归一化操作. 这样, 就可以得到每一张图片一个 \(\cal N\) 维的 code.</p>
-<h1 id="检索"><a href="#检索" class="headerlink" title="检索"></a>检索</h1><p>对一张图片, 计算其code, 然后和train set 中的图片的 code 比较距离. 距离越近越相似, 说明图片越相似.</p>
+<h1 id="特征提取"><a href="#特征提取" class="headerlink" title="特征提取"></a>特征提取</h1><p>根据检索图片的特点，可以选用不同的特征提取方法，最终，图像中的特征要映射到一组基上面。</p>
+<h1 id="聚类"><a href="#聚类" class="headerlink" title="聚类"></a>聚类</h1><p>聚类的目的是为了给图片的特征寻找一组合适的基 (大部分时候论文中叫做簇，为了方便理解，这里仍然使用基这个名词). 聚类的中心点的个数需要自定义。一般情况，聚类中心的数量要大于一张图片中的特征的数量。假设一张图片中特征的数量是 \(n\), 我比较喜欢选择的聚类中心的数量是 \(kn^2\). 这样做的目的是为了图片特征表达的稀疏性。为了理解这一点，假设选择的聚类中心个数为\(2\), 那么，每张图片中提取的特征的数量是\(100\), 那么，这种情况下，所有不同的坐标个数是 \(101\), 也就是说，最理想的情况下，这种方法能够检索的图像的数量是\(101\) 张。如果聚类中心数量为\(1000\), 好吧，我暂时没有计算出来具体数字.o(╯□╰)o 反正是一个好大好大的数字。<br>由于从 train set 中提取的特征的数量特别多 (比如，每张图片 1000 个特征，10000 张图片的话就是 1kw 的特征), 如果直接聚类的话 (聚类中心为 \(10^3\) 量级), 由于 sample 的数量特别多，聚类时长无法接受，常用的做法是先进行抽样，然后用抽样得到的样本进行聚类。抽样又有两种方法，一种是对原始图片进行抽样，然后对样本图片提取特征，聚类。另外一种做法是对全部图片的特征进行抽样，然后对抽样特征进行聚类。</p>
+<h1 id="计算坐标"><a href="#计算坐标" class="headerlink" title="计算坐标"></a>计算坐标</h1><p>通过聚类，我们得到了一个模型，假设该，模型的聚类中心的数量是 \(\cal N\), 并且赋予聚类中心顺序，那么，使用该聚类模型对 train set 中的每一张图片的特征进行预测，得到这张图片每一个特征所在的聚类中心\(P\), 计算\(P\) 的 histogram, 就的到了相应的 \(\cal N\) 维的特征。如果每一张图片提取的特征的数量不同 (例如 SIFT 特征)(即使相同，也推荐做一下归一化), 那么，还需要对 histogram 做一个归一化操作。这样，就可以得到每一张图片一个 \(\cal N\) 维的 code.</p>
+<h1 id="检索"><a href="#检索" class="headerlink" title="检索"></a>检索</h1><p>对一张图片，计算其 code, 然后和 train set 中的图片的 code 比较距离。距离越近越相似，说明图片越相似。</p>
 <h1 id="训练代码"><a href="#训练代码" class="headerlink" title="训练代码"></a>训练代码</h1><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> cv2</span><br><span class="line"><span class="keyword">import</span> numpy <span class="keyword">as</span> np</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">extract_sift</span>(<span class="params">mats</span>):</span><br><span class="line">    sifts = []</span><br><span class="line">    <span class="keyword">for</span> mat <span class="keyword">in</span> mats:</span><br><span class="line">        _, sift = cv2.xfeatures2d.SIFT_create(nfeatures=<span class="number">500</span>).detectAndCompute(</span><br><span class="line">            mat, <span class="literal">None</span>)</span><br><span class="line">        sifts.append(sift)</span><br><span class="line">    <span class="keyword">return</span> sifts</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">train_kmeans</span>(<span class="params">sifts</span>):</span><br><span class="line">    <span class="comment"># put all sit description to on numpy.array</span></span><br><span class="line">    code_dim = <span class="number">0</span></span><br><span class="line">    <span class="keyword">for</span> sift <span class="keyword">in</span> sifts:</span><br><span class="line">        <span class="keyword">if</span> sift <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span>:</span><br><span class="line">            code_dim += <span class="number">1</span></span><br><span class="line">    codes = np.empty((code_dim, <span class="number">128</span>))</span><br><span class="line">    cur_row = <span class="number">0</span></span><br><span class="line">    <span class="keyword">for</span> sift <span class="keyword">in</span> sifts:</span><br><span class="line">        <span class="keyword">if</span> sift <span class="keyword">is</span> <span class="literal">None</span>:</span><br><span class="line">            <span class="keyword">continue</span></span><br><span class="line">        codes[cur_row:cur_row + sift.shape[<span class="number">0</span>], :] = sift</span><br><span class="line">        cur_row += sift.shape[<span class="number">0</span>]</span><br><span class="line">    kmean_model = MiniBatchKMeans(</span><br><span class="line">        n_clusters=<span class="number">500</span>,</span><br><span class="line">        max_iter=<span class="number">10000</span>,</span><br><span class="line">        batch_size=<span class="number">100</span>, )</span><br><span class="line">    kmean_model.fit(codes)</span><br><span class="line">    <span class="keyword">return</span> kmean_model</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">compute_codebook</span>(<span class="params">sifts, kmeans_model</span>):</span><br><span class="line">    n_clusters = kmeans_model.get_params()[<span class="string">&#x27;n_clusters&#x27;</span>]</span><br><span class="line">    codebook = np.empty((<span class="built_in">len</span>(sifts), n_clusters))</span><br><span class="line">    bins = <span class="built_in">range</span>(<span class="number">1</span> + kmeans_model.get_params()[<span class="string">&#x27;n_clusters&#x27;</span>])</span><br><span class="line">    <span class="keyword">for</span> idx, sift <span class="keyword">in</span> <span class="built_in">enumerate</span>(sifts):</span><br><span class="line">        <span class="keyword">if</span> sift <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span>:</span><br><span class="line">            hist, _ = np.histogram(</span><br><span class="line">                kmeans_model.predict(sift), bins=bins, density=<span class="literal">True</span>)</span><br><span class="line">            codebook[idx] = hist</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            codebook[idx] = np.zeros(n_clusters) + np.NaN</span><br><span class="line">    <span class="keyword">return</span> codebook</span><br><span class="line"></span><br></pre></td></tr></table></figure>
 
-<h1 id="思考"><a href="#思考" class="headerlink" title="思考"></a>思考</h1><p>由于对特征进行聚类之后计算 histogram, 把 histogram 的结果用来计算相似度, 所以, 这就损失了原始特征在图片中的位置信息. 一种比较直观的方法是对图片先进行分块, 对每一块计算其code, 然后把所有快的code组合到一起进行比较相似度, 但是, 这种方法又损失和旋转不变性和平移不变性.</p>
+<h1 id="思考"><a href="#思考" class="headerlink" title="思考"></a>思考</h1><p>由于对特征进行聚类之后计算 histogram, 把 histogram 的结果用来计算相似度，所以，这就损失了原始特征在图片中的位置信息。一种比较直观的方法是对图片先进行分块，对每一块计算其 code, 然后把所有快的 code 组合到一起进行比较相似度，但是，这种方法又损失和旋转不变性和平移不变性。</p>
 
     </div>
 
@@ -246,8 +246,8 @@
       <i class="fa fa-chevron-left"></i> Softmax 输出及其反向传播推导
     </a></div>
       <div class="post-nav-item">
-    <a href="/lsh/" rel="next" title="大规模高维数据检索算法LSH">
-      大规模高维数据检索算法LSH <i class="fa fa-chevron-right"></i>
+    <a href="/lsh/" rel="next" title="大规模高维数据检索算法 LSH">
+      大规模高维数据检索算法 LSH <i class="fa fa-chevron-right"></i>
     </a></div>
     </div>
       </footer>
@@ -473,5 +473,11 @@
 
   
 
+
+<script type="text/javascript" src="https://viewer.diagrams.net/js/viewer-static.min.js"></script>
+<style>
+.geDiagramContainer { width: 100% !important; }
+</style>
 </body>
+
 </html>

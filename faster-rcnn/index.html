@@ -27,17 +27,17 @@
 <meta property="og:site_name" content="Memo">
 <meta property="og:description" content="Faster RCNN 的工作具有里程碑的意义，把 Region Proposal 和具体的检测过程全部通过 CNN 完成，实现了整个目标检测过程的 end to end 的训练。后续的大部分工作，例如 SSD, RFCN，FPN，Mask RCNN 等都延续了 RPN 的思路，因此，充分理解 Faster RCNN 对后续的工作有很多帮助。">
 <meta property="og:locale" content="zh_CN">
-<meta property="og:image" content="http://shuokay.com/content/images/faster-rcnn/fasterrcnn-architecture.png">
-<meta property="og:image" content="http://shuokay.com/content/images/faster-rcnn/rpn-single.svg">
+<meta property="og:image" content="http://shuokay.com/faster-rcnn/fasterrcnn-architecture.png">
+<meta property="og:image" content="http://shuokay.com/faster-rcnn/rpn-single.svg">
 <meta property="article:published_time" content="2018-01-27T15:00:31.000Z">
-<meta property="article:modified_time" content="2022-08-13T02:16:25.725Z">
+<meta property="article:modified_time" content="2022-08-13T05:22:36.846Z">
 <meta property="article:author" content="yushu.gao">
 <meta property="article:tag" content="Deep Learning">
 <meta property="article:tag" content="CNN">
 <meta property="article:tag" content="Detection">
 <meta property="article:tag" content="Faster RCNN">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="http://shuokay.com/content/images/faster-rcnn/fasterrcnn-architecture.png">
+<meta name="twitter:image" content="http://shuokay.com/faster-rcnn/fasterrcnn-architecture.png">
 
 <link rel="canonical" href="http://shuokay.com/faster-rcnn/">
 
@@ -229,18 +229,16 @@
 <ol>
 <li>图像中所有目标的 BBox；</li>
 <li>对于每一个 BBox，需要输出一个对应的 label，表明该 BBox 里面的是什么目标；</li>
-<li>对于每一个 label 和 BBox 还需要输出概率，表明模型的置信度。</li>
+<li>对于每一个 label 和 BBox 还需要输出概率，表明模型的置信度。<img src="/faster-rcnn/fasterrcnn-architecture.png" class="" width="700"></li>
 </ol>
- <center><img src="/content/images/faster-rcnn/fasterrcnn-architecture.png"></center>
-
-<p>简单来说，要经历以下3个步骤：<br>第一步，输入图像表示为 \(H \times W \times D\) 的矩阵。图像首先输入到 CNN 中进行前向传播，得到 feature map，即上图中的 F_conv，在 F_conv 之前和普通的 CNN 没有任何区别，主要变化的是 F_conv 之后的部分；<br>第二步，把 F_conv 输入到 RPN 网络中，RPN 的作用是得到 <strong>预先定义好数量的</strong> 区域，这里得到的预先定义好数量的区域就是通过 RPN 得到的 Proposal BBox（替代 selective search 的工作）。<br>第三步，第二步得到了 Proposal BBox，接下去就是在这些 Proposal BBox 的基础上得到最终的精确的 BBox 以及每个 BBox 中的目标类别，过程和 Fast RCNN 基本上是一模一样的。</p>
+<p>简单来说，要经历以下 3 个步骤：<br>第一步，输入图像表示为 \(H \times W \times D\) 的矩阵。图像首先输入到 CNN 中进行前向传播，得到 feature map，即上图中的 F_conv，在 F_conv 之前和普通的 CNN 没有任何区别，主要变化的是 F_conv 之后的部分；<br>第二步，把 F_conv 输入到 RPN 网络中，RPN 的作用是得到 <strong>预先定义好数量的</strong> 区域，这里得到的预先定义好数量的区域就是通过 RPN 得到的 Proposal BBox（替代 selective search 的工作）。<br>第三步，第二步得到了 Proposal BBox，接下去就是在这些 Proposal BBox 的基础上得到最终的精确的 BBox 以及每个 BBox 中的目标类别，过程和 Fast RCNN 基本上是一模一样的。</p>
 <h1 id="Stage-1：RPN-获取-Proposal-BBox"><a href="#Stage-1：RPN-获取-Proposal-BBox" class="headerlink" title="Stage 1：RPN 获取 Proposal BBox"></a>Stage 1：RPN 获取 Proposal BBox</h1><p>RPN 的作用是替代 selective search 给出 Proposal BBox。其基本过程是：</p>
 <ol>
 <li><strong>人为并且先验地</strong> 给出一些 BBox(文章中称为 Anchor)，这些 BBox 很不靠谱，而且数量非常多；</li>
 <li>在 #1 中的 BBox(Anchor) 基础上进行调整和过滤，得到数量数量合理的、并且比 #1 靠谱一些的 BBox，作为 Proposal BBox。</li>
 </ol>
 <p>接下来要分别解释上述两个步骤。</p>
-<h2 id="给出-Anchor"><a href="#给出-Anchor" class="headerlink" title="给出 Anchor"></a>给出 Anchor</h2><p>检测的目的是找到 BBox。每个目标物体的 BBox 通常有不同的大小和长宽比。假设我们知道需要预测的图像中有2个目标，那么，直接让网络输出两组BBox的坐标就好了，即 \(x_{min}\), \(y_{min}\), \(x_{max}\), \(y_{max}\). 但是，这种输出定义至少有两个方面的问题，</p>
+<h2 id="给出-Anchor"><a href="#给出-Anchor" class="headerlink" title="给出 Anchor"></a>给出 Anchor</h2><p>检测的目的是找到 BBox。每个目标物体的 BBox 通常有不同的大小和长宽比。假设我们知道需要预测的图像中有 2 个目标，那么，直接让网络输出两组 BBox 的坐标就好了，即 \(x_{min}\), \(y_{min}\), \(x_{max}\), \(y_{max}\). 但是，这种输出定义至少有两个方面的问题，</p>
 <ol>
 <li>输入的大小和长宽比变化很大，导致从某种意义上说输出的内容不是同一个尺度</li>
 <li>在这种输出中，必须要限制 \(x_{min}&lt;x_{max}\), \(y_{min}&lt;y_{max}\), 这在神经网络中比较难搞定。</li>
@@ -248,7 +246,7 @@
 <p>因此，通常采用另外一种方式：不去直接学习 BBox 的具体坐标，而是学习 BBox 相对于 reference BBox 的 offset（这种给个 reference 的思想是不是和 ResNet 中的 shortcut 有点类似？）。假设 reference 的位置表示为 \(x_{center}\), \(y_{center}\), \(width\), \(height\), 那么，我们让网络去学习 \(\Delta{x_{center}}\), \(\Delta{y_{center}}\),  \(\Delta{width}\), \(\Delta{height}\).</p>
 <p>下面说回 Anchor，<strong>Anchor 实际上就是上面说的 reference BBox，并且是完全人为地拍脑袋决定的 reference BBox，完全不涉及到学习过程</strong>。现在具体解释一下这个拍脑袋的过程：<br>假设 F_conv 的 channel 数是 \(d\)，那么，F_conv 的 shape 应该是 \(W&#x2F;r \times D&#x2F;r \times d\)，其中 \(r\) 是 subsampling rate。为方便，F_conv 的 shape 记为 \(w \times h \times d\)。RPN 的第一步是在\(w \times h\) 的每一个位置上去生成 \(k\) 个 Anchor，现在的问题是：每一个位置的 \(k\) 个 Anchor 是怎么生成的？答案是：拍脑袋生成的，Anchor 既然是 BBox，那么，就可以有不同的大小和长宽比，原文中选了 3 种不同的大小和 3 种不同的长宽比，组合一下可以得到  \(3 \times 3&#x3D;9\) 个不同的 Anchor。<br>因此，一张输入图像生成的 Anchor 数量是 \(w \times h \times k\)。</p>
 <h2 id="给出-Proposal-BBox"><a href="#给出-Proposal-BBox" class="headerlink" title="给出 Proposal BBox"></a>给出 Proposal BBox</h2><p>不靠谱的 BBox（即 Anchor）给出来了，接下来就是如何从这些不靠谱的，数量非常多的 BBox 中给出一些相对来说靠谱一些，并且数量不是那么多的 Proposal BBox。<br>回顾一下目前的状态，在 F_conv 的 \(w \times h\) 个位置上，每一个位置上的 depth 是 \(d\)，相当于一个 \(d\) 维的向量，每一个位置上对应地生成了 \(k\) 个 Anchor。<br>这里要做的工作就是，<strong>对于每一个位置</strong>，通过这 \(d\) 维的向量，去调整（和过滤）它对应的 \(k\) 个 Anchor，得到靠谱一些的 Anchor，作为 Proposal BBox。<br>具体方法其实是比较野蛮粗暴的。直接在这 256 维的向量上引出 2 个 全连接层（FC），其中一个 FC 用来判断 Anchor 中是目标还是背景（二分类任务），另外一个 FC 用来在 Anchor 上回归出如果要得到稍微靠谱的 BBox 要如何进行的，即学习 \(\Delta{x_{center}}\), \(\Delta{y_{center}}\),  \(\Delta{width}\), \(\Delta{height}\)。</p>
-<center><img src="/content/images/faster-rcnn/rpn-single.svg"></center>
+<img src="/faster-rcnn/rpn-single.svg" class="">
 
 <p>搞定这一步之后，就完成了对于 Anchor 中是目标还是背景的判定以及如何调整 Anchor 使得其表示的 BBox 变得靠谱一些。<br>可是，上面只是完成了对于 F_conv 上一个位置的判定，F_conv 有 \(w \times h\) 个位置，因此要对每一个位置进行相同的判定。实际工程实现中是使用 \(1 \times 1\) 的卷积操作完成的。</p>
 <p>接下来是一些后处理工作，包括：</p>
@@ -511,5 +509,11 @@
 
   
 
+
+<script type="text/javascript" src="https://viewer.diagrams.net/js/viewer-static.min.js"></script>
+<style>
+.geDiagramContainer { width: 100% !important; }
+</style>
 </body>
+
 </html>

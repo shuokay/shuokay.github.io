@@ -27,17 +27,17 @@
 <meta property="og:site_name" content="Memo">
 <meta property="og:description" content="通过一个简单的例子来解释和总结什么是 Cross Entropy 以及为什么使用 Cross Entropy.">
 <meta property="og:locale" content="zh_CN">
-<meta property="og:image" content="http://shuokay.com/content/images/cross-entropy/1.svg">
-<meta property="og:image" content="http://shuokay.com/content/images/cross-entropy/2.svg">
-<meta property="og:image" content="http://shuokay.com/content/images/cross-entropy/1.svg">
+<meta property="og:image" content="http://shuokay.com/cross-entropy/1.svg">
+<meta property="og:image" content="http://shuokay.com/cross-entropy/2.svg">
+<meta property="og:image" content="http://shuokay.com/cross-entropy/1.svg">
 <meta property="article:published_time" content="2017-06-23T12:21:22.000Z">
-<meta property="article:modified_time" content="2022-08-13T02:16:25.723Z">
+<meta property="article:modified_time" content="2022-08-13T04:01:53.698Z">
 <meta property="article:author" content="yushu.gao">
 <meta property="article:tag" content="Cross Entropy">
 <meta property="article:tag" content="Machine Learning">
 <meta property="article:tag" content="Mathematics">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="http://shuokay.com/content/images/cross-entropy/1.svg">
+<meta name="twitter:image" content="http://shuokay.com/cross-entropy/1.svg">
 
 <link rel="canonical" href="http://shuokay.com/cross-entropy/">
 
@@ -221,33 +221,28 @@
         <p>通过一个简单的例子来解释和总结什么是 Cross Entropy 以及为什么使用 Cross Entropy.</p>
 <span id="more"></span>
 
-<h1 id="第一个例子"><a href="#第一个例子" class="headerlink" title="第一个例子"></a>第一个例子</h1><p>假设随机从一个口袋里取硬币, 口袋里有一个蓝色的, 一个红色的, 一个绿色的, 一个橘色的. 取出一个硬币之后, 每次问一个问题, 然后做出判断, 目标是, 问最少的问题, 得到正确答案. 其中一个最好的策略如下:</p>
-<center><img src="/content/images/cross-entropy/1.svg"></center>
-
-<p>每一个硬币有 \(\dfrac{1}{4}\) 的概率被选中, 回答问题的期望是 2.</p>
-<h1 id="第二个例子"><a href="#第二个例子" class="headerlink" title="第二个例子"></a>第二个例子</h1><p>例子变了, 变成了袋子中 \(\dfrac{1}{8}\) 的硬币是绿色的, \(\dfrac{1}{8}\) 的是橘色的, \(\dfrac{1}{4}\) 是红色的, \(\dfrac{1}{2}\) 是蓝色的, 这时最优的策略如下:</p>
-<center><img src="/content/images/cross-entropy/2.svg"></center>
-
-<p>\(\dfrac{1}{2}\) 的概率是蓝色, 只需要 1 个问题就可以知道是或者不是, \(\dfrac{1}{4}\) 的概率是红色, 需要 2 个问题, 按照这个逻辑, 猜中硬币需要的问题的期望是 \(\dfrac{1}{2} \times 1 + \dfrac{1}{4} \times 2 + \dfrac{1}{8} \times 3 + \dfrac{1}{8} \times 3 &#x3D; 1.75\)</p>
-<h1 id="第三个例子"><a href="#第三个例子" class="headerlink" title="第三个例子"></a>第三个例子</h1><p>假设袋子中全部是蓝色的硬币, 那么, 这时候, 需要 0 个问题就可以猜到硬币, 即 \(\log_2 1&#x3D;0\). 需要注意的是, 只有当知道袋子中全部是蓝色的硬币的时候才会需要的问题是 0 个.</p>
-<p>总结上面的例子, 假设一种硬币出现的概率是 \(p\), 那么, 猜中该硬币的所需要的问题数是 \(\log_2{\dfrac{1}{p}}\). 例如, \(p&#x3D;\dfrac{1}{4}\), \(\log_2 4&#x3D;2\).</p>
-<p>在这个问题中, 问题个数的期望是 \(\sum_i{p_i \times \log_2{\dfrac{1}{p_i}}}\). 这个式子就是 entropy 的表达式. 简单来说, 其意义就是 <strong>在最优化策略下, 猜到颜色所需要的问题的个数.</strong> <em>不确定性越高, entropy 就越大.</em><br>现在已经了解了 entropy 是什么, 那么, 下面解释 cross entropy 的含义.<br>对于第二个例子, 如果仍然使用第一个例子中的策略, 如下图:</p>
-<center><img src="/content/images/cross-entropy/1.svg"></center>
-
-<p>\(\dfrac{1}{8}\) 的概率, 硬币是橘色, 需要两个问题, \(\dfrac{1}{2}\) 的概率是蓝色, 仍然需要两个问题, 平均来说, 需要的问题数是 \(\dfrac{1}{8} \times 2 + \dfrac{1}{8} \times 2+ \dfrac{1}{4} \times 2 + \dfrac{1}{2} \times 2 &#x3D; 2\). 因此, 在例子二中使用例子一的策略是一个比较差的策略. 其中 2 是这个方案中的 cross entropy.<br><strong>给定一个策略, cross entropy 就是在该策略下猜中颜色所需要的问题的期望值.</strong> 给定一个方案, 约优的策略, 最终的 cross entropy 越低. 具有最低的 cross entropy 的策略就是最优化策略. 也就是上面定义的 entropy. 因此, 在机器学习中, 我们需要最小化 cross entropy.</p>
-<p>数学上来讲, cross entropy 就是 \(\sum_i{p_i \times \log_2{\dfrac{1}{\hat{p}_i}}}\), 其中, \(p\) 是真正的概率, 例如例子二中, 橘色和绿色是 \(\dfrac{1}{8}\), 红色是\(\dfrac{1}{4}\), 蓝色是 \(\dfrac{1}{2}\). \(\hat{p}_i\) 是错误地假设了的概率, 例如, 在例子二中我们错误地假设了所有的颜色的概率都是 \(\dfrac{1}{4}\). \(p\) 和 \(\hat{p}\) 可能有点容易混淆. 记住一点, \(\log\) 是用来计算在 <strong>你的策略</strong> 下猜中所需要的问题数, 因此, \(log\) 中需要的是 <strong>你的预测概率</strong> \(\hat{p}\).<br>在决策树中, 如果建立的数不是最优的, 结果就是对于输出的概率分布的假设是错误地, 导致的直接结果就是 cross entropy 很高.<br>cross entropy 不仅仅应用在决策树中, 在所有的分类问题中都有应用. 在二分类问题中, 标签 \(y\) 是 1 的似然是对于标签 \(y\) 的预测 \(\hat y\), 同样的, 标签是 0 的似然是 \(1-\hat y\). 我们需要最大化似然函数, 而且, 由于二分类问题的特殊性, 可以把似然函数写成 \({\hat y}^y{\left(1-\hat y\right)^{1-y}}\). 当 \(y&#x3D;1\) 的时候, 第二项为 1, 因此, 优化的是 \(\hat y\), 当 \(y&#x3D;0\) 的时候, 第一项为 1, 优化的是 \(1-\hat y\).<br>对上面的似然函数取对数, 结果是:</p>
+<h1 id="第一个例子"><a href="#第一个例子" class="headerlink" title="第一个例子"></a>第一个例子</h1><p>假设随机从一个口袋里取硬币，口袋里有一个蓝色的，一个红色的，一个绿色的，一个橘色的。取出一个硬币之后，每次问一个问题，然后做出判断，目标是，问最少的问题，得到正确答案。其中一个最好的策略如下：</p>
+<p><img src="/cross-entropy/1.svg"></p>
+<p>每一个硬币有 \(\dfrac{1}{4}\) 的概率被选中，回答问题的期望是 2.</p>
+<h1 id="第二个例子"><a href="#第二个例子" class="headerlink" title="第二个例子"></a>第二个例子</h1><p>例子变了，变成了袋子中 \(\dfrac{1}{8}\) 的硬币是绿色的，\(\dfrac{1}{8}\) 的是橘色的，\(\dfrac{1}{4}\) 是红色的，\(\dfrac{1}{2}\) 是蓝色的，这时最优的策略如下：<br><img src="/cross-entropy/2.svg"></p>
+<p>\(\dfrac{1}{2}\) 的概率是蓝色，只需要 1 个问题就可以知道是或者不是，\(\dfrac{1}{4}\) 的概率是红色，需要 2 个问题，按照这个逻辑，猜中硬币需要的问题的期望是 \(\dfrac{1}{2} \times 1 + \dfrac{1}{4} \times 2 + \dfrac{1}{8} \times 3 + \dfrac{1}{8} \times 3 &#x3D; 1.75\)</p>
+<h1 id="第三个例子"><a href="#第三个例子" class="headerlink" title="第三个例子"></a>第三个例子</h1><p>假设袋子中全部是蓝色的硬币，那么，这时候，需要 0 个问题就可以猜到硬币，即 \(\log_2 1&#x3D;0\). 需要注意的是，只有当知道袋子中全部是蓝色的硬币的时候才会需要的问题是 0 个。</p>
+<p>总结上面的例子，假设一种硬币出现的概率是 \(p\), 那么，猜中该硬币的所需要的问题数是 \(\log_2{\dfrac{1}{p}}\). 例如，\(p&#x3D;\dfrac{1}{4}\), \(\log_2 4&#x3D;2\).</p>
+<p>在这个问题中，问题个数的期望是 \(\sum_i{p_i \times \log_2{\dfrac{1}{p_i}}}\). 这个式子就是 entropy 的表达式。简单来说，其意义就是 <strong>在最优化策略下，猜到颜色所需要的问题的个数.</strong> <em>不确定性越高，entropy 就越大.</em><br>现在已经了解了 entropy 是什么，那么，下面解释 cross entropy 的含义。<br>对于第二个例子，如果仍然使用第一个例子中的策略，如下图：<br><img src="/cross-entropy/1.svg"></p>
+<p>\(\dfrac{1}{8}\) 的概率，硬币是橘色，需要两个问题，\(\dfrac{1}{2}\) 的概率是蓝色，仍然需要两个问题，平均来说，需要的问题数是 \(\dfrac{1}{8} \times 2 + \dfrac{1}{8} \times 2+ \dfrac{1}{4} \times 2 + \dfrac{1}{2} \times 2 &#x3D; 2\). 因此，在例子二中使用例子一的策略是一个比较差的策略。其中 2 是这个方案中的 cross entropy.<br><strong>给定一个策略，cross entropy 就是在该策略下猜中颜色所需要的问题的期望值.</strong> 给定一个方案，约优的策略，最终的 cross entropy 越低。具有最低的 cross entropy 的策略就是最优化策略。也就是上面定义的 entropy. 因此，在机器学习中，我们需要最小化 cross entropy.</p>
+<p>数学上来讲，cross entropy 就是 \(\sum_i{p_i \times \log_2{\dfrac{1}{\hat{p}_i}}}\), 其中，\(p\) 是真正的概率，例如例子二中，橘色和绿色是 \(\dfrac{1}{8}\), 红色是\(\dfrac{1}{4}\), 蓝色是 \(\dfrac{1}{2}\). \(\hat{p}_i\) 是错误地假设了的概率，例如，在例子二中我们错误地假设了所有的颜色的概率都是 \(\dfrac{1}{4}\). \(p\) 和 \(\hat{p}\) 可能有点容易混淆。记住一点，\(\log\) 是用来计算在 <strong>你的策略</strong> 下猜中所需要的问题数，因此，\(log\) 中需要的是 <strong>你的预测概率</strong> \(\hat{p}\).<br>在决策树中，如果建立的数不是最优的，结果就是对于输出的概率分布的假设是错误地，导致的直接结果就是 cross entropy 很高。<br>cross entropy 不仅仅应用在决策树中，在所有的分类问题中都有应用。在二分类问题中，标签 \(y\) 是 1 的似然是对于标签 \(y\) 的预测 \(\hat y\), 同样的，标签是 0 的似然是 \(1-\hat y\). 我们需要最大化似然函数，而且，由于二分类问题的特殊性，可以把似然函数写成 \({\hat y}^y{\left(1-\hat y\right)^{1-y}}\). 当 \(y&#x3D;1\) 的时候，第二项为 1, 因此，优化的是 \(\hat y\), 当 \(y&#x3D;0\) 的时候，第一项为 1, 优化的是 \(1-\hat y\).<br>对上面的似然函数取对数，结果是：</p>
 
 \[
 \log{\hat y}^y{\left(1-\hat y\right)^{1-y}} = y\log \hat y + \left(1-y\right) \log \left(1-\hat y\right)
 \]
 
-<p>最大化似然函数, 就是对上面表达式取负然后最小化, 即最小化 \(-y\log \hat y + \left(1-y\right) \log \left(1-\hat y\right)\). 这就是 cross entropy 的表达式. cross entropy 有时候也被称为 log loss.<br>举例来说, 假设我有3枚硬币, 正正反, 记为 1,1,0. 预测结果是 0.8, 0.9, 0.3, 那么, cross entropy 的均值是:</p>
+<p>最大化似然函数，就是对上面表达式取负然后最小化，即最小化 \(-y\log \hat y + \left(1-y\right) \log \left(1-\hat y\right)\). 这就是 cross entropy 的表达式。cross entropy 有时候也被称为 log loss.<br>举例来说，假设我有 3 枚硬币，正正反，记为 1,1,0. 预测结果是 0.8, 0.9, 0.3, 那么，cross entropy 的均值是：</p>
 
 \[
 -\dfrac{1}{3}\left(1 \times \log 0.8 + 1 \times \log 0.9 + \left(1-0\right) \times log \left(1-0.3\right)\right)
 \]
 
-<p>假设有一个<strong>完美</strong>的算法, 直接预测出了 1,1,0, 那么 cross entropy 的结果就是 0.</p>
+<p>假设有一个<strong>完美</strong>的算法，直接预测出了 1,1,0, 那么 cross entropy 的结果就是 0.</p>
 
     </div>
 
@@ -499,5 +494,11 @@
 
   
 
+
+<script type="text/javascript" src="https://viewer.diagrams.net/js/viewer-static.min.js"></script>
+<style>
+.geDiagramContainer { width: 100% !important; }
+</style>
 </body>
+
 </html>

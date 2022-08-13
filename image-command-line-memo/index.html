@@ -28,7 +28,7 @@
 <meta property="og:description" content="使用命令行进行图像处理的方法，主要是 ffmpeg, 除此之外还有一些其它的工具。">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2016-01-01T11:50:07.000Z">
-<meta property="article:modified_time" content="2022-08-13T02:16:25.726Z">
+<meta property="article:modified_time" content="2022-08-13T05:37:16.051Z">
 <meta property="article:author" content="yushu.gao">
 <meta property="article:tag" content="Tools">
 <meta name="twitter:card" content="summary">
@@ -221,7 +221,7 @@
 
 <h2 id="多张图片合成视频"><a href="#多张图片合成视频" class="headerlink" title="多张图片合成视频"></a>多张图片合成视频</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ffmpeg -r 6 -f image2 -pattern_type glob -i <span class="string">&#x27;result/*.jpg&#x27;</span> -c:v libx264 -pix_fmt yuv420p -vf <span class="string">&quot;scale=trunc(iw/2)*2:trunc(ih/2)*2&quot;</span> -threads 20 output.mp4</span><br></pre></td></tr></table></figure>
 
-<p><code>-r</code> 是帧率<br><code>-s</code> 转换之后的视频的 width*height, 实践证明, 最好不用这个参数<br><code>-vf &quot;scale=trunc(iw/2)*2:trunc(ih/2)*2&quot;</code> 自动设置输出<br><code>-threads 20</code> 设置20个线程</p>
+<p><code>-r</code> 是帧率<br><code>-s</code> 转换之后的视频的 width*height, 实践证明，最好不用这个参数<br><code>-vf &quot;scale=trunc(iw/2)*2:trunc(ih/2)*2&quot;</code> 自动设置输出<br><code>-threads 20</code> 设置 20 个线程</p>
 <h2 id="图像格式转换"><a href="#图像格式转换" class="headerlink" title="图像格式转换"></a>图像格式转换</h2><p>OpenCV 不能直接读取 <code>gif</code> 格式的图像</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># -coalesce option &quot;merges a sequence of images&quot;</span></span><br><span class="line">convert -verbose -coalesce image.gif image.png</span><br></pre></td></tr></table></figure>
 
@@ -426,5 +426,11 @@
 
   
 
+
+<script type="text/javascript" src="https://viewer.diagrams.net/js/viewer-static.min.js"></script>
+<style>
+.geDiagramContainer { width: 100% !important; }
+</style>
 </body>
+
 </html>

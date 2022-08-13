@@ -20,23 +20,28 @@
     var CONFIG = {"hostname":"shuokay.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":false,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
   </script>
 
-  <meta name="description" content="CNN 用于目标检测.">
+  <meta name="description" content="CNN 用于目标检测。">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Notes on RCNN">
 <meta property="og:url" content="http://shuokay.com/rcnn/index.html">
 <meta property="og:site_name" content="Memo">
-<meta property="og:description" content="CNN 用于目标检测.">
+<meta property="og:description" content="CNN 用于目标检测。">
 <meta property="og:locale" content="zh_CN">
-<meta property="og:image" content="http://shuokay.com/content/images/rcnn/rcnn-global.png">
-<meta property="og:image" content="http://shuokay.com/content/images/rcnn/rcnn.png">
+<meta property="og:image" content="http://shuokay.com/rcnn/rcnn-global.png">
+<meta property="og:image" content="http://shuokay.com/rcnn/rcnn.png">
+<meta property="og:image" content="http://shuokay.com/rcnn/step1.png">
+<meta property="og:image" content="http://shuokay.com/rcnn/step2.png">
+<meta property="og:image" content="http://shuokay.com/rcnn/step3.png">
+<meta property="og:image" content="http://shuokay.com/rcnn/step4.png">
+<meta property="og:image" content="http://shuokay.com/rcnn/step5.png">
 <meta property="article:published_time" content="2016-05-15T13:06:10.000Z">
-<meta property="article:modified_time" content="2022-08-13T02:16:25.733Z">
+<meta property="article:modified_time" content="2022-08-13T05:02:55.955Z">
 <meta property="article:author" content="yushu.gao">
 <meta property="article:tag" content="Deep Learning">
 <meta property="article:tag" content="CNN">
 <meta property="article:tag" content="Object Detection">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="http://shuokay.com/content/images/rcnn/rcnn-global.png">
+<meta name="twitter:image" content="http://shuokay.com/rcnn/rcnn-global.png">
 
 <link rel="canonical" href="http://shuokay.com/rcnn/">
 
@@ -217,29 +222,28 @@
     <div class="post-body" itemprop="articleBody">
 
       
-        <p>CNN 用于目标检测.</p>
+        <p>CNN 用于目标检测。</p>
 <span id="more"></span>
 <ul>
-<li>使用region proposal 方法获取一系列 candidate bounding box</li>
-<li>对每一个candidate bounding box 使用 CNN 提取特征</li>
+<li>使用 region proposal 方法获取一系列 candidate bounding box</li>
+<li>对每一个 candidate bounding box 使用 CNN 提取特征</li>
 <li>对 candidate bounding boxes 进行 regression 获得最后的 bounding boxes</li>
 <li>根据一些阈值条件对获得的 bounding boxes 进行合并</li>
 </ul>
-<h1 id="过程详解"><a href="#过程详解" class="headerlink" title="过程详解"></a>过程详解</h1><center><img src="/content/images/rcnn/rcnn-global.png", width=350></center>
-如上图所示, 首先, 通过某种 region proposal 方法(原论文中使用的是 selective search)来获取candidate bounding boxes. 接着把这些bounding boxes wrap 到 CNN 网络输入要求的大小. 然后把所有的 bounding boxes 进行 forward. 输出成有两个, 一个是 classifier, 一个 是bounding box regressor. 对每一个 bounding box 都可以获得一个类别概率和一组bounding box值, 然后根据类别概率决定是不是留下这个bounding box. 之后再把留下的bounding box 进行 merge.
-
-<h1 id="具体操作"><a href="#具体操作" class="headerlink" title="具体操作"></a>具体操作</h1><center><img src="/content/images/rcnn/rcnn.png", width=350></center>
+<h1 id="过程详解"><a href="#过程详解" class="headerlink" title="过程详解"></a>过程详解</h1><img src="/rcnn/rcnn-global.png" class="" width="600">
+<p>如上图所示，首先，通过某种 region proposal 方法 (原论文中使用的是 selective search) 来获取 candidate bounding boxes. 接着把这些 bounding boxes wrap 到 CNN 网络输入要求的大小。然后把所有的 bounding boxes 进行 forward. 输出成有两个，一个是 classifier, 一个 是 bounding box regressor. 对每一个 bounding box 都可以获得一个类别概率和一组 bounding box 值，然后根据类别概率决定是不是留下这个 bounding box. 之后再把留下的 bounding box 进行 merge.</p>
+<h1 id="具体操作"><a href="#具体操作" class="headerlink" title="具体操作"></a>具体操作</h1> <img src="/rcnn/rcnn.png" class="" width="600">
 
 <ol>
-<li>自己训练或者现在一个图像识别的模型, 例如 vgg16 等<center>&lt;img src&#x3D;”&#x2F;content&#x2F;images&#x2F;rcnn&#x2F;step1.png”, width&#x3D;360&gt;</center></li>
-<li>如果是下载的模型, 要对模型进行 finetune, 例如, vgg16 的模型是1000类, 论文中使用的是VOC 数据集, 该数据集中共有 20 类, 那么, finetune 之后的类别应该是 21 类(其中 1 类是background)<center>&lt;img src&#x3D;”&#x2F;content&#x2F;images&#x2F;rcnn&#x2F;step2.png”, width&#x3D;360&gt;</center></li>
-<li>特征提取. 首先通过 region proposal 方法获取 candidate, 然后, 把每一个 candidate wrap 到 CNN 的输入大小, 之后 forward through the CNN, 取得最后一个 pooling 层的输出作为 feature 并存储<center>&lt;img src&#x3D;”&#x2F;content&#x2F;images&#x2F;rcnn&#x2F;step3.png”, width&#x3D;360&gt;<center></li>
-<li>对于每一类, 训练一个分类器用来对 region features 识别(论文中训练的是 SVM)<center>&lt;img src&#x3D;”&#x2F;content&#x2F;images&#x2F;rcnn&#x2F;step4.png”, width&#x3D;360&gt;</center></li>
-<li>Bounding box regression. 对于每一类, 训练一个回归模型, 用来 map cached features to offset to ground truth boxes.<center>&lt;img src&#x3D;”&#x2F;content&#x2F;images&#x2F;rcnn&#x2F;step5.png”, width&#x3D;360&gt;</center><br>当进行预测的时候, 设置一个classify 的 threshold, 只有当class score 大约这个 threshold 的时候才保留结果</li>
+<li>自己训练或者现在一个图像识别的模型，例如 vgg16 等 <img src="/rcnn/step1.png" class="" width="600"></li>
+<li>如果是下载的模型，要对模型进行 finetune, 例如，vgg16 的模型是 1000 类，论文中使用的是 VOC 数据集，该数据集中共有 20 类，那么，finetune 之后的类别应该是 21 类 (其中 1 类是 background)<img src="/rcnn/step2.png" class="" width="600"></li>
+<li>特征提取。首先通过 region proposal 方法获取 candidate, 然后，把每一个 candidate wrap 到 CNN 的输入大小，之后 forward through the CNN, 取得最后一个 pooling 层的输出作为 feature 并存储<img src="/rcnn/step3.png" class="" width="600"></li>
+<li>对于每一类，训练一个分类器用来对 region features 识别 (论文中训练的是 SVM)<img src="/rcnn/step4.png" class="" width="600"></li>
+<li>Bounding box regression. 对于每一类，训练一个回归模型，用来 map cached features to offset to ground truth boxes.<img src="/rcnn/step5.png" class="" width="600"><br>当进行预测的时候，设置一个 classify 的 threshold, 只有当 class score 大约这个 threshold 的时候才保留结果</li>
 </ol>
 <h1 id="缺点"><a href="#缺点" class="headerlink" title="缺点"></a>缺点</h1><ol>
-<li>在 test&#x2F;predict 的时候需要对所有的 region proposal 进行 forward, 因此, 速度比较慢</li>
-<li>特征提取与 SVM 和 bounding box regressor 的训练是完全隔离的两个阶段, 因此, CNN 提取的特征不一定对 SVM 和 regressor 的训练非常合适</li>
+<li>在 test&#x2F;predict 的时候需要对所有的 region proposal 进行 forward, 因此，速度比较慢</li>
+<li>特征提取与 SVM 和 bounding box regressor 的训练是完全隔离的两个阶段，因此，CNN 提取的特征不一定对 SVM 和 regressor 的训练非常合适</li>
 <li>训练过程比较复杂</li>
 </ol>
 <h1 id="Reference"><a href="#Reference" class="headerlink" title="Reference"></a>Reference</h1><p><a target="_blank" rel="noopener" href="http://arxiv.org/abs/1311.2524">Rich feature hierarchies for accurate object detection and semantic segmentation</a><br><a target="_blank" rel="noopener" href="http://cs231n.stanford.edu/">cs231n</a></p>
@@ -441,5 +445,11 @@
 
   
 
+
+<script type="text/javascript" src="https://viewer.diagrams.net/js/viewer-static.min.js"></script>
+<style>
+.geDiagramContainer { width: 100% !important; }
+</style>
 </body>
+
 </html>

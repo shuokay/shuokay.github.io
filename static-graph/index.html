@@ -20,20 +20,20 @@
     var CONFIG = {"hostname":"shuokay.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":false,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
   </script>
 
-  <meta name="description" content="在很多机器学习系统中，计算图是一个非常重要的概念，计算图是一个有向无环图，它描述的计算的依赖关系。有了 计算图之后，我们就可以根据static graph对计算做各种优化。">
+  <meta name="description" content="在很多机器学习系统中，计算图是一个非常重要的概念，计算图是一个有向无环图，它描述的计算的依赖关系。有了 计算图之后，我们就可以根据 static graph 对计算做各种优化。">
 <meta property="og:type" content="article">
 <meta property="og:title" content="MXNet 源码详解 -- Static Graph">
 <meta property="og:url" content="http://shuokay.com/static-graph/index.html">
 <meta property="og:site_name" content="Memo">
-<meta property="og:description" content="在很多机器学习系统中，计算图是一个非常重要的概念，计算图是一个有向无环图，它描述的计算的依赖关系。有了 计算图之后，我们就可以根据static graph对计算做各种优化。">
+<meta property="og:description" content="在很多机器学习系统中，计算图是一个非常重要的概念，计算图是一个有向无环图，它描述的计算的依赖关系。有了 计算图之后，我们就可以根据 static graph 对计算做各种优化。">
 <meta property="og:locale" content="zh_CN">
-<meta property="og:image" content="http://shuokay.com/content/images/static-graph/static_graph.png">
-<meta property="og:image" content="http://shuokay.com/content/images/static-graph/static_graph_compute.png">
+<meta property="og:image" content="http://shuokay.com/static-graph/static_graph.svg">
+<meta property="og:image" content="http://shuokay.com/static-graph/static_graph_compute.svg">
 <meta property="article:published_time" content="2020-10-18T03:41:58.000Z">
-<meta property="article:modified_time" content="2022-08-13T02:16:25.734Z">
+<meta property="article:modified_time" content="2022-08-13T03:56:29.409Z">
 <meta property="article:author" content="yushu.gao">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="http://shuokay.com/content/images/static-graph/static_graph.png">
+<meta name="twitter:image" content="http://shuokay.com/static-graph/static_graph.svg">
 
 <link rel="canonical" href="http://shuokay.com/static-graph/">
 
@@ -205,22 +205,18 @@
     <div class="post-body" itemprop="articleBody">
 
       
-        <p>在很多机器学习系统中，计算图是一个非常重要的概念，计算图是一个有向无环图，它描述的计算的依赖关系。有了 计算图之后，我们就可以根据static graph对计算做各种优化。</p>
+        <p>在很多机器学习系统中，计算图是一个非常重要的概念，计算图是一个有向无环图，它描述的计算的依赖关系。有了 计算图之后，我们就可以根据 static graph 对计算做各种优化。</p>
 <span id="more"></span>
 <h1 id="计算图"><a href="#计算图" class="headerlink" title="计算图"></a>计算图</h1><p>在计算系统的优化中，计算图可以帮助减少内存的占用和提升计算的并行度。</p>
-<h2 id="内存占用"><a href="#内存占用" class="headerlink" title="内存占用"></a>内存占用</h2><p>假设我们有下面的一个计算图：</p>
-<center><img src="/content/images/static-graph/static_graph.png", width=500></center>
-上图的计算为：
-
+<h2 id="内存占用"><a href="#内存占用" class="headerlink" title="内存占用"></a>内存占用</h2><p>假设我们有下面的一个计算图：<br><img src="/static-graph/static_graph.svg"></p>
+<p>上图的计算为：</p>
 <figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">var data, weight, bias;</span><br><span class="line">out = <span class="built_in">Conv</span>(data, weight, bias);</span><br><span class="line">var gamma, beta;</span><br><span class="line">out = <span class="built_in">BatchNorm</span>(out, gamma, beta);</span><br><span class="line">out = <span class="built_in">ReLU</span>(out)</span><br></pre></td></tr></table></figure>
-<p>在上面的计算中， <code>data, weight, bias, gamma, beta</code> 所占用的储存知道上面整段代码跑完之后才会释放，虽然，<code>data, weight, bias</code> 只在Conv的计算中用到了，后面再也没有用到。因此，在这里就有内存占用的优化空间。<br>在第2行之后，系统并不知道后面再也不会用到 <code>data, weight, bias</code> 了，因此，系统不能释放它们。因此，为了优化内存占用，我们可以做如下优化：</p>
+<p>在上面的计算中， <code>data, weight, bias, gamma, beta</code> 所占用的储存知道上面整段代码跑完之后才会释放，虽然，<code>data, weight, bias</code> 只在 Conv 的计算中用到了，后面再也没有用到。因此，在这里就有内存占用的优化空间。<br>在第 2 行之后，系统并不知道后面再也不会用到 <code>data, weight, bias</code> 了，因此，系统不能释放它们。因此，为了优化内存占用，我们可以做如下优化：</p>
 <figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">var data, weight, bias;</span><br><span class="line">out = <span class="built_in">Conv</span>(data, weight, bias);</span><br><span class="line">del data, weight, bias;</span><br><span class="line">var gamma, beta;</span><br><span class="line">out = <span class="built_in">BatchNorm</span>(out, gamma, beta);</span><br><span class="line">del gamma, beta;</span><br><span class="line">out = <span class="built_in">ReLU</span>(out)</span><br></pre></td></tr></table></figure>
 <p>如上所示，我们显式地加入和释放内存的语句。那么，这个过程有没有可能自动化呢？答案显然是可以的。这里就引入了计算图的概念。<br>计算图的意思是，我们在定义计算的时候，并没有真正进行计算，而是首先构建一个计算图，然后，针对计算图进行优化，最后才是真正的计算，还是上面的例子：</p>
 <figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">Symbol data, weight, bias;</span><br><span class="line">out = <span class="built_in">Conv</span>(data, weight, bias);</span><br><span class="line">Symbol gamma, beta;</span><br><span class="line">out = <span class="built_in">BatchNorm</span>(out, gamma, beta);</span><br><span class="line">out = <span class="built_in">ReLU</span>(out)</span><br><span class="line">out.<span class="built_in">optimize</span>()</span><br><span class="line">out.<span class="built_in">run</span>([nd_data, nd_weight, nd_bias, nd_gamma, nd_beta]);</span><br></pre></td></tr></table></figure>
-<p>如上所示，在第5行得到的 <code>out</code> 就是上面的示意图，通过 <code>out.optimize()</code>, 系统就分析出在计算完<code>Conv</code>之后可以释放 <code>data, weight, bias</code>, 在计算完 <code>BatchNorm</code> 之后系统可以释放 <code>gamma, beta</code>. 通过这种方法，我们就可以节省一部分内存占用。</p>
-<h2 id="计算并行度"><a href="#计算并行度" class="headerlink" title="计算并行度"></a>计算并行度</h2><p>我们对上图示例稍加改动，得到如下的计算图：</p>
-<center><img src="/content/images/static-graph/static_graph_compute.png", width=500></center>
-
+<p>如上所示，在第 5 行得到的 <code>out</code> 就是上面的示意图，通过 <code>out.optimize()</code>, 系统就分析出在计算完<code>Conv</code>之后可以释放 <code>data, weight, bias</code>, 在计算完 <code>BatchNorm</code> 之后系统可以释放 <code>gamma, beta</code>. 通过这种方法，我们就可以节省一部分内存占用。</p>
+<h2 id="计算并行度"><a href="#计算并行度" class="headerlink" title="计算并行度"></a>计算并行度</h2><p>我们对上图示例稍加改动，得到如下的计算图：<br><img src="/static-graph/static_graph_compute.svg"></p>
 <p>对应的计算为：</p>
 <figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">var data, weight, bias;</span><br><span class="line">out0 = <span class="built_in">Conv</span>(data, weight, bias);</span><br><span class="line">out1 = <span class="built_in">Pooling</span>(data)</span><br><span class="line">out = <span class="built_in">Concat</span>(out0, out1);</span><br><span class="line">out = <span class="built_in">ReLU</span>(out)</span><br></pre></td></tr></table></figure>
 <p>上面的计算先计算一个 <code>Conv</code>, 再计算一次 <code>Pooling</code>，然后把结果 <code>Concat</code> 起来，最后算一次 <code>ReLU</code>. 虽然 <code>Conv</code> 和 <code>Pooling</code> 的计算没有互相依赖，可以同时进行，但是，在上述代码中，系统并不知道他们之间的依赖关系，只能按部就班地一行一行进行计算。如果可以提前得到计算图，通过分析就可以知道计算图的依赖关系，那么，就可以大大提升计算的并行，从而加速整个计算的过程。</p>
@@ -415,5 +411,11 @@
 
   
 
+
+<script type="text/javascript" src="https://viewer.diagrams.net/js/viewer-static.min.js"></script>
+<style>
+.geDiagramContainer { width: 100% !important; }
+</style>
 </body>
+
 </html>

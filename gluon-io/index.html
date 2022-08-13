@@ -20,15 +20,15 @@
     var CONFIG = {"hostname":"shuokay.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":false,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
   </script>
 
-  <meta name="description" content="Gluon IO 使用方法中介绍了如何使用MXNet的IO接口。Gluon 是 MXNet提供的一个新的封装接口，非常容易在静态图和动态图之间转换，动态图在调试的时候非常有用，静态图在训练的时候速度更占优势。目前比较推荐使用Gluon接口。而且，Gluon封装了一个使用更加方便的IO接口，这里记录下Gluon的IO使用方法。">
+  <meta name="description" content="Gluon IO 使用方法中介绍了如何使用 MXNet 的 IO 接口。Gluon 是 MXNet 提供的一个新的封装接口，非常容易在静态图和动态图之间转换，动态图在调试的时候非常有用，静态图在训练的时候速度更占优势。目前比较推荐使用 Gluon 接口。而且，Gluon 封装了一个使用更加方便的 IO 接口，这里记录下 Gluon 的 IO 使用方法。">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Gluon IO 使用方法">
 <meta property="og:url" content="http://shuokay.com/gluon-io/index.html">
 <meta property="og:site_name" content="Memo">
-<meta property="og:description" content="Gluon IO 使用方法中介绍了如何使用MXNet的IO接口。Gluon 是 MXNet提供的一个新的封装接口，非常容易在静态图和动态图之间转换，动态图在调试的时候非常有用，静态图在训练的时候速度更占优势。目前比较推荐使用Gluon接口。而且，Gluon封装了一个使用更加方便的IO接口，这里记录下Gluon的IO使用方法。">
+<meta property="og:description" content="Gluon IO 使用方法中介绍了如何使用 MXNet 的 IO 接口。Gluon 是 MXNet 提供的一个新的封装接口，非常容易在静态图和动态图之间转换，动态图在调试的时候非常有用，静态图在训练的时候速度更占优势。目前比较推荐使用 Gluon 接口。而且，Gluon 封装了一个使用更加方便的 IO 接口，这里记录下 Gluon 的 IO 使用方法。">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2018-05-14T08:45:58.000Z">
-<meta property="article:modified_time" content="2022-08-13T02:16:25.726Z">
+<meta property="article:modified_time" content="2022-08-13T05:36:51.258Z">
 <meta property="article:author" content="yushu.gao">
 <meta property="article:tag" content="Deep Learning">
 <meta property="article:tag" content="MXNet">
@@ -222,15 +222,16 @@
     <div class="post-body" itemprop="articleBody">
 
       
-        <a href="/gluon-io/" title="Gluon IO 使用方法">Gluon IO 使用方法</a>中介绍了如何使用MXNet的IO接口。Gluon 是 MXNet提供的一个新的封装接口，非常容易在静态图和动态图之间转换，动态图在调试的时候非常有用，静态图在训练的时候速度更占优势。目前比较推荐使用Gluon接口。而且，Gluon封装了一个使用更加方便的IO接口，这里记录下Gluon的IO使用方法。
+        <a href="/gluon-io/" title="Gluon IO 使用方法">Gluon IO 使用方法</a>中介绍了如何使用 MXNet 的 IO 接口。Gluon 是 MXNet 提供的一个新的封装接口，非常容易在静态图和动态图之间转换，动态图在调试的时候非常有用，静态图在训练的时候速度更占优势。目前比较推荐使用 Gluon 接口。而且，Gluon 封装了一个使用更加方便的 IO 接口，这里记录下 Gluon 的 IO 使用方法。
 
 <span id="more"></span>
 
-<h1 id="定义迭代器"><a href="#定义迭代器" class="headerlink" title="定义迭代器"></a>定义迭代器</h1><p>首先要定义一个迭代器，每次调用的时候返回一个 data，label的pair对。<br>对于数据的预处理，例如data augment 等都可以在 <code>__getitem__</code>中进行。</p>
+<h1 id="定义迭代器"><a href="#定义迭代器" class="headerlink" title="定义迭代器"></a>定义迭代器</h1><p>首先要定义一个迭代器，每次调用的时候返回一个 data，label 的 pair 对。<br>对于数据的预处理，例如 data augment 等都可以在 <code>__getitem__</code>中进行。</p>
 <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">DataIter</span>(gluon.data.Dataset):</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, data, label</span>):</span><br><span class="line">        self.data = data</span><br><span class="line">        self.label = label</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__getitem__</span>(<span class="params">self, idx</span>):</span><br><span class="line">        <span class="keyword">return</span> sele.data[idx], self.label[idx]</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__len__</span>(<span class="params">self</span>):</span><br><span class="line">        <span class="keyword">return</span> <span class="built_in">len</span>(self.data)</span><br></pre></td></tr></table></figure>
 
-<h1 id="Gluon-封装"><a href="#Gluon-封装" class="headerlink" title="Gluon 封装"></a>Gluon 封装</h1><p>使用Gluon 的 DataLoader 封装。</p>
+<h1 id="Gluon-封装"><a href="#Gluon-封装" class="headerlink" title="Gluon 封装"></a>Gluon 封装</h1><p>使用 Gluon 的 DataLoader 封装。</p>
 <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">data_iter = DataIter(data, label)</span><br><span class="line">data_iter = gluon.data.DataLoader(data_iter, batch_size, last_batch=<span class="string">&quot;rollover&quot;</span>, shuffle=<span class="literal">True</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> batch <span class="keyword">in</span> data_ter:</span><br><span class="line">    data, label = batch</span><br></pre></td></tr></table></figure>
+
     </div>
 
     
@@ -428,5 +429,11 @@
 
   
 
+
+<script type="text/javascript" src="https://viewer.diagrams.net/js/viewer-static.min.js"></script>
+<style>
+.geDiagramContainer { width: 100% !important; }
+</style>
 </body>
+
 </html>

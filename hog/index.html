@@ -20,15 +20,15 @@
     var CONFIG = {"hostname":"shuokay.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":false,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
   </script>
 
-  <meta name="description" content="方向梯度直方图（英语: Histogram of oriented gradient, 简称HOG）是应用在计算机视觉和图像处理领域, 用于目标检测的特征描述器. 这项技术是用来计算局部图像梯度的方向信息的统计值.">
+  <meta name="description" content="方向梯度直方图（英语：Histogram of oriented gradient, 简称 HOG）是应用在计算机视觉和图像处理领域，用于目标检测的特征描述器。这项技术是用来计算局部图像梯度的方向信息的统计值。">
 <meta property="og:type" content="article">
 <meta property="og:title" content="HOG 特征解释">
 <meta property="og:url" content="http://shuokay.com/hog/index.html">
 <meta property="og:site_name" content="Memo">
-<meta property="og:description" content="方向梯度直方图（英语: Histogram of oriented gradient, 简称HOG）是应用在计算机视觉和图像处理领域, 用于目标检测的特征描述器. 这项技术是用来计算局部图像梯度的方向信息的统计值.">
+<meta property="og:description" content="方向梯度直方图（英语：Histogram of oriented gradient, 简称 HOG）是应用在计算机视觉和图像处理领域，用于目标检测的特征描述器。这项技术是用来计算局部图像梯度的方向信息的统计值。">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2016-07-18T13:27:52.000Z">
-<meta property="article:modified_time" content="2022-08-13T02:16:25.726Z">
+<meta property="article:modified_time" content="2022-08-13T05:37:09.770Z">
 <meta property="article:author" content="yushu.gao">
 <meta property="article:tag" content="HOG">
 <meta name="twitter:card" content="summary">
@@ -216,26 +216,26 @@
     <div class="post-body" itemprop="articleBody">
 
       
-        <p>方向梯度直方图（英语: Histogram of oriented gradient, 简称HOG）是应用在计算机视觉和图像处理领域, 用于目标检测的特征描述器. 这项技术是用来计算局部图像梯度的方向信息的统计值.</p>
+        <p>方向梯度直方图（英语：Histogram of oriented gradient, 简称 HOG）是应用在计算机视觉和图像处理领域，用于目标检测的特征描述器。这项技术是用来计算局部图像梯度的方向信息的统计值。</p>
 <span id="more"></span>
 
-<h1 id="理论摘要"><a href="#理论摘要" class="headerlink" title="理论摘要"></a>理论摘要</h1><p>HOG 的思想是, 在一幅图像中, <strong>局部目标的表象和形状 (appearance and shape) 能够被梯度和边缘的方向密度分布很好的描述.</strong> HOG 的提取方法是:</p>
+<h1 id="理论摘要"><a href="#理论摘要" class="headerlink" title="理论摘要"></a>理论摘要</h1><p>HOG 的思想是，在一幅图像中，<strong>局部目标的表象和形状 (appearance and shape) 能够被梯度和边缘的方向密度分布很好的描述.</strong> HOG 的提取方法是：</p>
 <ol>
-<li>把图片分割成很多小的联通区域(这些区域被称为cell)</li>
+<li>把图片分割成很多小的联通区域 (这些区域被称为 cell)</li>
 <li>对于每个 cell 中的 pixels, 计算梯度方向</li>
-<li>把所有的 cell 计算出来的梯度方向 concatenation 到一起, 就是 HOG 特征.</li>
+<li>把所有的 cell 计算出来的梯度方向 concatenation 到一起，就是 HOG 特征。</li>
 </ol>
-<p>为了提高准确率, 对 local histograms 的更大范围 (称为block) 进行 constrast-normalized. 过程如下:</p>
+<p>为了提高准确率，对 local histograms 的更大范围 (称为 block) 进行 constrast-normalized. 过程如下：</p>
 <ol>
 <li>计算各个 histogram 在对应的 block 中的密度</li>
-<li>根据这个密度, 对所有的 cell 做 normalize.</li>
+<li>根据这个密度，对所有的 cell 做 normalize.</li>
 </ol>
-<p>这样做的好处是对于光照和阴影比较鲁棒.</p>
+<p>这样做的好处是对于光照和阴影比较鲁棒。</p>
 <h1 id="HOG-的优点"><a href="#HOG-的优点" class="headerlink" title="HOG 的优点"></a>HOG 的优点</h1><ol>
-<li>HOG 操作的是局部的 cell, 所以, 对于几何和光学变化有较好的鲁棒性</li>
-<li>作者通过实验发现, 在粗粒度的空域抽样, 细粒度的方向抽样, 较强的局部光学归一化的条件下, 只要行人能够大体保持直立的姿势, 就容许行人有细微的肢体动作, 不影响检测效果.</li>
+<li>HOG 操作的是局部的 cell, 所以，对于几何和光学变化有较好的鲁棒性</li>
+<li>作者通过实验发现，在粗粒度的空域抽样，细粒度的方向抽样，较强的局部光学归一化的条件下，只要行人能够大体保持直立的姿势，就容许行人有细微的肢体动作，不影响检测效果。</li>
 </ol>
-<h1 id="算法实现"><a href="#算法实现" class="headerlink" title="算法实现"></a>算法实现</h1><h2 id="计算梯度"><a href="#计算梯度" class="headerlink" title="计算梯度"></a>计算梯度</h2><p>特征检测的第一步常常是图像预处理, 如归一化颜色值和 gmma 值, 但是, 作者实验发现, HOG 可以省略这个步骤. 因为 HOG 的描述子归一化能达到同样的效果, 预处理的好处微乎其微. 所以, 第一步直接计算梯度. 使用下面的卷积核进行卷积:</p>
+<h1 id="算法实现"><a href="#算法实现" class="headerlink" title="算法实现"></a>算法实现</h1><h2 id="计算梯度"><a href="#计算梯度" class="headerlink" title="计算梯度"></a>计算梯度</h2><p>特征检测的第一步常常是图像预处理，如归一化颜色值和 gmma 值，但是，作者实验发现，HOG 可以省略这个步骤。因为 HOG 的描述子归一化能达到同样的效果，预处理的好处微乎其微。所以，第一步直接计算梯度。使用下面的卷积核进行卷积：</p>
 
 \[
 \lbrack -1, 0, 1 \rbrack \text{ and } {\lbrack -1, 0, 1 \rbrack}^T
@@ -243,16 +243,16 @@
 
 
 <ul>
-<li>其它卷积核如 (3 \times 3) 的 Sobel 卷积核, 斜角卷积核, 在行人检测中效果比较差.</li>
-<li>使用 Gaussian 模糊进行预处理的效果反而比没处理的效果差.</li>
+<li>其它卷积核如 (3 \times 3) 的 Sobel 卷积核，斜角卷积核，在行人检测中效果比较差。</li>
+<li>使用 Gaussian 模糊进行预处理的效果反而比没处理的效果差。</li>
 </ul>
-<h2 id="Orientation-binning"><a href="#Orientation-binning" class="headerlink" title="Orientation binning"></a>Orientation binning</h2><p>这个过程是针对 cell 来操作, 计算 cell 中的每个 pixel 的方向梯度, 然后建立方向直方图. 根据计算的梯度是否有正负之分, 可以把方向定为 (0-180) 或者 (0-360).</p>
+<h2 id="Orientation-binning"><a href="#Orientation-binning" class="headerlink" title="Orientation binning"></a>Orientation binning</h2><p>这个过程是针对 cell 来操作，计算 cell 中的每个 pixel 的方向梯度，然后建立方向直方图。根据计算的梯度是否有正负之分，可以把方向定为 (0-180) 或者 (0-360).</p>
 <ul>
-<li>Dalal 和 Triggs 在实验中发现在行人检测中, 把方向直方图分为 9 个 bins 效果最好.</li>
-<li>Dalal 和 Triggs 使用梯度的模长作为投票的权重.(也可以使用其它的方法计算权重, 但是, <em>直接使用模长通常能产生最好的效果</em>)</li>
+<li>Dalal 和 Triggs 在实验中发现在行人检测中，把方向直方图分为 9 个 bins 效果最好。</li>
+<li>Dalal 和 Triggs 使用梯度的模长作为投票的权重.(也可以使用其它的方法计算权重，但是，<em>直接使用模长通常能产生最好的效果</em>)</li>
 </ul>
-<h2 id="Descriptor-Block"><a href="#Descriptor-Block" class="headerlink" title="Descriptor Block"></a>Descriptor Block</h2><p>把 cell 集结成更大的 Block 的目的是为了进行局部归一化. 而局部归一化的目的是为了解释光照和对比度的影响. 方法是把相邻的几个 cell 集结到一起, 形成一个 Block. 各个 Block 可能会重叠, 类比 CNN 中, 在卷积的过程中, kernel size 和 stride 大小的选择. 在一个 Block 中的所有的 cell 的方向地梯度放到一起, 形成该 Block 的 feature. 整张图片的 Block 的 feature 放到一起, 形成该图片的 feature.</p>
-<h2 id="Block-Normalization"><a href="#Block-Normalization" class="headerlink" title="Block Normalization"></a>Block Normalization</h2><p>有多种 normalize 方法, normalize 针对的是一个 Block 的 feature 进行的. Normalization 在 HOG 算法中非常重要, 能显著提高准确率. 有以下几种方法:</p>
+<h2 id="Descriptor-Block"><a href="#Descriptor-Block" class="headerlink" title="Descriptor Block"></a>Descriptor Block</h2><p>把 cell 集结成更大的 Block 的目的是为了进行局部归一化。而局部归一化的目的是为了解释光照和对比度的影响。方法是把相邻的几个 cell 集结到一起，形成一个 Block. 各个 Block 可能会重叠，类比 CNN 中，在卷积的过程中，kernel size 和 stride 大小的选择。在一个 Block 中的所有的 cell 的方向地梯度放到一起，形成该 Block 的 feature. 整张图片的 Block 的 feature 放到一起，形成该图片的 feature.</p>
+<h2 id="Block-Normalization"><a href="#Block-Normalization" class="headerlink" title="Block Normalization"></a>Block Normalization</h2><p>有多种 normalize 方法，normalize 针对的是一个 Block 的 feature 进行的。Normalization 在 HOG 算法中非常重要，能显著提高准确率。有以下几种方法：</p>
 <ul>
 <li><p>L2-norm</p>
 
@@ -260,7 +260,7 @@
 f=\dfrac{v}{\sqrt{{\Vert v \Vert}^2_2+e^2}}
 \]
 </li>
-<li><p>L2-norm, 但是, 带有截断操作, 截断之后重新 normalize</p>
+<li><p>L2-norm, 但是，带有截断操作，截断之后重新 normalize</p>
 </li>
 <li><p>L1-norm</p>
 
@@ -524,5 +524,11 @@ f=\sqrt{\dfrac{v}{{\Vert v \Vert}_1+e}}
 
   
 
+
+<script type="text/javascript" src="https://viewer.diagrams.net/js/viewer-static.min.js"></script>
+<style>
+.geDiagramContainer { width: 100% !important; }
+</style>
 </body>
+
 </html>

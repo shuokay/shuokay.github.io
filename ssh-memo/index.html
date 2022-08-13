@@ -28,7 +28,7 @@
 <meta property="og:description" content="ssh">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2016-01-01T02:56:39.000Z">
-<meta property="article:modified_time" content="2022-08-13T02:16:25.734Z">
+<meta property="article:modified_time" content="2022-08-13T05:44:46.562Z">
 <meta property="article:author" content="yushu.gao">
 <meta property="article:tag" content="ssh">
 <meta name="twitter:card" content="summary">
@@ -215,14 +215,14 @@
         <p>ssh</p>
 <span id="more"></span>
 
-<h1 id="X11-转发配置"><a href="#X11-转发配置" class="headerlink" title="X11 转发配置"></a>X11 转发配置</h1><p>X11 转发需要 server 端和 client 端配合实现.</p>
+<h1 id="X11-转发配置"><a href="#X11-转发配置" class="headerlink" title="X11 转发配置"></a>X11 转发配置</h1><p>X11 转发需要 server 端和 client 端配合实现。</p>
 <h2 id="server-端配置"><a href="#server-端配置" class="headerlink" title="server 端配置"></a>server 端配置</h2><p>server 端要启用 X11 转发</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># /etc/ssh/sshd_config</span></span><br><span class="line">X11Forwarding <span class="built_in">yes</span></span><br></pre></td></tr></table></figure>
 
-<h2 id="client-端配置"><a href="#client-端配置" class="headerlink" title="client 端配置"></a>client 端配置</h2><p>client 端有两种方式, 一种是在使用 ssh 连接的时候指定使用 X11 转发</p>
+<h2 id="client-端配置"><a href="#client-端配置" class="headerlink" title="client 端配置"></a>client 端配置</h2><p>client 端有两种方式，一种是在使用 ssh 连接的时候指定使用 X11 转发</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ssh -X user@server</span><br></pre></td></tr></table></figure>
 
-<p>另外一种是配置文件方式, 使 ssh 默认启用 X11 转发.</p>
+<p>另外一种是配置文件方式，使 ssh 默认启用 X11 转发。</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># ~/.ssh/config</span></span><br><span class="line">ForwardX11 <span class="built_in">yes</span></span><br></pre></td></tr></table></figure>
 
 <h1 id="快速登陆"><a href="#快速登陆" class="headerlink" title="快速登陆"></a>快速登陆</h1><p>直接使用别名登陆系统</p>
@@ -423,5 +423,11 @@
 
   
 
+
+<script type="text/javascript" src="https://viewer.diagrams.net/js/viewer-static.min.js"></script>
+<style>
+.geDiagramContainer { width: 100% !important; }
+</style>
 </body>
+
 </html>

@@ -28,7 +28,7 @@
 <meta property="og:description" content="Ubuntu 使用">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2016-01-01T03:33:46.000Z">
-<meta property="article:modified_time" content="2022-08-13T02:16:25.735Z">
+<meta property="article:modified_time" content="2022-08-13T05:43:57.376Z">
 <meta property="article:author" content="yushu.gao">
 <meta property="article:tag" content="Ubuntu">
 <meta property="article:tag" content="Linux">
@@ -222,35 +222,35 @@
 
 <h1 id="命令行方式清空回收站"><a href="#命令行方式清空回收站" class="headerlink" title="命令行方式清空回收站"></a>命令行方式清空回收站</h1><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">rm</span> -rf ~/.local/share/Trash/*</span><br></pre></td></tr></table></figure>
 
-<h1 id="温度监控"><a href="#温度监控" class="headerlink" title="温度监控"></a>温度监控</h1><p>在使用 GPU 训练的过程中, 需要监控 GPU 的温度, 防止温度过高</p>
+<h1 id="温度监控"><a href="#温度监控" class="headerlink" title="温度监控"></a>温度监控</h1><p>在使用 GPU 训练的过程中，需要监控 GPU 的温度，防止温度过高</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo apt install psensor</span><br></pre></td></tr></table></figure>
 
 <h1 id="人机交互调整"><a href="#人机交互调整" class="headerlink" title="人机交互调整"></a>人机交互调整</h1><h2 id="改变滑动条的样式"><a href="#改变滑动条的样式" class="headerlink" title="改变滑动条的样式"></a>改变滑动条的样式</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">gsettings <span class="built_in">set</span> com.canonical.desktop.interface scrollbar-mode normal</span><br></pre></td></tr></table></figure>
 
-<h2 id="通过点击来最小化窗口"><a href="#通过点击来最小化窗口" class="headerlink" title="通过点击来最小化窗口"></a>通过点击来最小化窗口</h2><p>从 Ubuntu 16.04 开始, Unity Tweak Tool 已经支持配置点击最小化窗口了</p>
+<h2 id="通过点击来最小化窗口"><a href="#通过点击来最小化窗口" class="headerlink" title="通过点击来最小化窗口"></a>通过点击来最小化窗口</h2><p>从 Ubuntu 16.04 开始，Unity Tweak Tool 已经支持配置点击最小化窗口了</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">gsettings <span class="built_in">set</span> org.compiz.unityshell:/org/compiz/profiles/unity/plugins/unityshell/ launcher-minimize-window <span class="literal">true</span></span><br></pre></td></tr></table></figure>
 
-<h2 id="隐藏所有的桌面图标"><a href="#隐藏所有的桌面图标" class="headerlink" title="隐藏所有的桌面图标"></a>隐藏所有的桌面图标</h2><p>方法一: 动态桌面的方法</p>
-<p>这个方法在 Ubuntu 16.04 下面不好用, 会出现桌面卡死的现象, 建议使用livewallpaper</p>
+<h2 id="隐藏所有的桌面图标"><a href="#隐藏所有的桌面图标" class="headerlink" title="隐藏所有的桌面图标"></a>隐藏所有的桌面图标</h2><p>方法一：动态桌面的方法</p>
+<p>这个方法在 Ubuntu 16.04 下面不好用，会出现桌面卡死的现象，建议使用 livewallpaper</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">gsettings <span class="built_in">set</span> org.gnome.desktop.background show-desktop-icons <span class="literal">false</span></span><br></pre></td></tr></table></figure>
 
-<p>livewallpaper 适配 16.04 效果不好, 可以考虑使用<a target="_blank" rel="noopener" href="https://github.com/iabem97/komorebi">Komorebi</a>. 但是, 该方法占用 CPU 资源很高</p>
-<p><strong>方法二: 使用系统自带的配置(推荐)</strong><br>修改 <code>$HOME/.config/user-dirs.dirs</code>, 找到 <code>XDG_DESKTOP_DIR</code> 字段, 修改成想要在桌面上显示的文件夹, 例如</p>
+<p>livewallpaper 适配 16.04 效果不好，可以考虑使用<a target="_blank" rel="noopener" href="https://github.com/iabem97/komorebi">Komorebi</a>. 但是，该方法占用 CPU 资源很高</p>
+<p><strong>方法二：使用系统自带的配置 (推荐)</strong><br>修改 <code>$HOME/.config/user-dirs.dirs</code>, 找到 <code>XDG_DESKTOP_DIR</code> 字段，修改成想要在桌面上显示的文件夹，例如</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">XDG_DESKTOP_DIR=<span class="string">&quot;<span class="variable">$HOME</span>/Desktop&quot;</span></span><br></pre></td></tr></table></figure>
 
-<h2 id="主题设置"><a href="#主题设置" class="headerlink" title="主题设置"></a>主题设置</h2><p><a target="_blank" rel="noopener" href="https://github.com/horst3180/arc-theme">Arc 主题</a><br>命令行改变主题:</p>
+<h2 id="主题设置"><a href="#主题设置" class="headerlink" title="主题设置"></a>主题设置</h2><p><a target="_blank" rel="noopener" href="https://github.com/horst3180/arc-theme">Arc 主题</a><br>命令行改变主题：</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">gsettings <span class="built_in">set</span> org.gnome.desktop.interface gtk-theme <span class="string">&quot;YourGTKTheme&quot;</span></span><br></pre></td></tr></table></figure>
 
-<p>命令行改变窗口(可选):</p>
+<p>命令行改变窗口 (可选):</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">gsettings <span class="built_in">set</span> org.gnome.desktop.wm.preferences theme <span class="string">&quot;YourWindowTheme&quot;</span></span><br></pre></td></tr></table></figure>
 
-<h2 id="图标设置"><a href="#图标设置" class="headerlink" title="图标设置"></a>图标设置</h2><p><a target="_blank" rel="noopener" href="https://github.com/horst3180/arc-icon-theme">Arc 图标</a><br>Arc 图标并没有提供 icons 资源, 默认使用的是<a target="_blank" rel="noopener" href="https://snwh.org/moka">Moka icon theme</a>, 所以, 安装完 Arc icons 还需要安装 Noka icons<br>命令行改变图标:</p>
+<h2 id="图标设置"><a href="#图标设置" class="headerlink" title="图标设置"></a>图标设置</h2><p><a target="_blank" rel="noopener" href="https://github.com/horst3180/arc-icon-theme">Arc 图标</a><br>Arc 图标并没有提供 icons 资源，默认使用的是<a target="_blank" rel="noopener" href="https://snwh.org/moka">Moka icon theme</a>, 所以，安装完 Arc icons 还需要安装 Noka icons<br>命令行改变图标：</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">gsettings <span class="built_in">set</span> org.gnome.desktop.interface icon-theme <span class="string">&#x27;YourIconTheme&#x27;</span></span><br></pre></td></tr></table></figure>
 
 <h2 id="键位映射"><a href="#键位映射" class="headerlink" title="键位映射"></a>键位映射</h2><p>把 <code>cap</code> 键映射成 <code>ctrl</code> 键</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">setxkbmap -layout us -option ctrl:nocaps</span><br></pre></td></tr></table></figure>
 
-<h1 id="开机启动显示-grub-菜单"><a href="#开机启动显示-grub-菜单" class="headerlink" title="开机启动显示 grub 菜单"></a>开机启动显示 grub 菜单</h1><p>两种方法, 第一种是在开机启动的时候按住 <code>shift</code>, 第二种方法是修改配置文件 <code>/etc/default/grub</code>, 注释掉下面这行:</p>
+<h1 id="开机启动显示-grub-菜单"><a href="#开机启动显示-grub-菜单" class="headerlink" title="开机启动显示 grub 菜单"></a>开机启动显示 grub 菜单</h1><p>两种方法，第一种是在开机启动的时候按住 <code>shift</code>, 第二种方法是修改配置文件 <code>/etc/default/grub</code>, 注释掉下面这行：</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># GRUB_HIDDEN_TIMEOUT=0</span></span><br></pre></td></tr></table></figure>
 
 <h1 id="第三方包"><a href="#第三方包" class="headerlink" title="第三方包"></a>第三方包</h1><p>bazel</p>
@@ -266,6 +266,7 @@
 
 <h2 id="配置"><a href="#配置" class="headerlink" title="配置"></a>配置</h2><p><code>.zshrc</code></p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">keychain --quiet id_rsa</span><br><span class="line"><span class="built_in">source</span> ~/.keychain/`<span class="built_in">uname</span> -n`-sh</span><br></pre></td></tr></table></figure>
+
     </div>
 
     
@@ -462,5 +463,11 @@
 
   
 
+
+<script type="text/javascript" src="https://viewer.diagrams.net/js/viewer-static.min.js"></script>
+<style>
+.geDiagramContainer { width: 100% !important; }
+</style>
 </body>
+
 </html>
