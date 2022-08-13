@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"shuokay.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":false,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="Softmax 是在神经网络的中应用极其普遍的一种操作, 搞清楚 softmax 极其对对应的 cross entropy loss function 的意义及数学推导过程可以有好的帮助理解源码. 在这篇文章中, 详细地记录了 softmax, cross entropy loss, 和其对应的梯度的推导过程, 最后, 附加了 MXNet 中的梯度计算代码, 可以帮助直观的理解开源代码中梯度的计算">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Softmax 输出及其反向传播推导">
+<meta property="og:url" content="http://shuokay.com/softmax-loss/index.html">
+<meta property="og:site_name" content="Memo">
+<meta property="og:description" content="Softmax 是在神经网络的中应用极其普遍的一种操作, 搞清楚 softmax 极其对对应的 cross entropy loss function 的意义及数学推导过程可以有好的帮助理解源码. 在这篇文章中, 详细地记录了 softmax, cross entropy loss, 和其对应的梯度的推导过程, 最后, 附加了 MXNet 中的梯度计算代码, 可以帮助直观的理解开源代码中梯度的计算">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2016-07-20T09:32:20.000Z">
+<meta property="article:modified_time" content="2022-08-13T02:16:25.734Z">
+<meta property="article:author" content="yushu.gao">
+<meta property="article:tag" content="CNN">
+<meta property="article:tag" content="MXNet">
+<meta property="article:tag" content="Softmax">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://shuokay.com/softmax-loss/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Softmax 输出及其反向传播推导 | Memo</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Memo</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="th fa-fw"></i>分类</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://shuokay.com/softmax-loss/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yushu.gao">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Memo">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Softmax 输出及其反向传播推导
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2016-07-20 17:32:20" itemprop="dateCreated datePublished" datetime="2016-07-20T17:32:20+08:00">2016-07-20</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Machine-Learning/" itemprop="url" rel="index"><span itemprop="name">Machine Learning</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Machine-Learning/Mathematics/" itemprop="url" rel="index"><span itemprop="name">Mathematics</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>Softmax 是在神经网络的中应用极其普遍的一种操作, 搞清楚 softmax 极其对对应的 cross entropy loss function 的意义及数学推导过程可以有好的帮助理解源码. 在这篇文章中, 详细地记录了 softmax, cross entropy loss, 和其对应的梯度的推导过程, 最后, 附加了 MXNet 中的梯度计算代码, 可以帮助直观的理解开源代码中梯度的计算过程.</p>
+<span id="more"></span>
+<h1 id="Softmax-Function"><a href="#Softmax-Function" class="headerlink" title="Softmax Function"></a>Softmax Function</h1><p>首先给出 Softmax function 的定义</p>
+
+\[
+y_c=\zeta(\textbf{z})_c = \dfrac{e^{z_c}}{\sum_{d=1}^C{e^{z_d}}} \text{  for } c=1, \dots, C
+\]
+
+<p>其中, \(\textbf{z}\) 是输入, C 维的向量, \(\textbf{y}\) 是输出, C 维向量. 而且, \(y\) 的取值范围是 \(\lbrack 0,1 \rbrack\). 这样, C 个类别的概率分别是</p>
+
+\[
+\left\lbrack\matrix{P(t=1\vert\textbf{z})\cr \vdots \cr  P(t=C\vert\textbf{z})}\right\rbrack=\left\lbrack\matrix{\zeta(\textbf{z}_1)\cr \vdots \cr  \zeta(\textbf{z}_C)}\right\rbrack = \dfrac{1}{\sum_{d=1}^C{e^{z_d}}}\left\lbrack\matrix{e^{z_1} \cr \vdots \cr e^{e^{z_C}} }\right\rbrack
+\]
+
+
+<h1 id="Softmax-函数的导数"><a href="#Softmax-函数的导数" class="headerlink" title="Softmax 函数的导数"></a>Softmax 函数的导数</h1><p>先给出 softmax 的导数, 后面会用到. 首先, 为了方便, 定义符号 \(\sum_C&#x3D;\sum_{d&#x3D;1}^C{e^{z_d}}\text{ for } c&#x3D;1 \dots C\), 所以, 给定一个feature vector, 输出类别 \(c\) 的概率是 \(y_c&#x3D;\dfrac{e^{z_c}}{\sum_c}\).</p>
+
+\[\begin{array}{l}if\;i = j:\;\dfrac{{\partial {y_i}}}{{\partial {z_j}}} = \dfrac{{\partial {y_i}}}{{\partial {z_i}}} = \dfrac{{\partial \dfrac{{{e^{{z_i}}}}}{{\sum\nolimits_C {} }}}}{{\partial {z_i}}} = \dfrac{{{e^{{z_i}}} \cdot \sum\nolimits_C {}  - {e^{{z_i}}} \cdot {e^{{z_i}}}}}{{{{\left( {\sum\nolimits_C {} } \right)}^2}}} = \dfrac{{{e^{{z_i}}}\left( {\sum\nolimits_C {}  - {e^{{z_i}}}} \right)}}{{\sum\nolimits_C {}  \cdot \sum\nolimits_C {} }}{\rm{ = }}\dfrac{{{e^{{z_i}}}}}{{\sum\nolimits_C {} }} \cdot \dfrac{{\sum\nolimits_C {}  - {e^{{z_i}}}}}{{\sum\nolimits_C {} }} = {y_i} \cdot \left( {1 - {y_i}} \right)\\if\;i \ne j:\;\dfrac{{\partial {y_i}}}{{\partial {z_j}}} = \dfrac{{\partial \dfrac{{{e^{{z_i}}}}}{{\sum\nolimits_C {} }}}}{{\partial {z_j}}} = \dfrac{{0 \cdot \sum\nolimits_C {}  - {e^{{z_i}}} \cdot {e^{{z_j}}}}}{{{{\left( {\sum\nolimits_C {} } \right)}^2}}} =  - \dfrac{{{e^{{z_i}}}}}{{\sum\nolimits_C {} }} \cdot \dfrac{{{e^{{z_j}}}}}{{\sum\nolimits_C {} }} =  - {y_i} \cdot {y_j}\end{array}\]
+
+
+<h1 id="损失函数-cross-entropy-loss-function"><a href="#损失函数-cross-entropy-loss-function" class="headerlink" title="损失函数 cross entropy loss function"></a>损失函数 cross entropy loss function</h1><p>目标函数本质上是通过最大似然推倒出来的, cross entropy 不过是个高大上的名词.</p>
+
+\[
+\underset{\theta}{\arg\max} \cal{L}(\theta \vert \textbf{t,z})
+\]
+
+<p>把上述似然函数写成联合分布的形式:</p>
+
+\[
+P(\textbf{t,x}\vert \theta)=P(\textbf{t}\vert \textbf{z}, \theta)P(\textbf{z}\vert \theta)
+\]
+
+
+<p>\(\textbf{z}\) 的分布对于结果没有影响, 只需要关心 \(P(\textbf{t}\vert \textbf{z}, \theta)\). 对于固定的 \(\theta\), 可以记成\(P(\textbf{t}\vert \textbf{z})\), 又因为各个 \(t_i\) 是独立的, 只有一个 \(t_i\) 是激活的, 所以,</p>
+
+\[
+P(\textbf{t}\vert\textbf{z})=\prod_{i=c}^{C}P\left( t_c \vert \textbf{z}\right)^{t_c}=\prod_{i=c}^C\zeta(\textbf{z})_c^{t_c}=\prod_{i=c}^{C}y_c^{t_c}
+\]
+
+<p>maximizing 上面的式子, 相当于 minimizing 上述式子去对数, 再取负数, 最终得到的优化目标是:</p>
+
+\[
+-\log \prod_{i=c}^{C}y_c^{t_c}=-\sum_{i=c}^{C}t_c \cdot \log(y_c)
+\]
+
+<p>一个 batch 的 cross-entropy error function 是</p>
+
+\[
+\xi(X, Y) = \sum_{i=1}^n \xi(\textbf{t}_i, \textbf{y}_i) = - \sum_{i=1}^n \sum_{i=c}^C t_{ic} \cdot \log(y_{ic})
+\]
+
+<p>当且仅当样本 \(i\)属于类别 \(c\) 的时候, \(t_{ic}&#x3D;1\)</p>
+<h1 id="corss-entropy-loss-function-的梯度"><a href="#corss-entropy-loss-function-的梯度" class="headerlink" title="corss entropy loss function 的梯度"></a>corss entropy loss function 的梯度</h1>
+\[
+\begin{align}
+\dfrac{\partial\xi}{\partial z_i} &= - \sum_{j=1}^C \dfrac{\partial t_j \log(y_j)}{\partial z_i} \\
+&= - \sum_{j=1}^C t_j \dfrac{\partial \log(y_j)}{\partial z_i} \\
+&= - \sum_{j=1}^C t_j \dfrac{1}{y_j} \dfrac{\partial y_j}{\partial z_i} \\
+&= - \dfrac{t_i}{y_i} \dfrac{\partial y_i}{\partial z_i} - \sum_{j \neq i}^C \dfrac{t_j}{y_j} \dfrac{\partial y_j}{\partial z_i} \\
+&= - \dfrac{t_i}{y_i} y_i(1-y_i) - \sum_{j \neq i}^{C} \dfrac{t_j}{y_j}(-y_jy_j) \\
+&= -t_i + t_iy_i + \sum_{j \neq i}^{C} t_jy_i \\
+&= -t_i + \sum_{j=1}^C t_jy_i \\
+&= -t_i + y_i \sum_{j=1}^C t_j \\
+&= y_i - t_i
+\end{align}
+\]
+
+
+<h1 id="源码分析"><a href="#源码分析" class="headerlink" title="源码分析"></a>源码分析</h1><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> DType&gt;</span></span><br><span class="line"><span class="function"><span class="keyword">inline</span> <span class="type">void</span> <span class="title">SoftmaxGrad</span><span class="params">(Tensor&lt;cpu, <span class="number">2</span>, DType&gt; dst,</span></span></span><br><span class="line"><span class="params"><span class="function">                        <span class="type">const</span> Tensor&lt;cpu, <span class="number">2</span>, DType&gt; &amp;src,</span></span></span><br><span class="line"><span class="params"><span class="function">                        <span class="type">const</span> Tensor&lt;cpu, <span class="number">1</span>, DType&gt; &amp;label)</span> </span>&#123;</span><br><span class="line">  <span class="keyword">for</span> (<span class="type">index_t</span> y = <span class="number">0</span>; y &lt; dst.<span class="built_in">size</span>(<span class="number">0</span>); ++y) &#123;</span><br><span class="line">    <span class="type">const</span> <span class="type">index_t</span> k = <span class="built_in">static_cast</span>&lt;<span class="type">int</span>&gt;(label[y]);</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">index_t</span> x = <span class="number">0</span>; x &lt; dst.<span class="built_in">size</span>(<span class="number">1</span>); ++x) &#123;</span><br><span class="line">      <span class="keyword">if</span> (x == k) &#123;</span><br><span class="line">        dst[y][k] = src[y][k] - <span class="number">1.0f</span>;</span><br><span class="line">      &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        dst[y][x] = src[y][x];</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/CNN/" rel="tag"># CNN</a>
+              <a href="/tags/MXNet/" rel="tag"># MXNet</a>
+              <a href="/tags/Softmax/" rel="tag"># Softmax</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/hog/" rel="prev" title="HOG 特征解释">
+      <i class="fa fa-chevron-left"></i> HOG 特征解释
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/bovw/" rel="next" title="BoVW 图像检索">
+      BoVW 图像检索 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Softmax-Function"><span class="nav-number">1.</span> <span class="nav-text">Softmax Function</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Softmax-%E5%87%BD%E6%95%B0%E7%9A%84%E5%AF%BC%E6%95%B0"><span class="nav-number">2.</span> <span class="nav-text">Softmax 函数的导数</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%8D%9F%E5%A4%B1%E5%87%BD%E6%95%B0-cross-entropy-loss-function"><span class="nav-number">3.</span> <span class="nav-text">损失函数 cross entropy loss function</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#corss-entropy-loss-function-%E7%9A%84%E6%A2%AF%E5%BA%A6"><span class="nav-number">4.</span> <span class="nav-text">corss entropy loss function 的梯度</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90"><span class="nav-number">5.</span> <span class="nav-text">源码分析</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yushu.gao</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">92</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">32</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">94</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yushu.gao</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS-MML_HTMLorMML';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+</body>
+</html>

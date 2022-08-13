@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"shuokay.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":false,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="A short introduction to SVM">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Notes on SVM">
+<meta property="og:url" content="http://shuokay.com/svm/index.html">
+<meta property="og:site_name" content="Memo">
+<meta property="og:description" content="A short introduction to SVM">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2016-05-12T12:39:03.000Z">
+<meta property="article:modified_time" content="2022-08-13T02:16:25.734Z">
+<meta property="article:author" content="yushu.gao">
+<meta property="article:tag" content="Machine Learning">
+<meta property="article:tag" content="SVM">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://shuokay.com/svm/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Notes on SVM | Memo</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Memo</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="th fa-fw"></i>分类</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://shuokay.com/svm/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yushu.gao">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Memo">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Notes on SVM
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2016-05-12 20:39:03" itemprop="dateCreated datePublished" datetime="2016-05-12T20:39:03+08:00">2016-05-12</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Machine-Learning/" itemprop="url" rel="index"><span itemprop="name">Machine Learning</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>A short introduction to SVM</p>
+<span id="more"></span>
+<h1 id="Empirical-Risk-and-the-true-Risk"><a href="#Empirical-Risk-and-the-true-Risk" class="headerlink" title="Empirical Risk and the true Risk"></a>Empirical Risk and the true Risk</h1><p>We can try to learn \(f(x,\alpha)\) by choosing a function that performs well on training data:</p>
+
+$$
+R_{emp}\left(\alpha\right)=\frac{1}{m}\sum_{i=1}^{m}{l\left(f\left(x_i,\alpha\right),y_i\right)}
+$$
+
+<p>where \(l\) is the <strong>zero-one</strong> loss function.<br>Vapnik and Chervonenkis <strong>showed</strong> that <strong>an upper bound on the true<br>risk</strong> can be given by the empirical risk + and additional term:</p>
+
+$$
+R\left(\alpha\right) \leq R_{emp}\left(\alpha\right)+\sqrt{\frac{h\left(\log\left(\frac{2m}{n}+1\right)\right)-\log \left(\frac{n}{4} \right)}{m}}
+$$
+
+<p>where \(h\) is the VC dimension of the set of functions parameterized by\(\alpha\)</p>
+<ol>
+<li><p>The VC dimension of a set of functions is a measure of their capacity or complexity</p>
+</li>
+<li><p>If you can describe a lot of different phenomena with a set of functions then the value of h is large.</p>
+</li>
+</ol>
+<p><em>VC dim &#x3D; the maximum number of points that can be separated in all<br>possible ways by that set of fuctions.</em></p>
+<h1 id="VC-dimension-and-capacity-of-functions"><a href="#VC-dimension-and-capacity-of-functions" class="headerlink" title="VC dimension and capacity of functions"></a>VC dimension and capacity of functions</h1><p>Simplification of bound:<br>Test Error \( \leq \) Training Error + Complexity of set of Models</p>
+<h1 id="Capacity-of-hyperplans"><a href="#Capacity-of-hyperplans" class="headerlink" title="Capacity of hyperplans"></a>Capacity of hyperplans</h1><p>Vapnik and Chevrvonenkis also showed the following:<br>Consider hyperplans \((wx&#x3D;0)\)where \( w \) is normalized w.r.t. a set of points \( X^{\star} \) such that: \( min_i|wx_i|&#x3D;1 \)</p>
+<p>the set of decision functions \( f_w(x)&#x3D;sign(wx) \) defined on \( X^{\star} \) such that \( ||w|| \leq A \) has a VC dimension satisfying</p>
+
+$$
+h \leq R^2A^2
+$$
+
+<p>where \( R \) is the radius of the smallest sphere around the origin containing \( X^{\star} \). So we would like to find the function which minimizes an objective like:<br>Training Error + Complexity term<br>We write that as:</p>
+
+$$
+\frac{1}{n}\sum_{i=1}^{n}l\left(f\left(x_i,\alpha\right),y_i\right)+ \text{ Complexity term}
+$$
+
+<p>For now we will choose the set of hyperplans, so \( f(x)&#x3D;wx+b \):</p>
+
+$$\frac{1}{n}\sum_{i=1}^{n}l\left(f\left(x_i,\alpha\right),y_i\right)+{\|w\|}^2$$
+
+<p>subject to \( min_i|wx_i|&#x3D;1 \). That function before was a little fifficult to minimize because of the step function in \( l(y,\hat{y}) \). Let’s assume we can seperate the data perfectly. Then we can optimize the following: minimize \( {\|w\|}^2 \), subject to:</p>
+
+$$
+\begin{align}
+(wx_i+b) & \geq 1, if \quad y_i=1 \\
+(wx_i+b) & \leq -1, if \quad y_i=-1
+\end{align}
+$$
+
+<p>the last two constraints can be compacted to:</p>
+
+$$y_i(wx_i+b)\geq1$$
+
+
+<h1 id="Advantages-and-Disadvantages"><a href="#Advantages-and-Disadvantages" class="headerlink" title="Advantages and Disadvantages"></a>Advantages and Disadvantages</h1><h2 id="Advantages"><a href="#Advantages" class="headerlink" title="Advantages"></a>Advantages</h2><ol>
+<li><p>It has a regularisation parameter, which makes the user think about avoiding over-fitting</p>
+</li>
+<li><p>It uses the kernel trick, so you can build in expert knowledge about the problem via engineering the kernel</p>
+</li>
+<li><p>An SVM is defined by a convex optimisation problem (no local minima) for which there are efficient methods (e.g. SMO)</p>
+</li>
+<li><p>It is an approximation to a bound on the test error rate, and there is a substantial body of theory behind it which suggests it should be a good idea.</p>
+</li>
+</ol>
+<h2 id="Disadvantages"><a href="#Disadvantages" class="headerlink" title="Disadvantages"></a>Disadvantages</h2><p>The main disadvantage of the SVM algorithm is that it has several key parameters that need to be set correctly to achieve the best classification results for any given problem. Parameters that may result in an excellent classification accuracy for problem A, may result in a poor classification accuracy for problem B. The user may, therefore, have to experiment with a number of different parameter settings in order to achieve a satisfactory result. The main parameters that the user should experiment with are the SVM kernel type and the kernel-specific parameters</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Machine-Learning/" rel="tag"># Machine Learning</a>
+              <a href="/tags/SVM/" rel="tag"># SVM</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/install-caffe/" rel="prev" title="在 Ubuntu 12.04 上面安装 CAFFE">
+      <i class="fa fa-chevron-left"></i> 在 Ubuntu 12.04 上面安装 CAFFE
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/pca/" rel="next" title="PCA Step by Step">
+      PCA Step by Step <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Empirical-Risk-and-the-true-Risk"><span class="nav-number">1.</span> <span class="nav-text">Empirical Risk and the true Risk</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#VC-dimension-and-capacity-of-functions"><span class="nav-number">2.</span> <span class="nav-text">VC dimension and capacity of functions</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Capacity-of-hyperplans"><span class="nav-number">3.</span> <span class="nav-text">Capacity of hyperplans</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Advantages-and-Disadvantages"><span class="nav-number">4.</span> <span class="nav-text">Advantages and Disadvantages</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#Advantages"><span class="nav-number">4.1.</span> <span class="nav-text">Advantages</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Disadvantages"><span class="nav-number">4.2.</span> <span class="nav-text">Disadvantages</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yushu.gao</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">92</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">32</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">94</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yushu.gao</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS-MML_HTMLorMML';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+</body>
+</html>

@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"shuokay.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":false,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="在深度学习中，随着模型和数据的不断增长，在大部分情况下需要使用多卡或者多机进行训练。在多卡或者多机训练中。一般有数据并行和模型并行两种并行方案，数据并行的参数更新中有同步更新和异步更新两种方法，本文讨论的是数据并行中的同步参数更新的一种方法。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Ring Allreduce">
+<meta property="og:url" content="http://shuokay.com/ring-allreduce/index.html">
+<meta property="og:site_name" content="Memo">
+<meta property="og:description" content="在深度学习中，随着模型和数据的不断增长，在大部分情况下需要使用多卡或者多机进行训练。在多卡或者多机训练中。一般有数据并行和模型并行两种并行方案，数据并行的参数更新中有同步更新和异步更新两种方法，本文讨论的是数据并行中的同步参数更新的一种方法。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://shuokay.com/content/images/ring-allreduce/ps.png">
+<meta property="og:image" content="http://shuokay.com/content/images/ring-allreduce/ring.png">
+<meta property="og:image" content="http://shuokay.com/content/images/ring-allreduce/scatter-reduce-1.png">
+<meta property="og:image" content="http://shuokay.com/content/images/ring-allreduce/scatter-reduce-2.png">
+<meta property="og:image" content="http://shuokay.com/content/images/ring-allreduce/scatter-reduce-3.png">
+<meta property="og:image" content="http://shuokay.com/content/images/ring-allreduce/scatter-reduce-4.png">
+<meta property="og:image" content="http://shuokay.com/content/images/ring-allreduce/scatter-reduce-5.png">
+<meta property="og:image" content="http://shuokay.com/content/images/ring-allreduce/all-gather-1.png">
+<meta property="og:image" content="http://shuokay.com/content/images/ring-allreduce/final.png">
+<meta property="article:published_time" content="2018-10-16T07:42:30.000Z">
+<meta property="article:modified_time" content="2022-08-13T02:16:25.733Z">
+<meta property="article:author" content="yushu.gao">
+<meta property="article:tag" content="Ring Allreduce">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://shuokay.com/content/images/ring-allreduce/ps.png">
+
+<link rel="canonical" href="http://shuokay.com/ring-allreduce/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Ring Allreduce | Memo</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Memo</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="th fa-fw"></i>分类</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://shuokay.com/ring-allreduce/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yushu.gao">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Memo">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Ring Allreduce
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2018-10-16 15:42:30" itemprop="dateCreated datePublished" datetime="2018-10-16T15:42:30+08:00">2018-10-16</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/MXNet/" itemprop="url" rel="index"><span itemprop="name">MXNet</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>在深度学习中，随着模型和数据的不断增长，在大部分情况下需要使用多卡或者多机进行训练。在多卡或者多机训练中。一般有数据并行和模型并行两种并行方案，数据并行的参数更新中有同步更新和异步更新两种方法，本文讨论的是数据并行中的同步参数更新的一种方法。</p>
+<span id="more"></span>
+
+<h1 id="模型并行和数据并行"><a href="#模型并行和数据并行" class="headerlink" title="模型并行和数据并行"></a>模型并行和数据并行</h1><p>模型并行和数据并行是两种不同的并行方法。<br>模型并行是网络的不同部分分布在不同的计算节点上，甚至是同一个Op也可以分布在不同的计算节点上，所有的计算节点的数据数据是相同的。<br>数据并行中，每一个计算节点都有一个网络的完整的拷贝，每一个节点使用不同的输入数据，每个节点完成一个完整的forward和backward。</p>
+<h1 id="同步更新和异步更新"><a href="#同步更新和异步更新" class="headerlink" title="同步更新和异步更新"></a>同步更新和异步更新</h1><p>数据并行中，每个节点完成forward和之后和backward之后，分别得到了网络的梯度，如何使用这些梯度进行模型参数的更新呢？<br>同步更新的方法是，等待所有的节点完成forward和backward之后，把所有节点的梯度收集起来，然后去更新参数，这个过程和原始的 mini batch sgd 是等价的。<br>异步更新的方法是，每个计算节点完成forward和backward之后，马上使用自己得到的梯度去更新模型参数，这个过程和原始的mini batch sgd是不等价的。例如，考虑两个计算节点的情形，假设两个计算节点跟别是A和B，它们使用t时刻的模型参数\(\theta_t\)去forward和backward计算。理论上，A和B更新\(\theta_t\)才和mini batch sgd 等价。假设A计算的比较快，A计算完之后去更新\(\theta_t\)得到了\(\theta_{t+1}\)。然后A继续使用 \(\theta_{t+1}\) 去forward backward计算然后继续更新 \(\theta\)。当计算较慢的B节点去更新参数的时候，B 得到的参数是针对\(\theta_{t}\)，而此时模型已经变成了\(\theta_{t+1}\)，因此，B有两个选择，要么强制更新\(\theta_{t+1}\)，但是，这就和mini batch sgd 不等价了，要么扔掉B的计算结果，不更新参数，这种情况，B 的存在就没有意义了。<br>PS：异步更新方法也有一些数学上的条件保证异步更新也可以使得模型收敛，比较常用的方法是强制更新的方法下，每隔 n 个迭代，强制同步一次。具体n的选择也有数学形式的要求。</p>
+<p>本文要讨论的是数据并行中的同步参数更新的一种工程实现。一种常用的方法是 Parameter Server，本文要介绍的是 Ring Allreduce 方法。下面首先简要描述一下 Parameter Server。</p>
+<h1 id="Parameter-Server"><a href="#Parameter-Server" class="headerlink" title="Parameter Server"></a>Parameter Server</h1><p>如下图，PS中的参数集中在Server Group中更新。Worker Group计算得到梯度之后全部传给Server Group，Server Group 收集到所有的 Worker的梯度后更新模型参数\(\theta\)，然后worker拉取新的参数\(\theta_{t+1}\) 继续进行计算。这里面很容易看到一点，随着集群中的worker的数量增多，worker和server之间的通讯会量会线性增长，因此，worker和server之间的带宽成为整个系统的瓶颈。Ring Allreduce就是为了解决这个通讯瓶颈。</p>
+<center><img src="/content/images/ring-allreduce/ps.png" width=500></center>
+
+<h1 id="Ring-Allreduce"><a href="#Ring-Allreduce" class="headerlink" title="Ring Allreduce"></a>Ring Allreduce</h1><p>在 ring allreduce 中，所有的节点组成一个逻辑上的圆环，每一个节点都有一个左邻居和一个右邻居，并且，当前节点只能想其右邻居发送数据，只接收来自其左邻居发送的数据。</p>
+<center><img src="/content/images/ring-allreduce/ring.png" width=800></center>
+
+<p>在ring allreduce 算法中，分为两步执行，第一步是 scatter-reduce， 第二部是 all-gather. 在 scatter-reduce中，每一节点交换数据，交完完成之后，每一个节点获得了所有要交换的数据的一个完整的 chunck，在all-gather中，所有的节点交换 chunk 数据，在交完结束之后，每一个节点获得了完整的数据。</p>
+<h1 id="scatter-reduce过程"><a href="#scatter-reduce过程" class="headerlink" title="scatter-reduce过程"></a>scatter-reduce过程</h1><p>在数据交换之前，首先把数据分成N份接下来，节点之间完成N次数据交换，每一次数据交换，系统中的每个节点把自己的一个chunck的数据发送给其右邻居，并且接收其做邻居发送来的数据并且做累加。依次如下图：</p>
+<center><img src="/content/images/ring-allreduce/scatter-reduce-1.png" width=800></center>
+<center><img src="/content/images/ring-allreduce/scatter-reduce-2.png" width=800></center>
+<center><img src="/content/images/ring-allreduce/scatter-reduce-3.png" width=800></center>
+<center><img src="/content/images/ring-allreduce/scatter-reduce-4.png" width=800></center>
+
+<p>最终，scatter-reduce过程得到的结果是：</p>
+<center><img src="/content/images/ring-allreduce/scatter-reduce-5.png" width=800></center>
+
+<h1 id="all-gatcher过程"><a href="#all-gatcher过程" class="headerlink" title="all-gatcher过程"></a>all-gatcher过程</h1><p>all-gather过程和scatter-reduce过程类似，唯一的不同是，当前节点接收到其做邻居发送来的数据之后不是做累加，而是用接收到数据覆盖自己的数据。如下图：</p>
+<center><img src="/content/images/ring-allreduce/all-gather-1.png" width=800></center>
+
+<p>最终得到的结果是：</p>
+<center><img src="/content/images/ring-allreduce/final.png" width=800></center>
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Ring-Allreduce/" rel="tag"># Ring Allreduce</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/python-lmdb/" rel="prev" title="LMDB 的 Python 接口使用方法">
+      <i class="fa fa-chevron-left"></i> LMDB 的 Python 接口使用方法
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/mshadow-add-new-extension/" rel="next" title="给 MShadow 添加新的 Extension">
+      给 MShadow 添加新的 Extension <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%A8%A1%E5%9E%8B%E5%B9%B6%E8%A1%8C%E5%92%8C%E6%95%B0%E6%8D%AE%E5%B9%B6%E8%A1%8C"><span class="nav-number">1.</span> <span class="nav-text">模型并行和数据并行</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%90%8C%E6%AD%A5%E6%9B%B4%E6%96%B0%E5%92%8C%E5%BC%82%E6%AD%A5%E6%9B%B4%E6%96%B0"><span class="nav-number">2.</span> <span class="nav-text">同步更新和异步更新</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Parameter-Server"><span class="nav-number">3.</span> <span class="nav-text">Parameter Server</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Ring-Allreduce"><span class="nav-number">4.</span> <span class="nav-text">Ring Allreduce</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#scatter-reduce%E8%BF%87%E7%A8%8B"><span class="nav-number">5.</span> <span class="nav-text">scatter-reduce过程</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#all-gatcher%E8%BF%87%E7%A8%8B"><span class="nav-number">6.</span> <span class="nav-text">all-gatcher过程</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yushu.gao</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">92</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">32</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">94</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yushu.gao</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS-MML_HTMLorMML';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+</body>
+</html>

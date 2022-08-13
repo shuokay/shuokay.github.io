@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"shuokay.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":false,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="卷积神经网络一般力求能够做到 end to end 的训练, end to end 训练也是目前深度学习的主流. 训练中主要采用 Back Propagation 算法, 而 BP 算法是我们早就学过的梯度下降算法的一种实现. 因此, CNN 中的各种优化算法还是在梯度下降算法上面做手脚. 在目前各种主流的深度学习工具中也都内置了各种常见的优化算法. 然而, 把优化算法封装到黑盒中直接使用不利于对">
+<meta property="og:type" content="article">
+<meta property="og:title" content="卷积神经网络中的优化算法比较">
+<meta property="og:url" content="http://shuokay.com/optimization/index.html">
+<meta property="og:site_name" content="Memo">
+<meta property="og:description" content="卷积神经网络一般力求能够做到 end to end 的训练, end to end 训练也是目前深度学习的主流. 训练中主要采用 Back Propagation 算法, 而 BP 算法是我们早就学过的梯度下降算法的一种实现. 因此, CNN 中的各种优化算法还是在梯度下降算法上面做手脚. 在目前各种主流的深度学习工具中也都内置了各种常见的优化算法. 然而, 把优化算法封装到黑盒中直接使用不利于对">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://shuokay.com/content/images/optimization/nesterov.jpeg">
+<meta property="article:published_time" content="2016-06-11T13:33:09.000Z">
+<meta property="article:modified_time" content="2022-08-13T02:16:25.732Z">
+<meta property="article:author" content="yushu.gao">
+<meta property="article:tag" content="Deep Learning">
+<meta property="article:tag" content="CNN">
+<meta property="article:tag" content="Optimization">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://shuokay.com/content/images/optimization/nesterov.jpeg">
+
+<link rel="canonical" href="http://shuokay.com/optimization/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>卷积神经网络中的优化算法比较 | Memo</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Memo</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="th fa-fw"></i>分类</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://shuokay.com/optimization/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yushu.gao">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Memo">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          卷积神经网络中的优化算法比较
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2016-06-11 21:33:09" itemprop="dateCreated datePublished" datetime="2016-06-11T21:33:09+08:00">2016-06-11</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Optimization/" itemprop="url" rel="index"><span itemprop="name">Optimization</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>卷积神经网络一般力求能够做到 end to end 的训练, end to end 训练也是目前深度学习的主流. 训练中主要采用 Back Propagation 算法, 而 BP 算法是我们早就学过的梯度下降算法的一种实现. 因此, CNN 中的各种优化算法还是在梯度下降算法上面做手脚. 在目前各种主流的深度学习工具中也都内置了各种常见的优化算法. 然而, 把优化算法封装到黑盒中直接使用不利于对于问题的理解和更准确地找到好的优化方向. 这篇文章的主要目的是总结和比较深度学习中各种常用的优化算法. 希望能对神经网络的优化起到一点点帮助, 探究一下黑盒中的内容.</p>
+<span id="more"></span>
+
+<h1 id="Batch-Gradient-Descent"><a href="#Batch-Gradient-Descent" class="headerlink" title="Batch Gradient Descent"></a>Batch Gradient Descent</h1><p>这种方法就是我们从高数中学到的方法, 其方法可以描述为, 使用我们拿到的所有的数据计算梯度, 然后使用这个梯度对参数进行更新. 在凸函数中, 只要学习率足够小, 肯定能够找到全局最优点, 在非凸函数中也可以保证找到局部最优.</p>
+
+\[
+\theta=\theta -  \eta \cdot \nabla_{\theta}J\left(\theta\right)
+\]
+
+
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"># Vanilla Batch Gradient Descent</span><br><span class="line">x += -learning_rate * dx</span><br></pre></td></tr></table></figure>
+
+<p>缺点:</p>
+<ol>
+<li>训练数据太多的时候无法全部放入内存</li>
+<li>训练数据多的时候计算梯度的时间非常久</li>
+<li>无法进行 online 的更新</li>
+</ol>
+<p>优点:</p>
+<ol>
+<li>方法简单</li>
+<li>能够保证收敛到全局最优值(凸函数)&#x2F;局部最优值(非凸函数)</li>
+</ol>
+<h1 id="Stochastic-Gradient-Descent"><a href="#Stochastic-Gradient-Descent" class="headerlink" title="Stochastic Gradient Descent"></a>Stochastic Gradient Descent</h1><p>和 Batch Gradient Descent 相反, SGD 又走入了另外一个极端, SGD 拿到一个数据之后, 马上计算梯度, 然后对参数进行更新.</p>
+
+\[
+\theta = \theta - \eta \cdot J\left(\theta; x^{\left(i\right)}, y^{\left(i\right)}\right)
+\]
+
+
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># SGD</span></span><br><span class="line">x += - learning_rate * dx</span><br></pre></td></tr></table></figure>
+
+<p>缺点:</p>
+<ol>
+<li>无法利用矩阵操作加速计算过程</li>
+</ol>
+<p>优点:</p>
+<ol>
+<li>收敛速度快(因为在Batch 的方法中, 每次计算梯度会计算很多相似的样本得到的梯度, 这部分是冗余的)</li>
+<li>可以 online 更新</li>
+<li>有可能逃出一个比较差的局部最优而收敛到一个更好的局部最优甚至是全局最优</li>
+</ol>
+<h1 id="Mini-batch-Gradient-Descent"><a href="#Mini-batch-Gradient-Descent" class="headerlink" title="Mini-batch Gradient Descent"></a>Mini-batch Gradient Descent</h1><p>Mini-batch 的方法是在上述两个方法中取了个折衷, 每次从全部的熟练数据中取一个 mini-batch 的数据计算</p>
+
+\[
+\theta = \theta - \eta \cdot J\left(\theta; x^{\left(i:i+n\right)}, y^{\left(i:i+n\right)}\right)
+\]
+
+<p>目前, mini-batch 的方法是深度学习中主流方法, 各种深度学习工具默认也是这种方法. 也可以把上述两种方法看成是 mini-batch 的特例, Batch 的方法, 就是 mini-batch size 是整个数据集, SGD 方法就是 min-batch&#x3D;1 的情况.</p>
+<h1 id="目前遇到的问题"><a href="#目前遇到的问题" class="headerlink" title="目前遇到的问题"></a>目前遇到的问题</h1><p>上述 3 各方法遇到的问题是:</p>
+<ol>
+<li>如何选择一个合适的 learning rate 是非常困难的</li>
+<li>目前有一些通过 schedule 的方式来设置 learning rate 的方法, 即预先设计好计算了一定数量的迭代之后减小 learning rate, 但是, 由于是在训练之前就要设置好, 因此, 无法根据训练时的时间情况进行调整. 实践中也证明这种 schedule 的方法非常不可靠.</li>
+<li>上述方法中, 对于每一个参数的 learning rate 都是相同的, 这种做法是不合理的. 试想, 如果训练数据是稀疏的, 而且, 特征数据出现的频率变化很大, 那么, 比较合理的做法是, 对于出现频率低的特征设置较大的学习速率, 对于出现频率较大的特征数据设置较小的学习速率.</li>
+<li>近期的的研究表明, 深层神经网络之所以比较难训练, 并不是因为容易进入 local minimum, 相反, 由于网络结构非常复杂, 在绝大多数情况下, 即使是 local minimum 也可以得到非常好的结果. 而之所以难训练是因为学习过程容易陷入到马鞍面中, 即在坡面上, 一部分点是上升的, 一部分点是下降的. 而这种情况比较容易出现在平坦区域, 在这种区域中, 所有方向的梯度值都几乎是 0.</li>
+</ol>
+<h1 id="Momentum"><a href="#Momentum" class="headerlink" title="Momentum"></a>Momentum</h1><p><strong>Momentum update</strong> 是一种加快收敛速度的方法(注意, 这里说的不是计算速度). 这个方法来自于物理中的启发. loss function 看做是一座山, 对于参数的初始化看做是在这个山坡上面随机放一个小球. 这个小球的初始速度为 0, 其相对于地面(或者更严格的说是山谷, 也是Loss Function 优化过程中的局部最优点)的势能为 \(U&#x3D;mgh\), 其中, \(m\) 是小球的质量, \(g\) 是重力加速度, h 是小球的位置相对于山谷最低点的高度. 因为 \(m\) 和 \(g\) 都是常数, 因此, 势能正比与高度 \(h\). 优化过程看以看做是模拟这个小球在山坡上的状态. 小球来自于地球引力的受力为 \(F&#x3D;mg\), 而这恰好是 Loss Function 的梯度. 另外一方面, 小球的整体受力为 \(F&#x3D;ma, a \ne g\), 因为其中还有摩擦力等其它因素.</p>
+
+\[
+\begin{align}
+v_t & = \gamma v_{t-1} + \eta \cdot \nabla_{\theta}J\left(\theta\right) \cr
+\theta & = \theta - v_t
+&\end{align}
+\]
+
+
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># Momentum update</span></span><br><span class="line">v = mu * v - learning_rate * dx <span class="comment"># integrate velocity</span></span><br><span class="line">x += v <span class="comment"># integrate position</span></span><br></pre></td></tr></table></figure>
+
+<p>这里的变量 <code>mu</code> 就是我们在各种深度学习框架中&#x2F;论文中见到的 <strong>momentum</strong>. 一般设置为 0.9, 0.99 等. 然而, 把 <code>mu</code> 理解为摩擦(或者加上其它的因素)更好. <code>mu</code> 的作用是在小球在山坡上滚动的过程中来降低小球的动能. 否则, 如果没有这个因素, 那么, 小球永远不会停下来, 优化过程也永远不会停止.</p>
+<h2 id="Nesterov-Momentum"><a href="#Nesterov-Momentum" class="headerlink" title="Nesterov Momentum"></a>Nesterov Momentum</h2><p>在小球向下滚动的过程中, 我们希望小球能够提前知道在哪些地方坡面会上升, 这样, 在遇到上升坡面之前, 小球就开始减速. 这方方法就是 Nesterov Momentum. 是最近比较流行的一种与传统的 Momentum 稍有不同的方法, Nesterov Momentum 在凸优化中有较强的理论保证收敛, 并且,在实践中, Nesterov Momentum也比单纯的 Momentum 的效果要好. 核心思想是: 注意到 momentum 方法, 如果只看 <code>mu * v</code> 项, 那么, 当前的 <code>x</code> 经过 momentum 的作用会变成 <code>x+ mu*v</code>. 因此, 可以把 <code>x+ mu*v</code> 这个位置看做是当前优化的一个”展望”位置, 所以, 可以在 <code>x+ mu*v</code> 求导, 而不是原始的 <code>x</code></p>
+<center><img src="/content/images/optimization/nesterov.jpeg" width=560></center>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">x_ahead = x + mu * v</span><br><span class="line"><span class="comment"># evaluate dx_ahead (the gradient at x_ahead instead of at x)</span></span><br><span class="line">v = mu * v - learning_rate * dx_ahead</span><br><span class="line">x += v</span><br></pre></td></tr></table></figure>
+# Learning Rate 设置方法
+在优化的过程中, 如果学习率设置的过大, 那么, 小球就会在山谷之间跳来跳去, 无法到达最低点, 如果是非常缓慢地降低学习速率, 那么, 虽然小球跳来跳去的现象会有缓解, 但是, 效果不明显, 浪费了计算资源, 而如果快速降低学习速率, 那么, 小球可能会很快到达一个(不是那么好的)局部最优点, 而不能到达一个更好的局部最优点. 通常, 在实验中有下面三种方法:
+
+<p><strong>Step decay</strong> 每隔几个epoch减少一次learning rate, 一般是每运行5个epoch左右把learning rate减少一半, 或者是每隔20个epoch减少为原来的1&#x2F;10. 然而,具体的learning rate 的调整方法还是要看网络的设计和模型. 另外, 还有一种方法是, 在训练的过程中观察training error和validation error, 当validation error不再减小的时候, 减小learning rate.</p>
+<p><strong>Exponential decay</strong> 的数学描述是 \(\alpha&#x3D;\alpha_0e^{-kt}\), 其中 \(\alpha_0,k\) 是超参数, \(t\) 是迭代次数.</p>
+<p><strong>1&#x2F;t decay</strong> 的数学描述是\(\alpha&#x3D;\frac{\alpha_0}{1+kt}\) 其中 \((\alpha_0,k\)) 是超参数, \(t\) 是迭代次数.</p>
+<blockquote>
+<p>PS: 我一般使用第一种方法.</p>
+</blockquote>
+<h1 id="逐个调整参数"><a href="#逐个调整参数" class="headerlink" title="逐个调整参数"></a>逐个调整参数</h1><p>上面讨论过的所有的方法都是所有的参数都使用相同的调整策略. 调整学习率的代价一般比较高, 因此, 有许多研究还是如何自动调学习率, 甚至是调整每一个需要优化的参数的学习率. 在这些方法中往往会引入更多的超参数, 但是, 这些方法对超参数的设置并不是那么敏感, 因此, 总会比上面讨论过的调整学习率的方法要好用.</p>
+<h2 id="AdaGrad"><a href="#AdaGrad" class="headerlink" title="AdaGrad"></a>AdaGrad</h2><p>AdaGrad 会在学习的过程中自动调整 learning rate, 对于出现频率低的参数使用较大的 learning rate, 出现频率高的参数使用较小的 learning rate. 因此, 这种方法对于训练数据比较稀疏的情况比较适用. AdaGrad 可以提高 SGD 的鲁棒性.<br>AdaGrad 实现上述目的的方法是对于各个参数, 使用其当前累积的梯度去 normalize 当前的学习速率.<br>为了方便表示累积梯度, 把梯度记为:</p>
+
+\[
+g_{t,i} = \nabla_{\theta} J\left(\theta_i\right)
+\]
+
+<p>相应地, 原始参数更新的过程变为:</p>
+
+\[
+\theta_{t+1, i} = \theta_{t,i} - \eta \cdot g_{t,i}
+\]
+
+<p>考虑到使用累积梯度去 normalize learning rate, 则上述参数更新过程变为:</p>
+
+\[
+\theta_{t+1, i} = \theta_{t,i} - \frac{\eta}{\sqrt{G_{t,ii}+\epsilon}} \cdot g_{t,i}
+\]
+
+
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># Assume the gradient dx and parameter vector x</span></span><br><span class="line">cache += dx**<span class="number">2</span></span><br><span class="line">x += - learning_rate * dx / (np.sqrt(cache) + eps)</span><br></pre></td></tr></table></figure>
+
+<p><code>cache</code> 的大小和gradient的大小相同, 记录的是每个参数的梯度的平方和. 之后,<code>cache</code> 用来以 element-wise 的方式 normalize 参数的更新. 从上面的代码中可以看出, 梯度较高的权重的有效 learning rate 会减小, 相应的梯度较低的权重的有效 learning rate 会增大. 这里, 让我感到不解的是, <code>sqrt</code> 操作非常重要,如果没有 <code>sqrt</code> 操作, 该算法的效果非常差. <code>eps</code> 用来避免出现除 0 错误的,一般设置为 \(10^{-4}\) 到 \(10^{-8}\) 之间. (这种方法,在 CNN 中训练中极为常见, 比如在 batch normalization 中也是通过这种方法避免出现除 0 的错误). Adagrad 的缺点是,在深度学习中, 这种方法导致学习率的调整太激进, 因此常常过早结束了学习过程.</p>
+<h2 id="AdaDelta"><a href="#AdaDelta" class="headerlink" title="AdaDelta"></a>AdaDelta</h2><p>AdaGrad 方法比较激进, 会过早结束优化过程, AdaDelta 的目的就是为了解决这个问题. 在 AdaGrad 中对 learning rate 进行 normalize 的参数是使用之前所有时间得到的梯度的累积, AdaDelta 的思想是通过设置窗口 w, 只使用部分时间的梯度累积.<br>在实际使用中, 其算法并没有存储前 w 个梯度然后计算, 而是类似与 moving average 的方法. 在任意一个时间 t, 当前的 normalize 的参数是 t-1 时刻的参数和当前的梯度做加权求和.</p>
+
+\[
+E\left[g^2\right]_t = \gamma E\left[g^2\right]_{t-1} + \left(1-\gamma\right) g_t^2
+\]
+
+<p>现在, 使用 \(E\left[g^2\right]_t\) 去 normalize learning rate</p>
+
+\[
+\nabla \theta_t = - \frac{\eta}{\sqrt{E\left[g^2\right]_t+\epsilon}}g_t
+\]
+
+<p>最终的更新方法为:</p>
+
+\begin{align}
+\nabla\theta_t & = -\frac{RMS\left[\nabla\theta\right]_{t-1}}{RMS\left[g\right]_t}g_t \cr
+\theta_{t+1} & = \theta_t + \nabla\theta_t
+\end{align}
+
+<p>其中, \(RMS[x]_t&#x3D;\sqrt{E\left[x^2\right]_t+\epsilon}\)<br>可以看到, 在 AdaDelta 中, 根本不需要设置 learning rate, 因为其自身可以计算learning rate.</p>
+<h2 id="RMSProp"><a href="#RMSProp" class="headerlink" title="RMSProp"></a>RMSProp</h2><p>RMSProp是一个非常高效的算法, 但是目前并没有发表. Hinton 老爷子果然任性. RMSProp 对 AdaGrad 稍作改进, 是的算法不再像 AdaGrad 那么激进 它使用的是 moving average of squared gradients, 有关 moving average 的相关解释可以参考 batch normalization 的实现说明. 其思想和 AdaDelta 也很像.</p>
+
+\[
+\begin{align}
+E\left[g^2\right]_t & = 0.9E\left[ g^2 \right]_{t-1}+0.1g_t^2 \cr
+\theta_{t+1} & = \theta_t - \frac{\eta}{\sqrt{E\left[g^2\right]_t+\epsilon}}g_t
+\end{align}
+\]
+
+
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">cache = decay_rate * cache + (<span class="number">1</span> - decay_rate) * dx**<span class="number">2</span></span><br><span class="line">x += - learning_rate * dx / (np.sqrt(cache) + eps)</span><br></pre></td></tr></table></figure>
+
+<p><code>decay_rate</code> 是超参数, 一般可以设置为\(0.9,0.99,0.999\). 其中, <code>x+=</code> 操作和Adagrad完全相同, 但是, 变量<code>cache</code>是leaky的,所以, RMSProp 仍然根据每个权重的gradient来调整learning rate.</p>
+<h2 id="Adam"><a href="#Adam" class="headerlink" title="Adam"></a>Adam</h2><p>Adam 是最近提出的一种算法, 该算法和(下面将要介绍的)带有momentum的RMSprop比较类似, 过程类似于:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">m = beta1*m + (<span class="number">1</span>-beta1)*dx</span><br><span class="line">v = beta2*v + (<span class="number">1</span>-beta2)*(dx**<span class="number">2</span>)</span><br><span class="line">x += - learning_rate * m / (np.sqrt(v) + eps)</span><br></pre></td></tr></table></figure>
+
+<p>该方法和 RMSProp 唯一的区别是 “smooth” 过程, 这里使用的是 <code>m</code> 来做 smooth 操作, 而不是使用原始的 gradient vector <code>dx</code>. 论文中推荐的超参数为 <code>eps=1e-6, bata1=0.9, beta2=0.999</code>, 在实践中, <strong>推荐使用Adam方法</strong>. Adam 算法通常会比 RMSProp 算法效果好. 另外,也可以尝试 <strong>SGD+Nesterov Momentum</strong>. 完整的Adam算法中还包括 bias 的纠正机制, 这是因为,在刚开始的几个steps中,<code>m</code> 和 <code>v</code> 都要初始化, 并且在 warm up 之前他们都 biased at zero. 更多的细节可以参考论文原文.</p>
+<h1 id="怎样选择"><a href="#怎样选择" class="headerlink" title="怎样选择"></a>怎样选择</h1><p>通过以上分析, 理论上可以说, 在数据比较稀疏的时候, adaptive 的方法能得到更好的效果, 例如, adagrad, adadelta, rmsprop, adam 等. 在数据稀疏的情况下, adam 方法也会比 rmsprop 方法收敛的结果要好一些, 所以, 通常在没有其它更好的理由的前框下, 我会选用 adam 方法, 可以比较快地得到一个预估结果. 但是, 在论文中, 我们看到的大部分还是最原始的 mini-batch 的 SGD 方法. 因为马鞍面的存在等问题, SGD 方法有时候较难收敛. 另外, SGD 对于参数的初始化要求也比较高. 所以, 如果要是想快速收敛的话, 建议使用 adam 这类 adaptive 的方法.</p>
+<h1 id="Reference"><a href="#Reference" class="headerlink" title="Reference"></a>Reference</h1><p><a target="_blank" rel="noopener" href="http://cs231n.stanford.edu/">cs231n</a></p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Deep-Learning/" rel="tag"># Deep Learning</a>
+              <a href="/tags/CNN/" rel="tag"># CNN</a>
+              <a href="/tags/Optimization/" rel="tag"># Optimization</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/rectifiers/" rel="prev" title="Notes on Delving Deep into Rectifiers">
+      <i class="fa fa-chevron-left"></i> Notes on Delving Deep into Rectifiers
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/dropout/" rel="next" title="CNN 基础之 Dropout">
+      CNN 基础之 Dropout <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Batch-Gradient-Descent"><span class="nav-number">1.</span> <span class="nav-text">Batch Gradient Descent</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Stochastic-Gradient-Descent"><span class="nav-number">2.</span> <span class="nav-text">Stochastic Gradient Descent</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Mini-batch-Gradient-Descent"><span class="nav-number">3.</span> <span class="nav-text">Mini-batch Gradient Descent</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E7%9B%AE%E5%89%8D%E9%81%87%E5%88%B0%E7%9A%84%E9%97%AE%E9%A2%98"><span class="nav-number">4.</span> <span class="nav-text">目前遇到的问题</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Momentum"><span class="nav-number">5.</span> <span class="nav-text">Momentum</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#Nesterov-Momentum"><span class="nav-number">5.1.</span> <span class="nav-text">Nesterov Momentum</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E9%80%90%E4%B8%AA%E8%B0%83%E6%95%B4%E5%8F%82%E6%95%B0"><span class="nav-number">6.</span> <span class="nav-text">逐个调整参数</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#AdaGrad"><span class="nav-number">6.1.</span> <span class="nav-text">AdaGrad</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#AdaDelta"><span class="nav-number">6.2.</span> <span class="nav-text">AdaDelta</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#RMSProp"><span class="nav-number">6.3.</span> <span class="nav-text">RMSProp</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Adam"><span class="nav-number">6.4.</span> <span class="nav-text">Adam</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%80%8E%E6%A0%B7%E9%80%89%E6%8B%A9"><span class="nav-number">7.</span> <span class="nav-text">怎样选择</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Reference"><span class="nav-number">8.</span> <span class="nav-text">Reference</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yushu.gao</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">92</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">32</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">94</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yushu.gao</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS-MML_HTMLorMML';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+</body>
+</html>

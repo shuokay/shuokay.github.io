@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"shuokay.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":false,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="Faster RCNN 的工作具有里程碑的意义，把 Region Proposal 和具体的检测过程全部通过 CNN 完成，实现了整个目标检测过程的 end to end 的训练。后续的大部分工作，例如 SSD, RFCN，FPN，Mask RCNN 等都延续了 RPN 的思路，因此，充分理解 Faster RCNN 对后续的工作有很多帮助。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Notes on Faster RCNN">
+<meta property="og:url" content="http://shuokay.com/faster-rcnn/index.html">
+<meta property="og:site_name" content="Memo">
+<meta property="og:description" content="Faster RCNN 的工作具有里程碑的意义，把 Region Proposal 和具体的检测过程全部通过 CNN 完成，实现了整个目标检测过程的 end to end 的训练。后续的大部分工作，例如 SSD, RFCN，FPN，Mask RCNN 等都延续了 RPN 的思路，因此，充分理解 Faster RCNN 对后续的工作有很多帮助。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://shuokay.com/content/images/faster-rcnn/fasterrcnn-architecture.png">
+<meta property="og:image" content="http://shuokay.com/content/images/faster-rcnn/rpn-single.svg">
+<meta property="article:published_time" content="2018-01-27T15:00:31.000Z">
+<meta property="article:modified_time" content="2022-08-13T02:16:25.725Z">
+<meta property="article:author" content="yushu.gao">
+<meta property="article:tag" content="Deep Learning">
+<meta property="article:tag" content="CNN">
+<meta property="article:tag" content="Detection">
+<meta property="article:tag" content="Faster RCNN">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://shuokay.com/content/images/faster-rcnn/fasterrcnn-architecture.png">
+
+<link rel="canonical" href="http://shuokay.com/faster-rcnn/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Notes on Faster RCNN | Memo</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Memo</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="th fa-fw"></i>分类</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://shuokay.com/faster-rcnn/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yushu.gao">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Memo">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Notes on Faster RCNN
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2018-01-27 23:00:31" itemprop="dateCreated datePublished" datetime="2018-01-27T23:00:31+08:00">2018-01-27</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/CNN/" itemprop="url" rel="index"><span itemprop="name">CNN</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/CNN/Object-Detection/" itemprop="url" rel="index"><span itemprop="name">Object Detection</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>Faster RCNN 的工作具有里程碑的意义，把 Region Proposal 和具体的检测过程全部通过 CNN 完成，实现了整个目标检测过程的 end to end 的训练。后续的大部分工作，例如 SSD, RFCN，FPN，Mask RCNN 等都延续了 RPN 的思路，因此，充分理解 Faster RCNN 对后续的工作有很多帮助。</p>
+<span id="more"></span>
+
+<h1 id="整体过程"><a href="#整体过程" class="headerlink" title="整体过程"></a>整体过程</h1><p>RPN 的引入使得 Faster RCNN 的网络结构有一点点复杂，尤其是分别有两次 BBox regression 和 classification，导致一眼看上去会有点懵。<br>整体上来看，Faster RCNN 输入一张图像，期望的输出是：</p>
+<ol>
+<li>图像中所有目标的 BBox；</li>
+<li>对于每一个 BBox，需要输出一个对应的 label，表明该 BBox 里面的是什么目标；</li>
+<li>对于每一个 label 和 BBox 还需要输出概率，表明模型的置信度。</li>
+</ol>
+ <center><img src="/content/images/faster-rcnn/fasterrcnn-architecture.png"></center>
+
+<p>简单来说，要经历以下3个步骤：<br>第一步，输入图像表示为 \(H \times W \times D\) 的矩阵。图像首先输入到 CNN 中进行前向传播，得到 feature map，即上图中的 F_conv，在 F_conv 之前和普通的 CNN 没有任何区别，主要变化的是 F_conv 之后的部分；<br>第二步，把 F_conv 输入到 RPN 网络中，RPN 的作用是得到 <strong>预先定义好数量的</strong> 区域，这里得到的预先定义好数量的区域就是通过 RPN 得到的 Proposal BBox（替代 selective search 的工作）。<br>第三步，第二步得到了 Proposal BBox，接下去就是在这些 Proposal BBox 的基础上得到最终的精确的 BBox 以及每个 BBox 中的目标类别，过程和 Fast RCNN 基本上是一模一样的。</p>
+<h1 id="Stage-1：RPN-获取-Proposal-BBox"><a href="#Stage-1：RPN-获取-Proposal-BBox" class="headerlink" title="Stage 1：RPN 获取 Proposal BBox"></a>Stage 1：RPN 获取 Proposal BBox</h1><p>RPN 的作用是替代 selective search 给出 Proposal BBox。其基本过程是：</p>
+<ol>
+<li><strong>人为并且先验地</strong> 给出一些 BBox(文章中称为 Anchor)，这些 BBox 很不靠谱，而且数量非常多；</li>
+<li>在 #1 中的 BBox(Anchor) 基础上进行调整和过滤，得到数量数量合理的、并且比 #1 靠谱一些的 BBox，作为 Proposal BBox。</li>
+</ol>
+<p>接下来要分别解释上述两个步骤。</p>
+<h2 id="给出-Anchor"><a href="#给出-Anchor" class="headerlink" title="给出 Anchor"></a>给出 Anchor</h2><p>检测的目的是找到 BBox。每个目标物体的 BBox 通常有不同的大小和长宽比。假设我们知道需要预测的图像中有2个目标，那么，直接让网络输出两组BBox的坐标就好了，即 \(x_{min}\), \(y_{min}\), \(x_{max}\), \(y_{max}\). 但是，这种输出定义至少有两个方面的问题，</p>
+<ol>
+<li>输入的大小和长宽比变化很大，导致从某种意义上说输出的内容不是同一个尺度</li>
+<li>在这种输出中，必须要限制 \(x_{min}&lt;x_{max}\), \(y_{min}&lt;y_{max}\), 这在神经网络中比较难搞定。</li>
+</ol>
+<p>因此，通常采用另外一种方式：不去直接学习 BBox 的具体坐标，而是学习 BBox 相对于 reference BBox 的 offset（这种给个 reference 的思想是不是和 ResNet 中的 shortcut 有点类似？）。假设 reference 的位置表示为 \(x_{center}\), \(y_{center}\), \(width\), \(height\), 那么，我们让网络去学习 \(\Delta{x_{center}}\), \(\Delta{y_{center}}\),  \(\Delta{width}\), \(\Delta{height}\).</p>
+<p>下面说回 Anchor，<strong>Anchor 实际上就是上面说的 reference BBox，并且是完全人为地拍脑袋决定的 reference BBox，完全不涉及到学习过程</strong>。现在具体解释一下这个拍脑袋的过程：<br>假设 F_conv 的 channel 数是 \(d\)，那么，F_conv 的 shape 应该是 \(W&#x2F;r \times D&#x2F;r \times d\)，其中 \(r\) 是 subsampling rate。为方便，F_conv 的 shape 记为 \(w \times h \times d\)。RPN 的第一步是在\(w \times h\) 的每一个位置上去生成 \(k\) 个 Anchor，现在的问题是：每一个位置的 \(k\) 个 Anchor 是怎么生成的？答案是：拍脑袋生成的，Anchor 既然是 BBox，那么，就可以有不同的大小和长宽比，原文中选了 3 种不同的大小和 3 种不同的长宽比，组合一下可以得到  \(3 \times 3&#x3D;9\) 个不同的 Anchor。<br>因此，一张输入图像生成的 Anchor 数量是 \(w \times h \times k\)。</p>
+<h2 id="给出-Proposal-BBox"><a href="#给出-Proposal-BBox" class="headerlink" title="给出 Proposal BBox"></a>给出 Proposal BBox</h2><p>不靠谱的 BBox（即 Anchor）给出来了，接下来就是如何从这些不靠谱的，数量非常多的 BBox 中给出一些相对来说靠谱一些，并且数量不是那么多的 Proposal BBox。<br>回顾一下目前的状态，在 F_conv 的 \(w \times h\) 个位置上，每一个位置上的 depth 是 \(d\)，相当于一个 \(d\) 维的向量，每一个位置上对应地生成了 \(k\) 个 Anchor。<br>这里要做的工作就是，<strong>对于每一个位置</strong>，通过这 \(d\) 维的向量，去调整（和过滤）它对应的 \(k\) 个 Anchor，得到靠谱一些的 Anchor，作为 Proposal BBox。<br>具体方法其实是比较野蛮粗暴的。直接在这 256 维的向量上引出 2 个 全连接层（FC），其中一个 FC 用来判断 Anchor 中是目标还是背景（二分类任务），另外一个 FC 用来在 Anchor 上回归出如果要得到稍微靠谱的 BBox 要如何进行的，即学习 \(\Delta{x_{center}}\), \(\Delta{y_{center}}\),  \(\Delta{width}\), \(\Delta{height}\)。</p>
+<center><img src="/content/images/faster-rcnn/rpn-single.svg"></center>
+
+<p>搞定这一步之后，就完成了对于 Anchor 中是目标还是背景的判定以及如何调整 Anchor 使得其表示的 BBox 变得靠谱一些。<br>可是，上面只是完成了对于 F_conv 上一个位置的判定，F_conv 有 \(w \times h\) 个位置，因此要对每一个位置进行相同的判定。实际工程实现中是使用 \(1 \times 1\) 的卷积操作完成的。</p>
+<p>接下来是一些后处理工作，包括：</p>
+<ol>
+<li>对于上面被判断为背景的 Anchor，直接过滤掉；</li>
+<li>Anchor 中有一些是 overlap 的，要通过 nms 进行合并。</li>
+</ol>
+<p>至此，完成了 Proposal BBox 的工作。接下来，就是和 Fast RCNN 完全相同的精修 BBox 以及识别 BBox 中具体是哪类目标的过程。</p>
+<h1 id="Stage-2：精修-BBox-以及识别目标的具体类别"><a href="#Stage-2：精修-BBox-以及识别目标的具体类别" class="headerlink" title="Stage 2：精修 BBox 以及识别目标的具体类别"></a>Stage 2：精修 BBox 以及识别目标的具体类别</h1><p>Stage 1 的 RPN 给了还是不太精确的 Proposal BBox。那么，对于 Stage 2 的精修 BBox 和识别具体目标这个任务，一个简单的想法是把 Proposal BBox 从原图中抠出来，<strong>resize 到固定长宽尺寸</strong>，然后输入到一个 CNN 中去做具体类别识别和 BBox 精修。但是，这种方法又要过一遍 CNN 提取特征的过程，该过程计算量很大。在上面的 RPN 过程中，F_conv 已经有提取的特征了，是否可以复用 F_conv 的特征呢？<br>首先考虑一下直接使用 F_conv 的阻力。在 RCNN 中之所以把 Proposal BBox resize 到 fixed size 的 image 然后 feed 到 CNN 中，是因为在 classification 和 regression 的两个 branch 中均有 FC 操作，而 FC 操作要求输入的 shape 必须是 fixed 的。如果要复用 F_conv 的结果，必须保证在输入到 classification 和 regression 的所有的 patch 必须是 fixed size 的。<br>一种方法是，从 F_conv crop 出 Proposal BBox 对应的 feature map 然后 resize 到 fixed size 输入到后续网络中。另一种方法，也是 Faster RCNN 采用的方法是对 Proposal BBox 对应的 F_conv 区域进行 ROIPooling，然后把 ROIPooling 的结果 feed 到后续网络中。（ROIPooling 可以确保输入不同尺寸的 feature map，输出固定尺寸的 feature map）<br>后续过程和 RPN 类似，只不过 classification 部分不是判断背景&#x2F;目标的二分类任务，而是判断具体是什么目标的多分类任务（N+1，N 是类别数，1 是背景）。然后是去除被判定为背景的 BBox 以及 NMS 过程。</p>
+<h1 id="后注"><a href="#后注" class="headerlink" title="后注"></a>后注</h1><p>Anchor 的选择其实也并不是完全拍脑袋，还是要根据具体检测的目标特点去选择，例如，检测行人，可以选一些瘦长的 BBox。同时还可以根据数据的统计特定来确定，例如，需要检测的目标大小均在 \(50 \times 50\) 像素以上，那么就没必要选太小的尺度。<br>为容易理解，上面的 RPN 网络做了简化，实践中使用的要稍微复杂一点，但是思路不变。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Deep-Learning/" rel="tag"># Deep Learning</a>
+              <a href="/tags/CNN/" rel="tag"># CNN</a>
+              <a href="/tags/Detection/" rel="tag"># Detection</a>
+              <a href="/tags/Faster-RCNN/" rel="tag"># Faster RCNN</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/deeplabv3/" rel="prev" title="使用 Gluon 实现 DeepLab V3">
+      <i class="fa fa-chevron-left"></i> 使用 Gluon 实现 DeepLab V3
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/winograd/" rel="next" title="Winograd 方法快速计算卷积">
+      Winograd 方法快速计算卷积 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%95%B4%E4%BD%93%E8%BF%87%E7%A8%8B"><span class="nav-number">1.</span> <span class="nav-text">整体过程</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Stage-1%EF%BC%9ARPN-%E8%8E%B7%E5%8F%96-Proposal-BBox"><span class="nav-number">2.</span> <span class="nav-text">Stage 1：RPN 获取 Proposal BBox</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BB%99%E5%87%BA-Anchor"><span class="nav-number">2.1.</span> <span class="nav-text">给出 Anchor</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BB%99%E5%87%BA-Proposal-BBox"><span class="nav-number">2.2.</span> <span class="nav-text">给出 Proposal BBox</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Stage-2%EF%BC%9A%E7%B2%BE%E4%BF%AE-BBox-%E4%BB%A5%E5%8F%8A%E8%AF%86%E5%88%AB%E7%9B%AE%E6%A0%87%E7%9A%84%E5%85%B7%E4%BD%93%E7%B1%BB%E5%88%AB"><span class="nav-number">3.</span> <span class="nav-text">Stage 2：精修 BBox 以及识别目标的具体类别</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%90%8E%E6%B3%A8"><span class="nav-number">4.</span> <span class="nav-text">后注</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yushu.gao</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">92</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">32</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">94</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yushu.gao</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS-MML_HTMLorMML';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+</body>
+</html>

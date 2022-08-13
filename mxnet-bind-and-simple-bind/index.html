@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"shuokay.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":false,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="之前已经有两篇分析了 MXNet 的 Bind 和 SimpleBind 的源码, 这篇, 主要是记录一下 CPP package 中是如何调用 Bind 和 SimpleBind 的. 搞清楚这两部分有两个好处, 一是为自己写代码调用 Bind 提供参考, 二是了解 MXNet 中 Symbol&#x2F;Graph 和具体的 NDArray 是如何协同的.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="MXNet 的 Bind 和 SimpleBind">
+<meta property="og:url" content="http://shuokay.com/mxnet-bind-and-simple-bind/index.html">
+<meta property="og:site_name" content="Memo">
+<meta property="og:description" content="之前已经有两篇分析了 MXNet 的 Bind 和 SimpleBind 的源码, 这篇, 主要是记录一下 CPP package 中是如何调用 Bind 和 SimpleBind 的. 搞清楚这两部分有两个好处, 一是为自己写代码调用 Bind 提供参考, 二是了解 MXNet 中 Symbol&#x2F;Graph 和具体的 NDArray 是如何协同的.">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2017-09-23T07:14:32.000Z">
+<meta property="article:modified_time" content="2022-08-13T02:16:25.728Z">
+<meta property="article:author" content="yushu.gao">
+<meta property="article:tag" content="MXNet">
+<meta property="article:tag" content="Framework">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://shuokay.com/mxnet-bind-and-simple-bind/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>MXNet 的 Bind 和 SimpleBind | Memo</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Memo</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="th fa-fw"></i>分类</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://shuokay.com/mxnet-bind-and-simple-bind/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yushu.gao">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Memo">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          MXNet 的 Bind 和 SimpleBind
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2017-09-23 15:14:32" itemprop="dateCreated datePublished" datetime="2017-09-23T15:14:32+08:00">2017-09-23</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Framework/" itemprop="url" rel="index"><span itemprop="name">Framework</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Framework/MXNet/" itemprop="url" rel="index"><span itemprop="name">MXNet</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>之前已经有两篇分析了 MXNet 的 Bind 和 SimpleBind 的源码, 这篇, 主要是记录一下 CPP package 中是如何调用 Bind 和 SimpleBind 的. 搞清楚这两部分有两个好处, 一是为自己写代码调用 Bind 提供参考, 二是了解 MXNet 中 Symbol&#x2F;Graph 和具体的 NDArray 是如何协同的.</p>
+<span id="more"></span>
+
+<h1 id="Bind"><a href="#Bind" class="headerlink" title="Bind"></a>Bind</h1><p>使用 mlp.cpp 的例子来说明. 在 bind 的时候有以下几个问题:</p>
+<ul>
+<li>构建完成 symbol&#x2F;graph 之后, 如何把具体的输入 <code>ndarray</code> feed 到具体的 Node 中去</li>
+<li>从 symbol 创建了 graph 之后有两个顺数问题<ul>
+<li>从大的方面说, 各个 layer 之间的先后顺序</li>
+<li>每个 layer 上的 node 之间的顺序</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/*!</span></span><br><span class="line"><span class="comment"> * Copyright (c) 2015 by Contributors</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;iostream&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;vector&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;string&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;mxnet-cpp/MxNetCpp.h&quot;</span></span></span><br><span class="line"><span class="comment">// Allow IDE to parse the types</span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;../include/mxnet-cpp/op.h&quot;</span></span></span><br><span class="line"></span><br><span class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> std;</span><br><span class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> mxnet::cpp;</span><br><span class="line"></span><br><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment"> * In this example,</span></span><br><span class="line"><span class="comment"> * we make by hand some data in 10 classes with some pattern</span></span><br><span class="line"><span class="comment"> * and try to use MLP to recognize the pattern.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">OutputAccuracy</span><span class="params">(mx_float* pred, mx_float* target)</span> </span>&#123;</span><br><span class="line">  <span class="type">int</span> right = <span class="number">0</span>;</span><br><span class="line">  <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; <span class="number">128</span>; ++i) &#123;</span><br><span class="line">    <span class="type">float</span> mx_p = pred[i * <span class="number">10</span> + <span class="number">0</span>];</span><br><span class="line">    <span class="type">float</span> p_y = <span class="number">0</span>;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> j = <span class="number">0</span>; j &lt; <span class="number">10</span>; ++j) &#123;</span><br><span class="line">      <span class="keyword">if</span> (pred[i * <span class="number">10</span> + j] &gt; mx_p) &#123;</span><br><span class="line">        mx_p = pred[i * <span class="number">10</span> + j];</span><br><span class="line">        p_y = j;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (p_y == target[i]) right++;</span><br><span class="line">  &#125;</span><br><span class="line">  cout &lt;&lt; <span class="string">&quot;Accuracy: &quot;</span> &lt;&lt; right / <span class="number">128.0</span> &lt;&lt; endl;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">MLP</span><span class="params">()</span> </span>&#123;</span><br><span class="line">  <span class="keyword">auto</span> sym_x = Symbol::<span class="built_in">Variable</span>(<span class="string">&quot;X&quot;</span>);</span><br><span class="line">  <span class="keyword">auto</span> sym_label = Symbol::<span class="built_in">Variable</span>(<span class="string">&quot;label&quot;</span>);</span><br><span class="line"></span><br><span class="line">  <span class="type">const</span> <span class="type">int</span> nLayers = <span class="number">2</span>;</span><br><span class="line">  <span class="function">vector&lt;<span class="type">int</span>&gt; <span class="title">layerSizes</span><span class="params">(&#123;<span class="number">512</span>, <span class="number">10</span>&#125;)</span></span>;</span><br><span class="line">  <span class="function">vector&lt;Symbol&gt; <span class="title">weights</span><span class="params">(nLayers)</span></span>;</span><br><span class="line">  <span class="function">vector&lt;Symbol&gt; <span class="title">biases</span><span class="params">(nLayers)</span></span>;</span><br><span class="line">  <span class="function">vector&lt;Symbol&gt; <span class="title">outputs</span><span class="params">(nLayers)</span></span>;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; nLayers; i++) &#123;</span><br><span class="line">    string istr = <span class="built_in">to_string</span>(i);</span><br><span class="line">    weights[i] = Symbol::<span class="built_in">Variable</span>(<span class="built_in">string</span>(<span class="string">&quot;w&quot;</span>) + istr);</span><br><span class="line">    biases[i] = Symbol::<span class="built_in">Variable</span>(<span class="built_in">string</span>(<span class="string">&quot;b&quot;</span>) + istr);</span><br><span class="line">    Symbol fc = <span class="built_in">FullyConnected</span>(<span class="built_in">string</span>(<span class="string">&quot;fc&quot;</span>) + istr,</span><br><span class="line">      i == <span class="number">0</span>? sym_x : outputs[i<span class="number">-1</span>],</span><br><span class="line">      weights[i], biases[i], layerSizes[i]);</span><br><span class="line">    outputs[i] = <span class="built_in">LeakyReLU</span>(<span class="built_in">string</span>(<span class="string">&quot;act&quot;</span>) + istr, fc, LeakyReLUActType::kLeaky);</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">auto</span> sym_out = <span class="built_in">SoftmaxOutput</span>(<span class="string">&quot;softmax&quot;</span>, outputs[nLayers - <span class="number">1</span>], sym_label);</span><br><span class="line"></span><br><span class="line">  <span class="function">Context <span class="title">ctx_dev</span><span class="params">(DeviceType::kCPU, <span class="number">0</span>)</span></span>;</span><br><span class="line"></span><br><span class="line">  <span class="function">NDArray <span class="title">array_x</span><span class="params">(Shape(<span class="number">128</span>, <span class="number">28</span>), ctx_dev, <span class="literal">false</span>)</span></span>;</span><br><span class="line">  <span class="function">NDArray <span class="title">array_y</span><span class="params">(Shape(<span class="number">128</span>), ctx_dev, <span class="literal">false</span>)</span></span>;</span><br><span class="line"></span><br><span class="line">  mx_float* aptr_x = <span class="keyword">new</span> mx_float[<span class="number">128</span> * <span class="number">28</span>];</span><br><span class="line">  mx_float* aptr_y = <span class="keyword">new</span> mx_float[<span class="number">128</span>];</span><br><span class="line"></span><br><span class="line">  <span class="comment">// we make the data by hand, in 10 classes, with some pattern</span></span><br><span class="line">  <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; <span class="number">128</span>; i++) &#123;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> j = <span class="number">0</span>; j &lt; <span class="number">28</span>; j++) &#123;</span><br><span class="line">      aptr_x[i * <span class="number">28</span> + j] = i % <span class="number">10</span> * <span class="number">1.0f</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    aptr_y[i] = i % <span class="number">10</span>;</span><br><span class="line">  &#125;</span><br><span class="line">  array_x.<span class="built_in">SyncCopyFromCPU</span>(aptr_x, <span class="number">128</span> * <span class="number">28</span>);</span><br><span class="line">  array_x.<span class="built_in">WaitToRead</span>();</span><br><span class="line">  array_y.<span class="built_in">SyncCopyFromCPU</span>(aptr_y, <span class="number">128</span>);</span><br><span class="line">  array_y.<span class="built_in">WaitToRead</span>();</span><br><span class="line"></span><br><span class="line">  <span class="comment">// init the parameters</span></span><br><span class="line">  <span class="function">NDArray <span class="title">array_w_1</span><span class="params">(Shape(<span class="number">512</span>, <span class="number">28</span>), ctx_dev, <span class="literal">false</span>)</span></span>;</span><br><span class="line">  <span class="function">NDArray <span class="title">array_b_1</span><span class="params">(Shape(<span class="number">512</span>), ctx_dev, <span class="literal">false</span>)</span></span>;</span><br><span class="line">  <span class="function">NDArray <span class="title">array_w_2</span><span class="params">(Shape(<span class="number">10</span>, <span class="number">512</span>), ctx_dev, <span class="literal">false</span>)</span></span>;</span><br><span class="line">  <span class="function">NDArray <span class="title">array_b_2</span><span class="params">(Shape(<span class="number">10</span>), ctx_dev, <span class="literal">false</span>)</span></span>;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// the parameters should be initialized in some kind of distribution,</span></span><br><span class="line">  <span class="comment">// so it learns fast</span></span><br><span class="line">  <span class="comment">// but here just give a const value by hand</span></span><br><span class="line">  array_w_1 = <span class="number">0.5f</span>;</span><br><span class="line">  array_b_1 = <span class="number">0.0f</span>;</span><br><span class="line">  array_w_2 = <span class="number">0.5f</span>;</span><br><span class="line">  array_b_2 = <span class="number">0.0f</span>;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// the grads</span></span><br><span class="line">  <span class="function">NDArray <span class="title">array_w_1_g</span><span class="params">(Shape(<span class="number">512</span>, <span class="number">28</span>), ctx_dev, <span class="literal">false</span>)</span></span>;</span><br><span class="line">  <span class="function">NDArray <span class="title">array_b_1_g</span><span class="params">(Shape(<span class="number">512</span>), ctx_dev, <span class="literal">false</span>)</span></span>;</span><br><span class="line">  <span class="function">NDArray <span class="title">array_w_2_g</span><span class="params">(Shape(<span class="number">10</span>, <span class="number">512</span>), ctx_dev, <span class="literal">false</span>)</span></span>;</span><br><span class="line">  <span class="function">NDArray <span class="title">array_b_2_g</span><span class="params">(Shape(<span class="number">10</span>), ctx_dev, <span class="literal">false</span>)</span></span>;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// Bind the symolic network with the ndarray</span></span><br><span class="line">  <span class="comment">// all the input args</span></span><br><span class="line">  <span class="comment">// 输入, 包括样本数据和参数, 这里的push_back 顺序非常重要, 这里的顺序是和</span></span><br><span class="line">  <span class="comment">// index_graph 的顺序对应的. 这样, 可以方便把具体的ndarray feed 到具体的 node 上.</span></span><br><span class="line">  std::vector&lt;NDArray&gt; in_args;</span><br><span class="line">  in_args.<span class="built_in">push_back</span>(array_x);</span><br><span class="line">  in_args.<span class="built_in">push_back</span>(array_w_1);</span><br><span class="line">  in_args.<span class="built_in">push_back</span>(array_b_1);</span><br><span class="line">  in_args.<span class="built_in">push_back</span>(array_w_2);</span><br><span class="line">  in_args.<span class="built_in">push_back</span>(array_b_2);</span><br><span class="line">  in_args.<span class="built_in">push_back</span>(array_y);</span><br><span class="line">  <span class="comment">// all the grads</span></span><br><span class="line">  <span class="comment">// arg_grad_store 和 in_args 一样需要注意顺序问题</span></span><br><span class="line">  std::vector&lt;NDArray&gt; arg_grad_store;</span><br><span class="line">  arg_grad_store.<span class="built_in">push_back</span>(<span class="built_in">NDArray</span>());  <span class="comment">// we don&#x27;t need the grad of the input</span></span><br><span class="line">  arg_grad_store.<span class="built_in">push_back</span>(array_w_1_g);</span><br><span class="line">  arg_grad_store.<span class="built_in">push_back</span>(array_b_1_g);</span><br><span class="line">  arg_grad_store.<span class="built_in">push_back</span>(array_w_2_g);</span><br><span class="line">  arg_grad_store.<span class="built_in">push_back</span>(array_b_2_g);</span><br><span class="line">  arg_grad_store.<span class="built_in">push_back</span>(</span><br><span class="line">      <span class="built_in">NDArray</span>());  <span class="comment">// neither do we need the grad of the loss</span></span><br><span class="line">  <span class="comment">// how to handle the grad</span></span><br><span class="line">  <span class="comment">// 第三个部分, 每个 grad 怎么保存. 顺序是和 arg_grad 相同的</span></span><br><span class="line">  std::vector&lt;OpReqType&gt; grad_req_type;</span><br><span class="line">  grad_req_type.<span class="built_in">push_back</span>(kNullOp);</span><br><span class="line">  grad_req_type.<span class="built_in">push_back</span>(kWriteTo);</span><br><span class="line">  grad_req_type.<span class="built_in">push_back</span>(kWriteTo);</span><br><span class="line">  grad_req_type.<span class="built_in">push_back</span>(kWriteTo);</span><br><span class="line">  grad_req_type.<span class="built_in">push_back</span>(kWriteTo);</span><br><span class="line">  grad_req_type.<span class="built_in">push_back</span>(kNullOp);</span><br><span class="line">  std::vector&lt;NDArray&gt; aux_states;</span><br><span class="line">  <span class="comment">// 以上三个输入的地方隐含了一个条件, 即已经知道 index_graph 的顺序. 以上的顺序也就是</span></span><br><span class="line">  <span class="comment">// graph 在 post-DFS 排序之后的结果</span></span><br><span class="line">  <span class="comment">// 在 SimpleBind 中, 这个顺序是在 SimpleBind 中完成, 因此, 不需要我们自己手动排序.</span></span><br><span class="line">  cout &lt;&lt; <span class="string">&quot;make the Executor&quot;</span> &lt;&lt; endl;</span><br><span class="line">  Executor* exe = <span class="keyword">new</span> <span class="built_in">Executor</span>(sym_out, ctx_dev, in_args, arg_grad_store,</span><br><span class="line">                               grad_req_type, aux_states);</span><br><span class="line"></span><br><span class="line">  cout &lt;&lt; <span class="string">&quot;Training&quot;</span> &lt;&lt; endl;</span><br><span class="line">  <span class="type">int</span> max_iters = <span class="number">20000</span>;</span><br><span class="line">  mx_float learning_rate = <span class="number">0.0001</span>;</span><br><span class="line">  <span class="keyword">for</span> (<span class="type">int</span> iter = <span class="number">0</span>; iter &lt; max_iters; ++iter) &#123;</span><br><span class="line">    exe-&gt;<span class="built_in">Forward</span>(<span class="literal">true</span>);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (iter % <span class="number">100</span> == <span class="number">0</span>) &#123;</span><br><span class="line">      cout &lt;&lt; <span class="string">&quot;epoch &quot;</span> &lt;&lt; iter &lt;&lt; endl;</span><br><span class="line">      std::vector&lt;NDArray&gt;&amp; out = exe-&gt;outputs;</span><br><span class="line">      <span class="type">float</span>* cptr = <span class="keyword">new</span> <span class="type">float</span>[<span class="number">128</span> * <span class="number">10</span>];</span><br><span class="line">      out[<span class="number">0</span>].<span class="built_in">SyncCopyToCPU</span>(cptr, <span class="number">128</span> * <span class="number">10</span>);</span><br><span class="line">      NDArray::<span class="built_in">WaitAll</span>();</span><br><span class="line">      <span class="built_in">OutputAccuracy</span>(cptr, aptr_y);</span><br><span class="line">      <span class="keyword">delete</span>[] cptr;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// update the parameters</span></span><br><span class="line">    exe-&gt;<span class="built_in">Backward</span>();</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">1</span>; i &lt; <span class="number">5</span>; ++i) &#123;</span><br><span class="line">      in_args[i] -= arg_grad_store[i] * learning_rate;</span><br><span class="line">    &#125;</span><br><span class="line">    NDArray::<span class="built_in">WaitAll</span>();</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">delete</span> exe;</span><br><span class="line">  <span class="keyword">delete</span>[] aptr_x;</span><br><span class="line">  <span class="keyword">delete</span>[] aptr_y;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">(<span class="type">int</span> argc, <span class="type">char</span>** argv)</span> </span>&#123;</span><br><span class="line">  <span class="built_in">MLP</span>();</span><br><span class="line">  <span class="built_in">MXNotifyShutdown</span>();</span><br><span class="line">  <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h1 id="SimpleBind"><a href="#SimpleBind" class="headerlink" title="SimpleBind"></a>SimpleBind</h1><p>SimpleBind 并不是 mxnet 原生支持的, mxnet 只支持 Bind. SimpleBind 是各个语言的 wrapper 实现的.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">(<span class="type">int</span> argc, <span class="type">char</span>** argv)</span> </span>&#123;</span><br><span class="line">  <span class="type">const</span> <span class="type">int</span> image_size = <span class="number">28</span>;</span><br><span class="line">  <span class="type">const</span> vector&lt;<span class="type">int</span>&gt; layers&#123;<span class="number">128</span>, <span class="number">64</span>, <span class="number">10</span>&#125;;</span><br><span class="line">  <span class="type">const</span> <span class="type">int</span> batch_size = <span class="number">100</span>;</span><br><span class="line">  <span class="type">const</span> <span class="type">int</span> max_epoch = <span class="number">10</span>;</span><br><span class="line">  <span class="type">const</span> <span class="type">float</span> learning_rate = <span class="number">0.1</span>;</span><br><span class="line">  <span class="type">const</span> <span class="type">float</span> weight_decay = <span class="number">1e-2</span>;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">auto</span> train_iter = <span class="built_in">MXDataIter</span>(<span class="string">&quot;MNISTIter&quot;</span>)</span><br><span class="line">      .<span class="built_in">SetParam</span>(<span class="string">&quot;image&quot;</span>, <span class="string">&quot;./mnist_data/train-images-idx3-ubyte&quot;</span>)</span><br><span class="line">      .<span class="built_in">SetParam</span>(<span class="string">&quot;label&quot;</span>, <span class="string">&quot;./mnist_data/train-labels-idx1-ubyte&quot;</span>)</span><br><span class="line">      .<span class="built_in">SetParam</span>(<span class="string">&quot;batch_size&quot;</span>, batch_size)</span><br><span class="line">      .<span class="built_in">SetParam</span>(<span class="string">&quot;flat&quot;</span>, <span class="number">1</span>)</span><br><span class="line">      .<span class="built_in">CreateDataIter</span>();</span><br><span class="line">  <span class="keyword">auto</span> val_iter = <span class="built_in">MXDataIter</span>(<span class="string">&quot;MNISTIter&quot;</span>)</span><br><span class="line">      .<span class="built_in">SetParam</span>(<span class="string">&quot;image&quot;</span>, <span class="string">&quot;./mnist_data/t10k-images-idx3-ubyte&quot;</span>)</span><br><span class="line">      .<span class="built_in">SetParam</span>(<span class="string">&quot;label&quot;</span>, <span class="string">&quot;./mnist_data/t10k-labels-idx1-ubyte&quot;</span>)</span><br><span class="line">      .<span class="built_in">SetParam</span>(<span class="string">&quot;batch_size&quot;</span>, batch_size)</span><br><span class="line">      .<span class="built_in">SetParam</span>(<span class="string">&quot;flat&quot;</span>, <span class="number">1</span>)</span><br><span class="line">      .<span class="built_in">CreateDataIter</span>();</span><br><span class="line"></span><br><span class="line">  <span class="keyword">auto</span> net = <span class="built_in">mlp</span>(layers);</span><br><span class="line"></span><br><span class="line">  Context ctx = Context::<span class="built_in">cpu</span>();  <span class="comment">// Use CPU for training</span></span><br><span class="line"></span><br><span class="line">  std::map&lt;string, NDArray&gt; args;</span><br><span class="line">  args[<span class="string">&quot;X&quot;</span>] = <span class="built_in">NDArray</span>(<span class="built_in">Shape</span>(batch_size, image_size*image_size), ctx);</span><br><span class="line">  args[<span class="string">&quot;label&quot;</span>] = <span class="built_in">NDArray</span>(<span class="built_in">Shape</span>(batch_size), ctx);</span><br><span class="line">  <span class="comment">// Let MXNet infer shapes other parameters such as weights</span></span><br><span class="line">  <span class="comment">// 根据输入 X 和 label 推断其他 args 如 weights 的shape, 并且初始化分配 NDArray</span></span><br><span class="line">  <span class="comment">//</span></span><br><span class="line">  net.<span class="built_in">InferArgsMap</span>(ctx, &amp;args, args);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// Initialize all parameters with uniform distribution U(-0.01, 0.01)</span></span><br><span class="line">  <span class="keyword">auto</span> initializer = <span class="built_in">Uniform</span>(<span class="number">0.01</span>);</span><br><span class="line">  <span class="keyword">for</span> (<span class="keyword">auto</span>&amp; arg : args) &#123;</span><br><span class="line">    <span class="comment">// arg.first is parameter name, and arg.second is the value</span></span><br><span class="line">    <span class="built_in">initializer</span>(arg.first, &amp;arg.second);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// Create sgd optimizer</span></span><br><span class="line">  Optimizer* opt = OptimizerRegistry::<span class="built_in">Find</span>(<span class="string">&quot;sgd&quot;</span>);</span><br><span class="line">  opt-&gt;<span class="built_in">SetParam</span>(<span class="string">&quot;rescale_grad&quot;</span>, <span class="number">1.0</span>/batch_size);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// Start training</span></span><br><span class="line">  <span class="keyword">for</span> (<span class="type">int</span> iter = <span class="number">0</span>; iter &lt; max_epoch; ++iter) &#123;</span><br><span class="line">    <span class="type">int</span> samples = <span class="number">0</span>;</span><br><span class="line">    train_iter.<span class="built_in">Reset</span>();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">auto</span> tic = chrono::system_clock::<span class="built_in">now</span>();</span><br><span class="line">    <span class="keyword">while</span> (train_iter.<span class="built_in">Next</span>()) &#123;</span><br><span class="line">      samples += batch_size;</span><br><span class="line">      <span class="keyword">auto</span> data_batch = train_iter.<span class="built_in">GetDataBatch</span>();</span><br><span class="line">      <span class="comment">// Set data and label</span></span><br><span class="line">      args[<span class="string">&quot;X&quot;</span>] = data_batch.data;</span><br><span class="line">      args[<span class="string">&quot;label&quot;</span>] = data_batch.label;</span><br><span class="line"></span><br><span class="line">      <span class="comment">// Create executor by binding parameters to the model</span></span><br><span class="line">      <span class="keyword">auto</span> *exec = net.<span class="built_in">SimpleBind</span>(ctx, args);</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">inline</span> <span class="type">void</span> <span class="title">Symbol::InferArgsMap</span><span class="params">(</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">const</span> Context &amp;context, std::map&lt;std::string, NDArray&gt; *args_map,</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">const</span> std::map&lt;std::string, NDArray&gt; &amp;known_args)</span> <span class="type">const</span> </span>&#123;</span><br><span class="line">  <span class="comment">// arg_name_list 是 graph 中所有 args 的 name, 保持 symbol 的name 和 args 的 map</span></span><br><span class="line">  <span class="comment">// 的 name 相同, 然后可以匹配起来</span></span><br><span class="line">  <span class="type">const</span> <span class="keyword">auto</span> arg_name_list = <span class="built_in">ListArguments</span>();</span><br><span class="line">  std::vector&lt;std::vector&lt;mx_uint&gt; &gt; in_shapes, aux_shapes, out_shapes;</span><br><span class="line">  std::map&lt;std::string, std::vector&lt;mx_uint&gt; &gt; arg_shapes;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">for</span> (<span class="type">const</span> <span class="keyword">auto</span> &amp;arg_name : arg_name_list) &#123;</span><br><span class="line">    <span class="keyword">auto</span> iter = known_args.<span class="built_in">find</span>(arg_name);</span><br><span class="line">    <span class="keyword">if</span> (iter != known_args.<span class="built_in">end</span>()) &#123;</span><br><span class="line">      arg_shapes[arg_name] = iter-&gt;second.<span class="built_in">GetShape</span>();</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="comment">// 这里是关键方法, 根据已有的 X 和 label 信息推断出其他的 args 的 shape</span></span><br><span class="line">  <span class="built_in">InferShape</span>(arg_shapes, &amp;in_shapes, &amp;aux_shapes, &amp;out_shapes);</span><br><span class="line"></span><br><span class="line">  <span class="keyword">for</span> (<span class="type">size_t</span> i = <span class="number">0</span>; i &lt; in_shapes.<span class="built_in">size</span>(); ++i) &#123;</span><br><span class="line">    <span class="type">const</span> <span class="keyword">auto</span> &amp;shape = in_shapes[i];</span><br><span class="line">    <span class="type">const</span> <span class="keyword">auto</span> &amp;arg_name = arg_name_list[i];</span><br><span class="line">    <span class="keyword">auto</span> iter_arg = known_args.<span class="built_in">find</span>(arg_name);</span><br><span class="line">    <span class="keyword">if</span> (iter_arg != known_args.<span class="built_in">end</span>()) &#123; <span class="comment">//已有的分配和 NDArray 的, 直接赋值. 这里是</span></span><br><span class="line">      <span class="comment">// X 和 label</span></span><br><span class="line">      (*args_map)[arg_name] = iter_arg-&gt;second;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123; <span class="comment">// 没有的, 根据 shape 创建 NDArray, 并且初始化</span></span><br><span class="line">      (*args_map)[arg_name] = <span class="built_in">NDArray</span>(shape, context, <span class="literal">false</span>);</span><br><span class="line">      NDArray::<span class="built_in">SampleGaussian</span>(<span class="number">0</span>, <span class="number">1</span>, &amp;(*args_map)[arg_name]);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 这里是 cpp-package 实现的 simplebind</span></span><br><span class="line"><span class="function"><span class="keyword">inline</span> Executor *<span class="title">Symbol::SimpleBind</span><span class="params">(</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">const</span> Context &amp;context, <span class="type">const</span> std::map&lt;std::string, NDArray&gt; &amp;args_map,</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">const</span> std::map&lt;std::string, NDArray&gt; &amp;arg_grad_store,</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">const</span> std::map&lt;std::string, OpReqType&gt; &amp;grad_req_type,</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">const</span> std::map&lt;std::string, NDArray&gt; &amp;aux_map)</span> </span>&#123;</span><br><span class="line">  std::vector&lt;NDArray&gt; arg_arrays;</span><br><span class="line">  std::vector&lt;NDArray&gt; grad_arrays;</span><br><span class="line">  std::vector&lt;OpReqType&gt; grad_reqs;</span><br><span class="line">  std::vector&lt;NDArray&gt; aux_arrays;</span><br><span class="line">  <span class="comment">// InferExecutorArrays 是最重要的一个操作之一, 它确定了各个输入 NDArray 的顺序</span></span><br><span class="line">  <span class="comment">// InferExecutorArrays 仍然是 cpp package 定义的</span></span><br><span class="line">  <span class="built_in">InferExecutorArrays</span>(context, &amp;arg_arrays, &amp;grad_arrays, &amp;grad_reqs,</span><br><span class="line">                      &amp;aux_arrays, args_map, arg_grad_store, grad_req_type,</span><br><span class="line">                      aux_map);</span><br><span class="line"></span><br><span class="line">  <span class="keyword">return</span> <span class="keyword">new</span> <span class="built_in">Executor</span>(*<span class="keyword">this</span>, context, arg_arrays, grad_arrays, grad_reqs,</span><br><span class="line">                      aux_arrays);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">inline</span> <span class="type">void</span> <span class="title">Symbol::InferExecutorArrays</span><span class="params">(</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">const</span> Context &amp;context, std::vector&lt;NDArray&gt; *arg_arrays,</span></span></span><br><span class="line"><span class="params"><span class="function">    std::vector&lt;NDArray&gt; *grad_arrays, std::vector&lt;OpReqType&gt; *grad_reqs,</span></span></span><br><span class="line"><span class="params"><span class="function">    std::vector&lt;NDArray&gt; *aux_arrays,</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">const</span> std::map&lt;std::string, NDArray&gt; &amp;args_map, <span class="comment">//在上面的例子中, args_map 中</span></span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="comment">//有 &quot;X&quot; 和 &quot;label&quot; 以及两个key, 也就是说其他的 key(即 Symbol name)以及对应的 DNArray</span></span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="comment">//需要程序新建</span></span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">const</span> std::map&lt;std::string, NDArray&gt; &amp;arg_grad_store,</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">const</span> std::map&lt;std::string, OpReqType&gt; &amp;grad_req_type,</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">const</span> std::map&lt;std::string, NDArray&gt; &amp;aux_map)</span> <span class="type">const</span> </span>&#123;</span><br><span class="line">  <span class="comment">// arg_name_list 是排序之后的 arg_name_list, 所以, 顺序是固定的</span></span><br><span class="line">  <span class="type">const</span> <span class="keyword">auto</span> arg_name_list = <span class="built_in">ListArguments</span>();</span><br><span class="line">  std::vector&lt;std::vector&lt;mx_uint&gt; &gt; in_shapes, aux_shapes, out_shapes;</span><br><span class="line">  std::map&lt;std::string, std::vector&lt;mx_uint&gt; &gt; arg_shapes;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">for</span> (<span class="type">const</span> <span class="keyword">auto</span> &amp;arg_name : arg_name_list) &#123;</span><br><span class="line">    <span class="keyword">auto</span> iter = args_map.<span class="built_in">find</span>(arg_name);</span><br><span class="line">    <span class="keyword">if</span> (iter != args_map.<span class="built_in">end</span>()) &#123;</span><br><span class="line">      arg_shapes[arg_name] = iter-&gt;second.<span class="built_in">GetShape</span>();</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="comment">// 在这个SimpleBind例子中, 下面的 for 循环中的第一个if-else是没用的, 因为之前有 Symbol::InferArgsMap</span></span><br><span class="line">  <span class="comment">// 完成了这个工作</span></span><br><span class="line">  <span class="built_in">InferShape</span>(arg_shapes, &amp;in_shapes, &amp;aux_shapes, &amp;out_shapes);</span><br><span class="line"></span><br><span class="line">  <span class="keyword">for</span> (<span class="type">size_t</span> i = <span class="number">0</span>; i &lt; in_shapes.<span class="built_in">size</span>(); ++i) &#123;</span><br><span class="line">    <span class="type">const</span> <span class="keyword">auto</span> &amp;shape = in_shapes[i];</span><br><span class="line">    <span class="type">const</span> <span class="keyword">auto</span> &amp;arg_name = arg_name_list[i];</span><br><span class="line">    <span class="keyword">auto</span> iter_arg = args_map.<span class="built_in">find</span>(arg_name);</span><br><span class="line">    <span class="keyword">if</span> (iter_arg != args_map.<span class="built_in">end</span>()) &#123;</span><br><span class="line">      arg_arrays-&gt;<span class="built_in">push_back</span>(iter_arg-&gt;second);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      arg_arrays-&gt;<span class="built_in">push_back</span>(<span class="built_in">NDArray</span>(shape, context, <span class="literal">false</span>));</span><br><span class="line">      NDArray::<span class="built_in">SampleGaussian</span>(<span class="number">0</span>, <span class="number">1</span>, &amp;arg_arrays-&gt;<span class="built_in">back</span>());</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">auto</span> iter_grad = arg_grad_store.<span class="built_in">find</span>(arg_name);</span><br><span class="line">    <span class="keyword">if</span> (iter_grad != arg_grad_store.<span class="built_in">end</span>()) &#123;</span><br><span class="line">      grad_arrays-&gt;<span class="built_in">push_back</span>(iter_grad-&gt;second);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      grad_arrays-&gt;<span class="built_in">push_back</span>(<span class="built_in">NDArray</span>(shape, context, <span class="literal">false</span>));</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">auto</span> iter_req = grad_req_type.<span class="built_in">find</span>(arg_name);</span><br><span class="line">    <span class="keyword">if</span> (iter_req != grad_req_type.<span class="built_in">end</span>()) &#123;</span><br><span class="line">      grad_reqs-&gt;<span class="built_in">push_back</span>(iter_req-&gt;second);</span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (arg_name.<span class="built_in">rfind</span>(<span class="string">&quot;data&quot;</span>) == arg_name.<span class="built_in">length</span>() - <span class="number">4</span></span><br><span class="line">            || arg_name.<span class="built_in">rfind</span>(<span class="string">&quot;label&quot;</span>) == arg_name.<span class="built_in">length</span>() - <span class="number">5</span>) &#123;</span><br><span class="line">      grad_reqs-&gt;<span class="built_in">push_back</span>(OpReqType::kNullOp);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      grad_reqs-&gt;<span class="built_in">push_back</span>(OpReqType::kWriteTo);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="type">const</span> <span class="keyword">auto</span> aux_name_list = <span class="built_in">ListAuxiliaryStates</span>();</span><br><span class="line">  <span class="keyword">for</span> (<span class="type">size_t</span> i = <span class="number">0</span>; i &lt; aux_shapes.<span class="built_in">size</span>(); ++i) &#123;</span><br><span class="line">    <span class="type">const</span> <span class="keyword">auto</span> &amp;shape = aux_shapes[i];</span><br><span class="line">    <span class="type">const</span> <span class="keyword">auto</span> &amp;aux_name = aux_name_list[i];</span><br><span class="line">    <span class="keyword">auto</span> iter_aux = aux_map.<span class="built_in">find</span>(aux_name);</span><br><span class="line">    <span class="keyword">if</span> (iter_aux != aux_map.<span class="built_in">end</span>()) &#123;</span><br><span class="line">      aux_arrays-&gt;<span class="built_in">push_back</span>(iter_aux-&gt;second);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      aux_arrays-&gt;<span class="built_in">push_back</span>(<span class="built_in">NDArray</span>(shape, context, <span class="literal">false</span>));</span><br><span class="line">      NDArray::<span class="built_in">SampleGaussian</span>(<span class="number">0</span>, <span class="number">1</span>, &amp;aux_arrays-&gt;<span class="built_in">back</span>());</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="function"><span class="keyword">inline</span> <span class="type">void</span> <span class="title">Symbol::InferArgsMap</span><span class="params">(</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">const</span> Context &amp;context, std::map&lt;std::string, NDArray&gt; *args_map,</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">const</span> std::map&lt;std::string, NDArray&gt; &amp;known_args)</span> <span class="type">const</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">  <span class="type">const</span> <span class="keyword">auto</span> arg_name_list = <span class="built_in">ListArguments</span>();</span><br><span class="line">  std::vector&lt;std::vector&lt;mx_uint&gt; &gt; in_shapes, aux_shapes, out_shapes;</span><br><span class="line">  std::map&lt;std::string, std::vector&lt;mx_uint&gt; &gt; arg_shapes;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">for</span> (<span class="type">const</span> <span class="keyword">auto</span> &amp;arg_name : arg_name_list) &#123;</span><br><span class="line">    <span class="keyword">auto</span> iter = known_args.<span class="built_in">find</span>(arg_name);</span><br><span class="line">    <span class="keyword">if</span> (iter != known_args.<span class="built_in">end</span>()) &#123;</span><br><span class="line">      arg_shapes[arg_name] = iter-&gt;second.<span class="built_in">GetShape</span>();</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="built_in">InferShape</span>(arg_shapes, &amp;in_shapes, &amp;aux_shapes, &amp;out_shapes);</span><br><span class="line"></span><br><span class="line">  <span class="keyword">for</span> (<span class="type">size_t</span> i = <span class="number">0</span>; i &lt; in_shapes.<span class="built_in">size</span>(); ++i) &#123;</span><br><span class="line">    <span class="type">const</span> <span class="keyword">auto</span> &amp;shape = in_shapes[i];</span><br><span class="line">    <span class="type">const</span> <span class="keyword">auto</span> &amp;arg_name = arg_name_list[i];</span><br><span class="line">    <span class="keyword">auto</span> iter_arg = known_args.<span class="built_in">find</span>(arg_name);</span><br><span class="line">    <span class="keyword">if</span> (iter_arg != known_args.<span class="built_in">end</span>()) &#123;</span><br><span class="line">      (*args_map)[arg_name] = iter_arg-&gt;second;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      (*args_map)[arg_name] = <span class="built_in">NDArray</span>(shape, context, <span class="literal">false</span>);</span><br><span class="line">      NDArray::<span class="built_in">SampleGaussian</span>(<span class="number">0</span>, <span class="number">1</span>, &amp;(*args_map)[arg_name]);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/MXNet/" rel="tag"># MXNet</a>
+              <a href="/tags/Framework/" rel="tag"># Framework</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/mxnet-ssd-cpp/" rel="prev" title="使用 MXNet C Predict API 实现基于 SSD 的目标检测">
+      <i class="fa fa-chevron-left"></i> 使用 MXNet C Predict API 实现基于 SSD 的目标检测
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/mxnet-source-code-memo/" rel="next" title="MXNet Source Code Memo">
+      MXNet Source Code Memo <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Bind"><span class="nav-number">1.</span> <span class="nav-text">Bind</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#SimpleBind"><span class="nav-number">2.</span> <span class="nav-text">SimpleBind</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yushu.gao</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">92</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">32</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">94</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yushu.gao</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>

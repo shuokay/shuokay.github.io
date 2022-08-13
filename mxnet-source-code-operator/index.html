@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"shuokay.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":false,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="本文是MXNet源码解读系列的第二篇, 本篇介绍如何使用C++实现新的Operator.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="MXNet 源码详解--自定义Operator">
+<meta property="og:url" content="http://shuokay.com/mxnet-source-code-operator/index.html">
+<meta property="og:site_name" content="Memo">
+<meta property="og:description" content="本文是MXNet源码解读系列的第二篇, 本篇介绍如何使用C++实现新的Operator.">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2020-08-15T03:45:48.000Z">
+<meta property="article:modified_time" content="2022-08-13T02:16:25.731Z">
+<meta property="article:author" content="yushu.gao">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://shuokay.com/mxnet-source-code-operator/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>MXNet 源码详解--自定义Operator | Memo</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Memo</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="th fa-fw"></i>分类</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://shuokay.com/mxnet-source-code-operator/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yushu.gao">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Memo">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          MXNet 源码详解--自定义Operator
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2020-08-15 11:45:48" itemprop="dateCreated datePublished" datetime="2020-08-15T11:45:48+08:00">2020-08-15</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>本文是MXNet源码解读系列的第二篇, 本篇介绍如何使用C++实现新的Operator.</p>
+<span id="more"></span>
+<p>随着MXNet的演进, 在MXNet中实现新的Operator有两种方式, 一种是早期的版本, 通过定义计算类和相应的属性类的方式, 另外一种是现在MXNet中在使用的通过nnvm的方式. MXNet仍然对早期通过类定义的Operator的方式提供良好的兼容. 本文将详细介绍如何通过类的方式实现新的Operator. 具体来说本文通过实现一个简单的量化训练Operator来详细解释如何在MXNet中实现一个新的Operator.</p>
+<h1 id="量化训练"><a href="#量化训练" class="headerlink" title="量化训练"></a>量化训练</h1><p>关于量化训练的详细内容可以参考其它的文章, 简单来说, 本文将实现的Operator为:<br>$$<br>y &#x3D; \text{clip}(\text{round}(s \cdot x), -127, 127)<br>$$<br>在MXNet中实现一个新的Operator需要实现3个主要的部分, Operator的属性参数, Operator的计算, Operator 的属性信息. 接下来逐个介绍.</p>
+<h1 id="属性参数定义"><a href="#属性参数定义" class="headerlink" title="属性参数定义"></a>属性参数定义</h1><p>Operator 的属性参数定义了Operator的一般属性, 例如, 在Convolution中的, <code>kernel_size</code>, <code>num_filter</code>, <code>strides</code>, <code>padding</code> 等等这些信息, 都属于属性参数. 在本文的量化训练的例子中, <code>scale</code> 是属性参数. 属性的参数定义通过继承 <code>dmlc::Parameter</code>来实现.</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">struct</span> <span class="title class_">QuantiParam</span> : dmlc::Parameter&lt;QuantiParam&gt; &#123;</span><br><span class="line">  <span class="type">float</span> scale;</span><br><span class="line">  <span class="built_in">DMLC_DECLARE_PARAMETER</span>(QuantiParam) &#123;</span><br><span class="line">    <span class="built_in">DMLC_DECLARE_FIELD</span>(scale).<span class="built_in">describe</span>(<span class="string">&quot;the scale of quantization&quot;</span>);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<p>关于Parameter内部的实现, 可以参考源码或者关注后续的文章, 当前可以先照猫画虎实现对应的Parameter. 其中, 要注意的一点是, 在Parameter中定义的所有的参数, 都必须支持 <code>&gt;&gt;</code> 这个操作符, 这是因为, 在MXNet的传递中使用的是 <code>std::pair&lt;std::string, std::string&gt;</code>, 在Parameter内部解析的时候, 需要把的<code>std::string</code> 类型转换成对应的参数类型, 底层是通过 <code>&gt;&gt;</code> 这个操作符实现的.</p>
+<h1 id="计算的定义"><a href="#计算的定义" class="headerlink" title="计算的定义"></a>计算的定义</h1><p>对于一个Operator来说, 最重要的就是定义该Operator的计算是什么, 在MXNet中, 我们定义的Operator通常都是要用来训练神经网络的, 因此, 我们要同时定义 Forward 和 Backward, 如果明确不需要Backward的时候,也可以不实现Backward. 例如, 在部署量化模型的预测库中, 因为只需要跑前向计算, 因此, 我们就可以只实现Forward而不用实现Backward. 这里, 因为我定义的是量化训练的Operator, 因此, 我会同时实现Forward和Backward.</p>
+<h2 id="Forward"><a href="#Forward" class="headerlink" title="Forward"></a>Forward</h2><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">virtual</span> <span class="type">void</span> <span class="title">Forward</span><span class="params">(<span class="type">const</span> OpContext&amp; ctx,</span></span></span><br><span class="line"><span class="params"><span class="function">                     <span class="type">const</span> std::vector&lt;TBlob&gt;&amp; in_data,</span></span></span><br><span class="line"><span class="params"><span class="function">                     <span class="type">const</span> std::vector&lt;OpReqType&gt;&amp; req,</span></span></span><br><span class="line"><span class="params"><span class="function">                     <span class="type">const</span> std::vector&lt;TBlob&gt;&amp; out_data,</span></span></span><br><span class="line"><span class="params"><span class="function">                     <span class="type">const</span> std::vector&lt;TBlob&gt;&amp; aux_states)</span> </span>&#123;</span><br><span class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> mshadow;</span><br><span class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> mshadow::expr;</span><br><span class="line">Stream&lt;xpu&gt;* s = ctx.<span class="built_in">get_stream</span>&lt;xpu&gt;();</span><br><span class="line">DType qmin = <span class="number">-127</span>, qmax = <span class="number">127</span>;</span><br><span class="line">Tensor&lt;xpu, <span class="number">4</span>, DType&gt; data = in_data[quanti::kData].<span class="built_in">get</span>&lt;xpu, <span class="number">4</span>, DType&gt;(s);</span><br><span class="line">Tensor&lt;xpu, <span class="number">4</span>, DType&gt; out = out_data[quanti::kOut].<span class="built_in">get</span>&lt;xpu, <span class="number">4</span>, DType&gt;(s);</span><br><span class="line">DType scale = param_.scale;</span><br><span class="line">out = <span class="built_in">F</span>&lt;mshadow_op::minimum&gt;(<span class="built_in">F</span>&lt;mshadow_op::maximum&gt;(<span class="built_in">F</span>&lt;mshadow_op::round&gt;(scale * data), qmin),</span><br><span class="line">                                qmax) / scale;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>首先我们关注Forward的接口, <code>ctx</code> 是用来定义Operator是在什么设备上跑的, 例如 CPU还是GPU, <code>in_data</code> 是该计算所需要输入的数据, 例如, 在Convolution中, <code>in_data</code> 就是计算卷积 <code>data</code>, <code>weight</code> 和 <code>bias</code>, 在本文的量化Operator中是输入数据<code>data</code>, 也就是上述公式中的 <code>x</code>, <code>req</code> 是用来提示memory的复用关系, 它定义了Operator的计算结果是如何放到<code>out_data</code>中去的, 这个参数基本上不需要用户干预, 框架会自己维护该参数. <code>out_data</code> 是计算的输出. <code>aux_states</code> 是辅助参数, 例如, 在BatchNorm中的<code>running_mean</code>, <code>running_var</code> 等都是 <code>aux_states</code>, 简单来说, <code>aux_states</code> 是模型的参数, 但是, 他和 <code>in_data</code> 中的参数的不同点是, <code>aux_states</code> 不需要计算梯度.<br><strong>第10-11行</strong>: 把 <code>TBlob</code> 类型的输入数据转换成 <code>mshadow::Tensor</code> 类型, 其目的是方便使用 <code>mshadow</code> 进行计算. <code>Tensor</code> 并没有存储具体的数据, 只是保存了指向数据的指针, 因此, 这个转换和具体的计算相比, 其代价可以忽略不计. <code>mshadow</code> 是一个实现了lazy compute的<code>Tensor</code>计算库, 在MXNet中, 熟练掌握shadow能给实现Operator带来巨大的便利.<br><strong>第13-14行</strong>: 量化训练的实现, F 是 <code>mshadow</code> 中定义的一个接口, 在这里我们完全使用了<code>mshadow</code>完成了具体的计算, 并且, 通过<code>mshadow</code>实现的代码是可以同时在CPU和GPU上面运行的, 因此, 我们不需要单独再实现GPU计算的代码了.</p>
+<h2 id="Backward"><a href="#Backward" class="headerlink" title="Backward"></a>Backward</h2><p>因为我们要实现量化训练, 因此, 这里我们还需要实现对应的 Backward 的计算. 我们这里实现一个最简单的版本–其反向的梯度永远是 1.<br>$$<br>\text{grad} &#x3D; 1<br>$$</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">virtual</span> <span class="type">void</span> <span class="title">Backward</span><span class="params">(<span class="type">const</span> OpContext&amp; ctx,</span></span></span><br><span class="line"><span class="params"><span class="function">                      <span class="type">const</span> std::vector&lt;TBlob&gt;&amp; out_grad,</span></span></span><br><span class="line"><span class="params"><span class="function">                      <span class="type">const</span> std::vector&lt;TBlob&gt;&amp; in_data,</span></span></span><br><span class="line"><span class="params"><span class="function">                      <span class="type">const</span> std::vector&lt;TBlob&gt;&amp; out_data,</span></span></span><br><span class="line"><span class="params"><span class="function">                      <span class="type">const</span> std::vector&lt;OpReqType&gt;&amp; req,</span></span></span><br><span class="line"><span class="params"><span class="function">                      <span class="type">const</span> std::vector&lt;TBlob&gt;&amp; in_grad,</span></span></span><br><span class="line"><span class="params"><span class="function">                      <span class="type">const</span> std::vector&lt;TBlob&gt;&amp; aux_states)</span> </span>&#123;</span><br><span class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> mshadow;</span><br><span class="line">Stream&lt;xpu&gt;* s = ctx.<span class="built_in">get_stream</span>&lt;xpu&gt;();</span><br><span class="line">Tensor&lt;xpu, <span class="number">4</span>, DType&gt; dgrad = in_grad[quanti::kData].<span class="built_in">get</span>&lt;xpu, <span class="number">4</span>, DType&gt;(s);</span><br><span class="line">Tensor&lt;xpu, <span class="number">4</span>, DType&gt; ograd = out_grad[quanti::kOut].<span class="built_in">get</span>&lt;xpu, <span class="number">4</span>, DType&gt;(s);</span><br><span class="line"><span class="built_in">Assign</span>(dgrad, req[quanti::kData], ograd);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>Forward的计算中我们没有展示<code>req</code>是如何使用的, 在这里, 我特意使用了 <code>req</code> 来表明计算出来的梯度要如何放到 <code>dgrad</code> 中. 如果深究的话, <code>OpReqType</code> 有以下几个选项: <code>kNullOp</code>(什么也不做), <code>kWriteTo</code>(把梯度写到 <code>dgrad</code> 中), <code>kWriteInplace</code>(原地写, 这个要配合Operator属性定义中的InplaceOption使用), <code>kAddTo</code>(和原来的数据相加)</p>
+<h1 id="属性定义"><a href="#属性定义" class="headerlink" title="属性定义"></a>属性定义</h1><p>在<code>QuantiParam</code>中我们已经定义了Operator的一些属性, 在<code>QuantiParam</code>中定义的参数, 最终都会暴露给用户, 用户可以根据具体的需求给参数设置不同的值. 这里定义的属性, 和Operator的计算行为没有关系, 不管这里如何定义, 都不应该影响Operator的计算行为(如果影响了, 那么说明代码里有bug). 这里的属性, 有些是需要在运行时才知道具体行为的, <code>OperatorProperty</code> 中包含了Operator的所有的信息. <code>OperatorProperty</code> 的接口很多, 但是, 大部分时间我们不需要全部实现. 这里, 为了简单, 我们只实现几个必要的接口. 其它的接口有的是为了进行memory优化的, 有的是用来定义Operator的数据类型的, 可以在需要的时候做具体的实现, 尤其是<code>InferType</code>接口, 在实现量化预测库的时候, 因为所有的数据都是使用的不同位宽的整型数据, 在实现的时候需要在<code>InferType</code>中做具体的推断.</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">QuantiProp</span> : <span class="keyword">public</span> OperatorProperty &#123;</span><br><span class="line"> <span class="keyword">public</span>:</span><br><span class="line">  <span class="function"><span class="type">void</span> <span class="title">Init</span><span class="params">(<span class="type">const</span> std::vector&lt;std::pair&lt;std::string, std::string&gt;&gt;&amp; kwargs)</span> <span class="keyword">override</span> </span>&#123;</span><br><span class="line">    param_.<span class="built_in">Init</span>(kwargs);</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="function">std::map&lt;std::string, std::string&gt; <span class="title">GetParams</span><span class="params">()</span> <span class="type">const</span> <span class="keyword">override</span> </span>&#123; <span class="keyword">return</span> param_.__DICT__(); &#125;</span><br><span class="line">  <span class="function"><span class="type">bool</span> <span class="title">InferShape</span><span class="params">(std::vector&lt;TShape&gt;* in_shape,</span></span></span><br><span class="line"><span class="params"><span class="function">                  std::vector&lt;TShape&gt;* out_shape,</span></span></span><br><span class="line"><span class="params"><span class="function">                  std::vector&lt;TShape&gt;* aux_shape)</span> <span class="type">const</span> <span class="keyword">override</span> </span>&#123;</span><br><span class="line">    <span class="built_in">SHAPE_ASSIGN_CHECK</span>(*out_shape, quanti::kOut, (*in_shape)[quanti::kData]);</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function">OperatorProperty* <span class="title">Copy</span><span class="params">()</span> <span class="type">const</span> <span class="keyword">override</span> </span>&#123;</span><br><span class="line">    <span class="keyword">auto</span> ptr = <span class="keyword">new</span> <span class="built_in">QuantiProp</span>();</span><br><span class="line">    ptr-&gt;param_ = param_;</span><br><span class="line">    <span class="keyword">return</span> ptr;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function">std::string <span class="title">TypeString</span><span class="params">()</span> <span class="type">const</span> <span class="keyword">override</span> </span>&#123; <span class="keyword">return</span> <span class="string">&quot;Quanti&quot;</span>; &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function">Operator* <span class="title">CreateOperator</span><span class="params">(Context ctx)</span> <span class="type">const</span> <span class="keyword">override</span> </span>&#123;</span><br><span class="line">    <span class="built_in">LOG</span>(FATAL) &lt;&lt; <span class="string">&quot;Not Implemented.&quot;</span>;</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">NULL</span>;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function">Operator* <span class="title">CreateOperatorEx</span><span class="params">(Context ctx,</span></span></span><br><span class="line"><span class="params"><span class="function">                             std::vector&lt;TShape&gt;* in_shape,</span></span></span><br><span class="line"><span class="params"><span class="function">                             std::vector&lt;<span class="type">int</span>&gt;* in_type)</span> <span class="type">const</span> <span class="keyword">override</span></span>;</span><br><span class="line"></span><br><span class="line"> <span class="keyword">private</span>:</span><br><span class="line">  QuantiParam param_;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<p>在这里最重要的就是 <code>InerShape</code> 这个接口, 该接口给定第一个输入的shape, 然后根据<code>QuantiParam</code>参数信息推导出其它输入的shape和输出的shape. 本文的Operator非常简单, 只有一个输入和一个输出, 并且输入和输出的shape完全一样, 因此, 该接口实现起来非常简单. 在其它的一些Operator中, 例如, Convolution中, 输入有 data, weight, bias(也有可能没有), 并且他们的shape都不一样, 这时候就可以在这里通过data的shape和Convolution的Parameter参数推断出weight, bias, output的shape.</p>
+<h1 id="注册Operator"><a href="#注册Operator" class="headerlink" title="注册Operator"></a>注册Operator</h1><p>以上我们实现了具体的Operator, 为何运行起来, 我们还需要把Operator注册到框架中.</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">Operator* <span class="title">QuantiProp::CreateOperatorEx</span><span class="params">(Context ctx,</span></span></span><br><span class="line"><span class="params"><span class="function">                                       std::vector&lt;TShape&gt;* in_shape,</span></span></span><br><span class="line"><span class="params"><span class="function">                                       std::vector&lt;<span class="type">int</span>&gt;* in_type)</span> <span class="type">const</span> </span>&#123;</span><br><span class="line">  std::vector&lt;TShape&gt; out_shape, aux_shape;</span><br><span class="line">  std::vector&lt;<span class="type">int</span>&gt; out_type, aux_type;</span><br><span class="line">  <span class="built_in">CHECK</span>(<span class="built_in">InferType</span>(in_type, &amp;out_type, &amp;aux_type));</span><br><span class="line">  <span class="built_in">CHECK</span>(<span class="built_in">InferShape</span>(in_shape, &amp;out_shape, &amp;aux_shape));</span><br><span class="line">  <span class="built_in">DO_BIND_DISPATCH</span>(CreateOp, param_, (*in_type)[<span class="number">0</span>]);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这个接口实现在大部分Operator中也不需要修改. <code>CreateOp</code> 要根据CPU或者GPU做相应的特化. 例如, 在CPU上的定义为:</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span> &lt;&gt;</span><br><span class="line">Operator* <span class="built_in">CreateOp</span>&lt;cpu&gt;(QuantiParam param, <span class="type">int</span> dtype) &#123;</span><br><span class="line">  Operator* op = <span class="keyword">new</span> <span class="built_in">QuantiOp</span>&lt;cpu, <span class="type">float</span>&gt;(param);</span><br><span class="line">  <span class="keyword">return</span> op;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>另外注意, 这里直接把QuantiOp实例化为了 <code>float</code> 类型, 如果要支持其他类型, 比如 <code>float16</code>, 可以根据 <code>dtype</code> 来做具体的实例化.<br>最后就是提供给用户的接口:</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">DMLC_REGISTER_PARAMETER</span>(QuantiParam);</span><br><span class="line"><span class="built_in">MXNET_REGISTER_OP_PROPERTY</span>(Quanti, QuantiProp)</span><br><span class="line">    .<span class="built_in">add_argument</span>(<span class="string">&quot;data&quot;</span>, <span class="string">&quot;Symbol&quot;</span>, <span class="string">&quot;Input data to the Quanti&quot;</span>)</span><br><span class="line">    .<span class="built_in">add_arguments</span>(QuantiParam::__FIELDS__())</span><br><span class="line">    .<span class="built_in">describe</span>(<span class="string">&quot;Quanti&quot;</span>);</span><br></pre></td></tr></table></figure>
+<p>其中, 第 3 行是Operator的计算数据, 第4行是Operator的属性参数.</p>
+<h2 id="支持GPU上计算"><a href="#支持GPU上计算" class="headerlink" title="支持GPU上计算"></a>支持GPU上计算</h2><p>为了支持GPU计算, 我们还需要创建GPU上对应的Operator, 和上面<code>cpu</code>上的<code>CreateOp</code>类似, 把<code>CreateOp</code>特化到<code>gpu</code>上就好了.</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">Operator* <span class="built_in">CreateOp</span>&lt;gpu&gt;(QuantiParam param, <span class="type">int</span> dtype) &#123;</span><br><span class="line">  Operator* op = <span class="keyword">new</span> <span class="built_in">QuantiOp</span>&lt;gpu, <span class="type">float</span>&gt;(param);</span><br><span class="line">  <span class="keyword">return</span> op;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>本文介绍了如何动手实现MXNet的Operator, 为了重点关注实现一个Operator中的主要工作内容, 本文没有介绍关于memory优化的内容(在很多时候还是比较重要的)以及 <code>OperatorProperty</code> 中其它接口的定义和实现. 本文的主要目的是用最简洁的例子和代码教大家实现一个能运行的Operator, 至于各种优化, 各种特殊场景下的接口实现, 相信大家遇到具体需求的时候会逐渐学会.<br>本文所有的代码实现在这里: <a target="_blank" rel="noopener" href="https://github.com/shuokay/incubator-mxnet/tree/legacy-operator/plugin/quantization">https://github.com/shuokay/incubator-mxnet/tree/legacy-operator/plugin/quantization</a></p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/mxnet-source-code-introduction/" rel="prev" title="MXNet 源码详解--顶层架构">
+      <i class="fa fa-chevron-left"></i> MXNet 源码详解--顶层架构
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/mxnet-source-code-operator-nnvm/" rel="next" title="MXNet 源码详解--自定义Operator(nnvm方法)">
+      MXNet 源码详解--自定义Operator(nnvm方法) <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E9%87%8F%E5%8C%96%E8%AE%AD%E7%BB%83"><span class="nav-number">1.</span> <span class="nav-text">量化训练</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%B1%9E%E6%80%A7%E5%8F%82%E6%95%B0%E5%AE%9A%E4%B9%89"><span class="nav-number">2.</span> <span class="nav-text">属性参数定义</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%AE%A1%E7%AE%97%E7%9A%84%E5%AE%9A%E4%B9%89"><span class="nav-number">3.</span> <span class="nav-text">计算的定义</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#Forward"><span class="nav-number">3.1.</span> <span class="nav-text">Forward</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Backward"><span class="nav-number">3.2.</span> <span class="nav-text">Backward</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%B1%9E%E6%80%A7%E5%AE%9A%E4%B9%89"><span class="nav-number">4.</span> <span class="nav-text">属性定义</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%B3%A8%E5%86%8COperator"><span class="nav-number">5.</span> <span class="nav-text">注册Operator</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%94%AF%E6%8C%81GPU%E4%B8%8A%E8%AE%A1%E7%AE%97"><span class="nav-number">5.1.</span> <span class="nav-text">支持GPU上计算</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-number">6.</span> <span class="nav-text">总结</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yushu.gao</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">92</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">32</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">94</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yushu.gao</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS-MML_HTMLorMML';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+</body>
+</html>

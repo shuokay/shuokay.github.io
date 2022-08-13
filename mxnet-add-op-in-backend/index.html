@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"shuokay.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":false,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="Operators 是构建神经网络的必要元素, operators 定义了输入到输出的映射关系. MXNet 有一系列非常丰富的 operators, 有一些是简单的 operators, 例如 element-wise sum, 也有一些复杂的 operators 例如 convolution. 通常情况下, 使用这些 operators 可以构建大部分常见的 nn. 在 MXNet 实现的很多">
+<meta property="og:type" content="article">
+<meta property="og:title" content="MXNet 中新增 Operator">
+<meta property="og:url" content="http://shuokay.com/mxnet-add-op-in-backend/index.html">
+<meta property="og:site_name" content="Memo">
+<meta property="og:description" content="Operators 是构建神经网络的必要元素, operators 定义了输入到输出的映射关系. MXNet 有一系列非常丰富的 operators, 有一些是简单的 operators, 例如 element-wise sum, 也有一些复杂的 operators 例如 convolution. 通常情况下, 使用这些 operators 可以构建大部分常见的 nn. 在 MXNet 实现的很多">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2017-10-04T03:32:03.000Z">
+<meta property="article:modified_time" content="2022-08-13T02:16:25.728Z">
+<meta property="article:author" content="yushu.gao">
+<meta property="article:tag" content="MXNet">
+<meta property="article:tag" content="Framework">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://shuokay.com/mxnet-add-op-in-backend/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>MXNet 中新增 Operator | Memo</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Memo</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="th fa-fw"></i>分类</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://shuokay.com/mxnet-add-op-in-backend/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yushu.gao">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Memo">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          MXNet 中新增 Operator
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2017-10-04 11:32:03" itemprop="dateCreated datePublished" datetime="2017-10-04T11:32:03+08:00">2017-10-04</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Framework/" itemprop="url" rel="index"><span itemprop="name">Framework</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Framework/MXNet/" itemprop="url" rel="index"><span itemprop="name">MXNet</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>Operators 是构建神经网络的必要元素, operators 定义了输入到输出的映射关系. MXNet 有一系列非常丰富的 operators, 有一些是简单的 operators, 例如 element-wise sum, 也有一些复杂的 operators 例如 convolution. 通常情况下, 使用这些 operators 可以构建大部分常见的 nn. 在 MXNet 实现的很多 operators 通常在 numpy 中是有等价形式的, 例如 repreat, tile 等. 那么, 为什么在MXNet中不直接使用 numpy 呢? 其中最重要的原因就是MXNet需要同时支持cpu和gpu运算, 而numpy目前并不支持gpu计算. 另外, 为了最大化 memory 和 runtime efficiency, MXNet 中的大量的 components 做了深度优化, 例如 tensor data structure (<code>NDArray</code>), execution engine, computational graph 等等. MXNet 中实现的 operators 会综合考虑前面的各种优化从而做到性能的极致优化.</p>
+<span id="more"></span>
+<p>这个tutorial将会在MXNet backend 中用 C++ 实现一个operator. 之后, 使用python完成 unit test.</p>
+<h1 id="Implementation"><a href="#Implementation" class="headerlink" title="Implementation"></a>Implementation</h1><h2 id="An-Operator-Example"><a href="#An-Operator-Example" class="headerlink" title="An Operator Example"></a>An Operator Example</h2><p>使用二次函数作为例子. \( f(x)&#x3D;ax^2+bx+c \). 实现一个名字为 <code>quadratic</code> 的 operator, 要求如下:</p>
+<ol>
+<li>输入为一个 tensor, <code>x</code>;</li>
+<li>输出为一个 tensor, <code>y</code>;</li>
+<li>满足 <code>y.shape == x.shape</code>;</li>
+<li>把<code>x</code> 中的元素输入到 <code>f</code> 中得到相应的 <code>y</code> 的值;</li>
+<li><code>a</code>, <code>b</code>, <code>c</code> 是用户输入的 parameter.</li>
+</ol>
+<p>在frontend, 该 op 的工作类似如下:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">x = [[<span class="number">1</span>, <span class="number">2</span>], [<span class="number">3</span>, <span class="number">4</span>]]</span><br><span class="line">y = quadratic(data=x, a=<span class="number">1</span>, b=<span class="number">2</span>, c=<span class="number">3</span>)</span><br><span class="line">y = [[<span class="number">6</span>, <span class="number">11</span>], [<span class="number">18</span>, <span class="number">27</span>]]</span><br></pre></td></tr></table></figure>
+
+<p>实现该 op, 首先要创建 3 个文件, <code>quadratic_op-inl.h</code>, <code>quadratic_op.cc</code>, <code>quadratic_op.cu</code>, 头文件的名字是op的前缀加 <code>op</code> 和 <code>-inh</code>, 表示这是 op 的实现, 并且是在 CPU 和GPU 之间共享的 inline function. CPU 和 GPU 特定的实现 分别在他们各自的 <code>.cc</code> 和 <code>.cu</code> 中. 通常把 tensor 相关的operators放在 <code>src/operator/tensor</code> 中, nn 相关的operators放在<code>src/operator/nn</code> 中(目前还没有完成迁移).<br>接下来要完成以下几个工作:</p>
+<ol>
+<li>在 <code>quadratic_op-inl.h</code> 中定义parameter struct 来注册 <code>a</code>, <code>b</code>, <code>c</code>;</li>
+<li>在 <code>quadratic_op-inl.h</code> 中定义 type 和 shape inference 的函数;</li>
+<li>在 <code>quadratic_op-inl.h</code> 中定义 forward 和 backward 的函数;</li>
+<li>在 <code>quadratic.cc</code> 和 <code>quadratic.cu</code> 中使用 nnvm 分别注册 CPU 和 GPU 计算.</li>
+</ol>
+<p>下面 step by step 地解释.</p>
+<h2 id="Parameter-Registration"><a href="#Parameter-Registration" class="headerlink" title="Parameter Registration"></a>Parameter Registration</h2><p>首先在 <code>quadratic_op-inl.h</code> 中定义 <code>struct QuadraticParam</code> 作为参数 <code>a</code>, <code>b</code> <code>c</code> 的 placeholder. 该 struct 继承自名字为 <code>dmlc::Parameter</code> 的 base template struct. 其中 template 的参数时候派生出来的 QuadraticParam. 这种技术成为 curiously recurring template pattern, 实现了 static polymorphism. 这个方法和 virtual function 很像, 但是, 节省了和 dynamic polymorphism 相关的开销.</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">struct</span> <span class="title class_">QuadraticParam</span> : <span class="keyword">public</span> dmlc::Parameter&lt;QuadraticParam&gt; &#123;</span><br><span class="line">  <span class="type">float</span> a, b, c;</span><br><span class="line">  <span class="built_in">DMLC_DECLARE_PARAMETER</span>(QuadraticParam) &#123;</span><br><span class="line">    <span class="built_in">DMLC_DECLARE_FIELD</span>(a)</span><br><span class="line">      .<span class="built_in">set_default</span>(<span class="number">0.0</span>)</span><br><span class="line">      .<span class="built_in">describe</span>(<span class="string">&quot;Coefficient of the quadratic term in the quadratic function.&quot;</span>);</span><br><span class="line">    <span class="built_in">DMLC_DECLARE_FIELD</span>(b)</span><br><span class="line">      .<span class="built_in">set_default</span>(<span class="number">0.0</span>)</span><br><span class="line">      .<span class="built_in">describe</span>(<span class="string">&quot;Coefficient of the linear term in the quadratic function.&quot;</span>);</span><br><span class="line">    <span class="built_in">DMLC_DECLARE_FIELD</span>(c)</span><br><span class="line">      .<span class="built_in">set_default</span>(<span class="number">0.0</span>)</span><br><span class="line">      .<span class="built_in">describe</span>(<span class="string">&quot;Constant term in the quadratic function.&quot;</span>);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>上面struct parameter 调用的函数的名字解释了它们的作用. 每一个 parameter 都设置了默认值 0, 目的是用户不需要传递 0 的参数. 对于参数如果在 runtime 是必须的, 可以不用设置默认值. 同时, 对每个参数增加了简单的描述, 因此 documentation engine 可以显示该描述(documentation engine 不在本文解释范围内)</p>
+<h2 id="Attribute-Inference"><a href="#Attribute-Inference" class="headerlink" title="Attribute Inference"></a>Attribute Inference</h2><p>Attribute Inference 是从用户提供的信息中推断神经网络中的 <code>NDArray</code> 的性质. <code>NDArray</code> 两种最常见的 attribute 是 data shape 和 data type. 举例来说, 给定一个 <code>NDArray</code> 名字为 <code>data</code>, 执行 <code>quadratic</code> op, <code>output = mx.nd.quadratic(data, a=1, b=2, c=3)</code>. 在计算 <code>output</code> 之前, <code>output</code> 的 shape 和 type 根据 <code>data</code> 的shape 和 type 通过你定义的规则推理出来了, 该规则是为了给 output tensor 分配 memory.<br>其中需要注意的一点是, inference function 必须是可以 <strong>mutual inference</strong> 的. 即, 根据 op 的定义, 如果可能的, 可以通过一个argument 的 attribute来推理另外一个argument 的 attribute. 对于一个符号编程的nn来说, 这一点对于计算图推理 unknown attribute 非常有用. 用户可以把计算图看做是一个 symbol, 该symbol 拥有神经网络的每一个为 running data 初始化的 element, 包括 每一个 tensor 的 memory allocation, 每个 op 的 device placement 等. 用户通常只需要为计算图提供最少量的必要信息, 例如 input data shape, 计算图会利用该信息, 通过 inference function推理出 unknown attribute 来构建 nn.<br>例如下面的例子:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&gt;&gt;&gt; </span><span class="keyword">import</span> MXNet <span class="keyword">as</span> mx</span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span>a = mx.sym.Variable(<span class="string">&#x27;a&#x27;</span>, shape=(<span class="number">2</span>, <span class="number">0</span>))</span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span>b = mx.sym.Variable(<span class="string">&#x27;b&#x27;</span>)</span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span>c = mx.sym.Variable(<span class="string">&#x27;c&#x27;</span>, shape=(<span class="number">0</span>, <span class="number">3</span>))</span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span>d = a * b + b * c</span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span><span class="built_in">print</span> d.infer_shape()</span><br><span class="line">([(<span class="number">2L</span>, <span class="number">3L</span>), (<span class="number">2L</span>, <span class="number">3L</span>), (<span class="number">2L</span>, <span class="number">3L</span>)], [(<span class="number">2L</span>, <span class="number">3L</span>)], [])</span><br></pre></td></tr></table></figure>
+
+<p>最后一行代码是片段是包含三个 lists 的 tuple, 该 tuple 是 <code>d.infer_shape()</code> 返回的. 第一个 list 包含了所有的 augment <code>a</code>, <code>b</code>, <code>c</code> 的 shape, 第二个 list 包含了输出 <code>d</code> 的shape, 第三个 list 包含了 auxiliary 的 shape, 在这例子中没有使用, 因此是空的.  这个例子中, 只提供了 <code>a</code> 的第一个维度的信息和 <code>c</code> 的第二个 dimension 的信息, 在 shape <code>[2, 0]</code> 中的 <code>0</code> 表示该 dimension 的信息是不知道的, 在 shape <code>(0, 3)</code> 中的 <code>0</code> 也是同样的意思. 然而, symbol <code>d</code> 仍然成功地 infer 到了所有的 variables 的 shapes. 这就是 mutual inference 的作用. 在 MXNet 中, 整个过程可以表述为:</p>
+<ol>
+<li><code>a</code> 和 <code>b</code> 是通过 element-wise multiplication operator 组合到一起的, 因此, <code>a</code> 和 <code>b</code> 的 shape 应该是相同的, 因此, <code>b</code> 的 first dimension size 应该是  <code>2</code>;</li>
+<li><code>b</code> 和 <code>c</code> 是通过 element-wise multiplication operator 组合到一起的, 因此, <code>b</code> 和 <code>c</code> 的 shape 应该是相同的, 因此, <code>b</code> 的 second dimension size 应该是 <code>3</code>;</li>
+<li>现在, <code>b</code> 的 shape 已经是完全已知的了, <code>a</code> 和 <code>c</code> 之前不知道的 dimension size 现在也知道了;</li>
+<li><code>d</code> 是 <code>a*b</code> 和 <code>b*c</code> 相加的结果, 因此, <code>d</code> 的shape 也可以得到.</li>
+</ol>
+<p>上面的是个步骤说明了 MXNet 中的 shape inference 逻辑是怎么工作的. 实际上, 它是在实现 element-wise multiplication and addition 的 shape inference function 中实现的.</p>
+<p>对于我们的 <code>quadratic</code> operator, shape inference 过程是极其类似的:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">inline</span> <span class="type">bool</span> <span class="title">QuadraticOpShape</span><span class="params">(<span class="type">const</span> nnvm::NodeAttrs&amp; attrs,</span></span></span><br><span class="line"><span class="params"><span class="function">                             std::vector&lt;TShape&gt;* in_attrs,</span></span></span><br><span class="line"><span class="params"><span class="function">                             std::vector&lt;TShape&gt;* out_attrs)</span> </span>&#123;</span><br><span class="line">  <span class="built_in">CHECK_EQ</span>(in_attrs-&gt;<span class="built_in">size</span>(), <span class="number">1U</span>);</span><br><span class="line">  <span class="built_in">CHECK_EQ</span>(out_attrs-&gt;<span class="built_in">size</span>(), <span class="number">1U</span>);</span><br><span class="line"></span><br><span class="line">  <span class="built_in">SHAPE_ASSIGN_CHECK</span>(*out_attrs, <span class="number">0</span>, in_attrs-&gt;<span class="built_in">at</span>(<span class="number">0</span>));</span><br><span class="line">  <span class="built_in">SHAPE_ASSIGN_CHECK</span>(*in_attrs, <span class="number">0</span>, out_attrs-&gt;<span class="built_in">at</span>(<span class="number">0</span>));</span><br><span class="line">  <span class="keyword">return</span> out_attrs-&gt;<span class="built_in">at</span>(<span class="number">0</span>).<span class="built_in">ndim</span>() != <span class="number">0U</span> &amp;&amp; out_attrs-&gt;<span class="built_in">at</span>(<span class="number">0</span>).<span class="built_in">Size</span>() != <span class="number">0U</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>上面的 function 需要注意以下几点:</p>
+<ol>
+<li><code>attrs</code> 包含了用户的输入参数 <code>a</code>, <code>b</code>, <code>c</code>. 在这里, 这三个参数没有用到, 因为对于 shape inference 来说并不依赖上述三个参数.</li>
+<li><code>in_attrs</code> 是包含了 all input shapes 的 vector. 对于 <code>quadtatic</code> 来说, 只有一个 input augment , 使用 <code>CHECK_EQ</code> 来断言 vector 的 size 是否正确.</li>
+<li><code>out_attrs</code> 是包含了 all output shapes 的 vector, 同样使用 <code>CHECK_EQ</code> 来断言 vector 的 size</li>
+<li>使用 <code>SHAPE_ASSIGN_CHECK</code> 两次来完成 mutual inference, 一次是通过输入来 infer 输出, 一次是通过输出来 infer 输入. 如果在两个 shapes 的同一个 dimension 上有任何的非零的不相等的 values 就会抛出异常.</li>
+<li>在函数体的最后, 通过检查 shape 是不是非空以及 shape 的 size 是不是大于 0 来检查 output shape 是不是完全已知了. 在 MXNet 中, empty shape 意味着 shape 是 unknown 的, shape 中的 0 意味着 the size of that dimension is unknown. 这两种情形中的 missed information 必须要通过其它的 shapes 信息来 infer 到, 否则, 函数返回 <code>false</code> 来表示 shape inference 失败.</li>
+<li>对于 element-wise operators 的 mutual inference, MXNet 提供了如下的更简便的函数实现. 用户可以在 operator registration 中通过使用 <code>n_in=1</code> 和 <code>n_out=1</code> 实例化该函数来取代上面的函数 <code>QuadraticOpShape</code>. 这里的 <code>QuadraticOpShape</code> 只是为了解释方便.</li>
+</ol>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">template</span>&lt;<span class="type">int</span> n_in, <span class="type">int</span> n_out&gt;</span></span><br><span class="line"><span class="function"><span class="keyword">inline</span> <span class="type">bool</span> <span class="title">ElemwiseShape</span><span class="params">(<span class="type">const</span> nnvm::NodeAttrs&amp; attrs,</span></span></span><br><span class="line"><span class="params"><span class="function">                          std::vector&lt;TShape&gt; *in_attrs,</span></span></span><br><span class="line"><span class="params"><span class="function">                          std::vector&lt;TShape&gt; *out_attrs)</span></span>;</span><br></pre></td></tr></table></figure>
+
+<p>同样的逻辑也适用于 data type inference. 下面的 code sample 分析留给读者, 注意, <code>-1</code> 表示 data type unknown and must be inferred from other input or output data types.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">inline</span> <span class="type">bool</span> <span class="title">QuadraticOpType</span><span class="params">(<span class="type">const</span> nnvm::NodeAttrs&amp; attrs,</span></span></span><br><span class="line"><span class="params"><span class="function">                            std::vector&lt;<span class="type">int</span>&gt;* in_attrs,</span></span></span><br><span class="line"><span class="params"><span class="function">                            std::vector&lt;<span class="type">int</span>&gt;* out_attrs)</span> </span>&#123;</span><br><span class="line">  <span class="built_in">CHECK_EQ</span>(in_attrs-&gt;<span class="built_in">size</span>(), <span class="number">1U</span>);</span><br><span class="line">  <span class="built_in">CHECK_EQ</span>(out_attrs-&gt;<span class="built_in">size</span>(), <span class="number">1U</span>);</span><br><span class="line"></span><br><span class="line">  <span class="built_in">TYPE_ASSIGN_CHECK</span>(*out_attrs, <span class="number">0</span>, in_attrs-&gt;<span class="built_in">at</span>(<span class="number">0</span>));</span><br><span class="line">  <span class="built_in">TYPE_ASSIGN_CHECK</span>(*in_attrs, <span class="number">0</span>, out_attrs-&gt;<span class="built_in">at</span>(<span class="number">0</span>));</span><br><span class="line">  <span class="keyword">return</span> out_attrs-&gt;<span class="built_in">at</span>(<span class="number">0</span>) != <span class="number">-1</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>同样的, 对于 element-wise operators MXNet 提供了下面的简单的函数来完成 mutual inference. 用户可以在 operator registration 中使用.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">template</span>&lt;<span class="type">int</span> n_in, <span class="type">int</span> n_out&gt;</span></span><br><span class="line"><span class="function"><span class="keyword">inline</span> <span class="type">bool</span> <span class="title">ElemwiseType</span><span class="params">(<span class="type">const</span> nnvm::NodeAttrs&amp; attrs,</span></span></span><br><span class="line"><span class="params"><span class="function">                         std::vector&lt;<span class="type">int</span>&gt;* in_attrs,</span></span></span><br><span class="line"><span class="params"><span class="function">                         std::vector&lt;<span class="type">int</span>&gt;* out_attrs)</span></span>;</span><br></pre></td></tr></table></figure>
+
+<h2 id="Forward-Function"><a href="#Forward-Function" class="headerlink" title="Forward Function"></a>Forward Function</h2><p>Forward function 定义了 nn 中前向传播中 operator 的行为, forward function 的 signature 是固定的:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">void</span> (<span class="type">const</span> nnvm::NodeAttrs&amp; attrs,</span><br><span class="line">      <span class="type">const</span> OpContext&amp; ctx,</span><br><span class="line">      <span class="type">const</span> std::vector&lt;TBlob&gt;&amp; inputs,</span><br><span class="line">      <span class="type">const</span> std::vector&lt;OpReqType&gt;&amp; req,</span><br><span class="line">      <span class="type">const</span> std::vector&lt;TBlob&gt;&amp; outputs);</span><br></pre></td></tr></table></figure>
+
+<p>下面是整个的 forward function code:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> xpu&gt;                                                        <span class="comment">// 1</span></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">QuadraticOpForward</span><span class="params">(<span class="type">const</span> nnvm::NodeAttrs&amp; attrs,                         <span class="comment">// 2</span></span></span></span><br><span class="line"><span class="params"><span class="function">                        <span class="type">const</span> OpContext&amp; ctx,                                 <span class="comment">// 3</span></span></span></span><br><span class="line"><span class="params"><span class="function">                        <span class="type">const</span> std::vector&lt;TBlob&gt;&amp; inputs,                     <span class="comment">// 4</span></span></span></span><br><span class="line"><span class="params"><span class="function">                        <span class="type">const</span> std::vector&lt;OpReqType&gt;&amp; req,                    <span class="comment">// 5</span></span></span></span><br><span class="line"><span class="params"><span class="function">                        <span class="type">const</span> std::vector&lt;TBlob&gt;&amp; outputs)</span> </span>&#123;                  <span class="comment">// 6</span></span><br><span class="line">  <span class="built_in">CHECK_EQ</span>(inputs.<span class="built_in">size</span>(), <span class="number">1U</span>);                                                <span class="comment">// 7</span></span><br><span class="line">  <span class="built_in">CHECK_EQ</span>(outputs.<span class="built_in">size</span>(), <span class="number">1U</span>);                                               <span class="comment">// 8</span></span><br><span class="line">  <span class="built_in">CHECK_EQ</span>(req.<span class="built_in">size</span>(), <span class="number">1U</span>);                                                   <span class="comment">// 9</span></span><br><span class="line">  mshadow::Stream&lt;xpu&gt; *s = ctx.<span class="built_in">get_stream</span>&lt;xpu&gt;();                            <span class="comment">// 10</span></span><br><span class="line">  <span class="type">const</span> TBlob&amp; in_data = inputs[<span class="number">0</span>];                                           <span class="comment">// 11</span></span><br><span class="line">  <span class="type">const</span> TBlob&amp; out_data = outputs[<span class="number">0</span>];                                         <span class="comment">// 12</span></span><br><span class="line">  <span class="type">const</span> QuadraticParam&amp; param = nnvm::<span class="built_in">get</span>&lt;QuadraticParam&gt;(attrs.parsed);      <span class="comment">// 13</span></span><br><span class="line">  <span class="keyword">using</span> <span class="keyword">namespace</span> MXNet_op;                                                   <span class="comment">// 14</span></span><br><span class="line">  <span class="built_in">MSHADOW_TYPE_SWITCH</span>(out_data.type_flag_, DType, &#123;                           <span class="comment">// 15</span></span><br><span class="line">    <span class="built_in">MXNET_ASSIGN_REQ_SWITCH</span>(req[<span class="number">0</span>], req_type, &#123;                               <span class="comment">// 16</span></span><br><span class="line">      Kernel&lt;quadratic_forward&lt;req_type&gt;, xpu&gt;::<span class="built_in">Launch</span>(                       <span class="comment">// 17</span></span><br><span class="line">          s, out_data.<span class="built_in">Size</span>(), out_data.<span class="built_in">dptr</span>&lt;DType&gt;(), in_data.<span class="built_in">dptr</span>&lt;DType&gt;(),  <span class="comment">// 18</span></span><br><span class="line">          param.a, param.b, param.c);                                         <span class="comment">// 19</span></span><br><span class="line">    &#125;);                                                                       <span class="comment">// 20</span></span><br><span class="line">  &#125;);                                                                         <span class="comment">// 21</span></span><br><span class="line">&#125;                                                                             <span class="comment">// 22</span></span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>Line 1: <code>xpu</code> 表示 generic device type, 从而该函数可以通过 <code>cpu</code> 和 <code>gpu</code> 来实例化成 支持 CPU 和 GPU 计算. 该实例化发生在 <code>.cc</code> 和 <code>.cu</code> 中注册 operator 的时候</li>
+<li>Line2: <code>attrs</code> 是 node attribute, 包含了用户的输入参数 <code>a</code>, <code>b</code>, <code>c</code>. 这里的 node 代表了在整个 nn 的 computational graph 中该 operator 的 placeholder.</li>
+<li>Line3: <code>ctx</code> 包含了称为 <code>stream</code> 的用来序列化异步执行的东西. 举例来说, 我们想使用和 CPU 上相同的 <code>stream</code> 来 launch 多个 GPU kernels, 尽管 launch 操作是非阻塞的, <code>stream</code> 保证了 kernel 在 GPU 上执行的顺序和在 CPU 上执行的顺序是相同的.</li>
+<li>Line4: <code>inputs</code> 是 input tensors 的 vector (在 quadratic 中只有一个 input tensor)</li>
+<li>Line5: <code>req</code> 是 <code>OpReqType</code> value 的 vector, 每一个 value 定义了计算得到的结果如何写入到 output tensors 中. 因此, <code>req</code> 的数量必须和 output tensors 的数量相同. MXNet 目前支持三种类型的 <code>req</code>: <code>null</code>, <code>write</code>, <code>add</code>. <code>null</code> 表示跳过计算对应的 output tensor, <code>write</code> 表示使用该 operator 的计算结果来覆盖当前 output tensors 中的值, <code>add</code> 表示把该 operator 的计算结果加到 output tensors 中去. 注意, <code>null</code> 和 <code>add</code> 一般只会出现在 backward 中. <code>null</code> 通常用来跳过计算 un-learnable parameters(例如 index arrays), <code>add</code> 通常累加整个网络中的 gradients.</li>
+<li>Line 6: <code>outputs</code> 是 output tensors 的 vector (在 <code>quadratic</code> 中只有一个 output tensor)</li>
+<li>Lines 7-9: 检查每个 vector 的 size;</li>
+<li>Line 10: 为了 launch kernels, 从 <code>ctx</code> 中获取 <code>stream</code></li>
+<li>Lines 11-12: 为了后续编码方便, 定义 input tensors 和output tensors 的引用. <code>TBlob</code> 可以看做是不同 dimension 的 tensors 的一个统一的数据结构, 从而具有不同 dimension 的tensors 可以放到一个同族的 container 中去, 例如 <code>std::vector</code> 和 <code>std::list</code>. 通过 <code>TBlob</code> 的 <code>get_with_shape</code> 借口可以 get 到 tensors of desired dimension.</li>
+<li>Line 13: 从 node attribute 中回去用户的 input parameters.</li>
+<li>Line 15-21: 这里是完成数学表达式计算的地方. <code>MSHADOW_TYPE_SWITCH</code> 和 <code>MXNET_ASSIGN_REQ_SWITCH</code> 两个宏似的代码可以支持 MXNet 的所有的 data types 和 <code>req</code> types. 在最里面的宏中, 我们 launch 到 kernel 从而计算output tensor, 每一个线程从 input tensor 中取一个 element, 输入到 quadratic function 中, 然后根据 <code>req</code> 的值把结果赋值到 output tensor. 其中, <code>Kernel::Launch</code> 作为一个统一的借口来 launch parallel computation on both CPU and GPU. 因为在 CPU 和 GPU 上 parallelization approachs 经常是相同的, 因此, 这种方法使得大部分的 simple operators 可以在 CPU 和 GPU 上共享代码. kernel function 的定义如下, 其中, 函数 <code>Map</code> 被每一个线程针对每一个输入元素执行. 其中的几个宏解释如下: (1) <code>MSHADOW_XINLINE</code> 是个强化宏用来 inline CPU 和 GPU 编译的 function. 它使得 CPU 计算和 GPU 计算可以共享相同的代码. (2) <code>KERNEL_ASSIGN</code> 宏的作用是统一不同的 <code>req</code> 的语句到相同的一行代码中. 之所以被命名为 <code>KERNEL_ASSIGN</code> 是因为我们称用来并行计算的代码为 kernels. 在 CPU 上, kernel 使用 OpenMP 的 <code>parallel</code> directive 来 wrap, 在 GPU 上, 它们是通过 CUDA library launch 的 kernel functions.</li>
+</ul>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span>&lt;<span class="type">int</span> req&gt;</span><br><span class="line"><span class="keyword">struct</span> <span class="title class_">quadratic_forward</span> &#123;</span><br><span class="line">  <span class="function"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> DType&gt;</span></span><br><span class="line"><span class="function">  MSHADOW_XINLINE <span class="type">static</span> <span class="type">void</span> <span class="title">Map</span><span class="params">(<span class="type">int</span> i, DType* out_data, <span class="type">const</span> DType* in_data,</span></span></span><br><span class="line"><span class="params"><span class="function">                                  <span class="type">const</span> <span class="type">float</span> a, <span class="type">const</span> <span class="type">float</span> b, <span class="type">const</span> <span class="type">float</span> c)</span> </span>&#123;</span><br><span class="line">    <span class="built_in">KERNEL_ASSIGN</span>(out_data[i], req, in_data[i] * (a * in_data[i] + b) + c);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<h2 id="Backward-Function"><a href="#Backward-Function" class="headerlink" title="Backward Function"></a>Backward Function</h2><p>Backward function 的作用是在整个网络中传递最后一层输出的 loss function 的导数. 整个过程一般称为反向传播, 这里不会解释反向传播的具体理论. 这里要解决的问题是, 给定 operator 的 output 的 loss function 的 gradient(使用 tensor 表示), 计算该 operator 的输入的 gradient. 因为 <code>a</code>, <code>b</code>, <code>c</code> 是用户输入的不可训练的参数, 因此, 不需要计算 loss function 对于 <code>a</code>, <code>b</code>, <code>c</code> 的导数. 给定 <code>dL/dy</code> 和 <code>y=a*x^2+b*x+c</code>, 其中 <code>L</code> 代表 loss function, <code>y</code> 代表 quadratic tensor 的输出, 需要计算 <code>dL/dx</code>. 使用链式法则, 可以得到</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">dL/dx = dL/dy * dy/dx = dL/dy * (<span class="number">2</span>*a*x + b).</span><br></pre></td></tr></table></figure>
+
+<p>上面的表达式表明, <code>dL/dx</code> 依赖于 output tensor 的 gradient 和 input tensor 的 value. backward function 的 signature 和 forward 的相同.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> xpu&gt;                                                       <span class="comment">// 1</span></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">QuadraticOpBackward</span><span class="params">(<span class="type">const</span> nnvm::NodeAttrs&amp; attrs,                       <span class="comment">// 2</span></span></span></span><br><span class="line"><span class="params"><span class="function">                         <span class="type">const</span> OpContext&amp; ctx,                               <span class="comment">// 3</span></span></span></span><br><span class="line"><span class="params"><span class="function">                         <span class="type">const</span> std::vector&lt;TBlob&gt;&amp; inputs,                   <span class="comment">// 4</span></span></span></span><br><span class="line"><span class="params"><span class="function">                         <span class="type">const</span> std::vector&lt;OpReqType&gt;&amp; req,                  <span class="comment">// 5</span></span></span></span><br><span class="line"><span class="params"><span class="function">                         <span class="type">const</span> std::vector&lt;TBlob&gt;&amp; outputs)</span> </span>&#123;                <span class="comment">// 6</span></span><br><span class="line">  <span class="built_in">CHECK_EQ</span>(inputs.<span class="built_in">size</span>(), <span class="number">2U</span>);                                               <span class="comment">// 7</span></span><br><span class="line">  <span class="built_in">CHECK_EQ</span>(outputs.<span class="built_in">size</span>(), <span class="number">1U</span>);                                              <span class="comment">// 8</span></span><br><span class="line">  <span class="built_in">CHECK_EQ</span>(req.<span class="built_in">size</span>(), <span class="number">1U</span>);                                                  <span class="comment">// 9</span></span><br><span class="line">  mshadow::Stream&lt;xpu&gt; *s = ctx.<span class="built_in">get_stream</span>&lt;xpu&gt;();                           <span class="comment">// 10</span></span><br><span class="line">  <span class="type">const</span> TBlob&amp; out_grad = inputs[<span class="number">0</span>];                                         <span class="comment">// 11</span></span><br><span class="line">  <span class="type">const</span> TBlob&amp; in_data = inputs[<span class="number">1</span>];                                          <span class="comment">// 12</span></span><br><span class="line">  <span class="type">const</span> TBlob&amp; in_grad = outputs[<span class="number">0</span>];                                         <span class="comment">// 13</span></span><br><span class="line">  <span class="type">const</span> QuadraticParam&amp; param = nnvm::<span class="built_in">get</span>&lt;QuadraticParam&gt;(attrs.parsed);     <span class="comment">// 14</span></span><br><span class="line">  <span class="keyword">using</span> <span class="keyword">namespace</span> MXNet_op;                                                  <span class="comment">// 15</span></span><br><span class="line">  <span class="built_in">MSHADOW_TYPE_SWITCH</span>(out_grad.type_flag_, DType, &#123;                          <span class="comment">// 16</span></span><br><span class="line">    <span class="built_in">MXNET_ASSIGN_REQ_SWITCH</span>(req[<span class="number">0</span>], req_type, &#123;                              <span class="comment">// 17</span></span><br><span class="line">      Kernel&lt;quadratic_backward&lt;req_type&gt;, xpu&gt;::<span class="built_in">Launch</span>(                     <span class="comment">// 18</span></span><br><span class="line">          s, in_grad.<span class="built_in">Size</span>(), in_grad.<span class="built_in">dptr</span>&lt;DType&gt;(), out_grad.<span class="built_in">dptr</span>&lt;DType&gt;(),  <span class="comment">// 19</span></span><br><span class="line">          in_data.<span class="built_in">dptr</span>&lt;DType&gt;(), param.a, param.b);                          <span class="comment">// 20</span></span><br><span class="line">    &#125;);                                                                      <span class="comment">// 21</span></span><br><span class="line">  &#125;);                                                                        <span class="comment">// 22</span></span><br><span class="line">&#125;                                                                            <span class="comment">// 23</span></span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>Lines 1-6: 同 forward.</li>
+<li>Lines 7-9: 检查 function arguments. 需要注意的一点是, 因为 input 的 gradient 同时依赖于 gradient of output 和 input tensor, <code>inputs</code> 必须包含两个 <code>TBlob</code>对象.</li>
+<li>Line 10: 同 forward</li>
+<li>Lines 11-13: 为了简化后面的代码, 使用 <code>out_grad</code> 来表示gradient of the operator output, <code>in_data</code> 表示 input of the operator, <code>in_grad</code> 表示 gradient of the operator input.</li>
+<li>Line 14: get the parameter of object of <code>QuadraticParam</code></li>
+<li>Lines 16-22: 同 forward. this is where parallel computation for <code>in_grad</code> happens. struct <code>quadratic_backward</code> 实现了每个线程计算 <code>in_grad</code> 中的一个元素, 如下所示:</li>
+</ul>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span>&lt;<span class="type">int</span> req&gt;</span><br><span class="line"><span class="keyword">struct</span> <span class="title class_">quadratic_backward</span> &#123;</span><br><span class="line">  <span class="function"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> DType&gt;</span></span><br><span class="line"><span class="function">  MSHADOW_XINLINE <span class="type">static</span> <span class="type">void</span> <span class="title">Map</span><span class="params">(<span class="type">int</span> i, DType* in_grad, <span class="type">const</span> DType* out_grad,</span></span></span><br><span class="line"><span class="params"><span class="function">                                  <span class="type">const</span> DType* in_data, <span class="type">const</span> <span class="type">float</span> a, <span class="type">const</span> <span class="type">float</span> b)</span> </span>&#123;</span><br><span class="line">    <span class="built_in">KERNEL_ASSIGN</span>(in_grad[i], req, out_grad[i] * (<span class="number">2</span> * a * in_data[i] + b));</span><br><span class="line">  &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<h2 id="Operator-Registration"><a href="#Operator-Registration" class="headerlink" title="Operator Registration"></a>Operator Registration</h2><p>到目前为止, 我们实现了 <code>quadratic</code> operator 的必要的数据结构和函数. 现在, 需要使用 <code>nnvm</code> 来把 <code>quadratic</code> operator 暴露到 frontend. 可以把注册过程想象成创建 operator object 实例, 保存到 operator manager (a singleton) 中, 设置 operator instance 的 attributes.<br>下面的代码来自 <code>quadratic_op.cc</code> 中, 用来注册在 CPU 上工作的 operator.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">DMLC_REGISTER_PARAMETER</span>(QuadraticParam);                                           <span class="comment">// 1</span></span><br><span class="line"></span><br><span class="line"><span class="built_in">NNVM_REGISTER_OP</span>(quadratic)                                                        <span class="comment">// 2</span></span><br><span class="line">.<span class="built_in">describe</span>(<span class="string">R&quot;code(This operators implements the quadratic function:                 // 3</span></span><br><span class="line"><span class="string">.. math::</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">    f(x) = ax^2+bx+c</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">where :math:`x` is an input tensor and all operations</span></span><br><span class="line"><span class="string">in the function are element-wise.</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">Example::</span></span><br><span class="line"><span class="string">  x = [[1, 2], [3, 4]]</span></span><br><span class="line"><span class="string">  y = quadratic(data=x, a=1, b=2, c=3)</span></span><br><span class="line"><span class="string">  y = [[6, 11], [18, 27]]</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">)code&quot;</span> ADD_FILELINE)                                                               <span class="comment">// 4</span></span><br><span class="line">.<span class="built_in">set_attr_parser</span>(ParamParser&lt;QuadraticParam&gt;)                                      <span class="comment">// 5</span></span><br><span class="line">.<span class="built_in">set_num_inputs</span>(<span class="number">1</span>)                                                                 <span class="comment">// 6</span></span><br><span class="line">.<span class="built_in">set_num_outputs</span>(<span class="number">1</span>)                                                                <span class="comment">// 7</span></span><br><span class="line">.<span class="built_in">set_attr</span>&lt;nnvm::FListInputNames&gt;(<span class="string">&quot;FListInputNames&quot;</span>,                                <span class="comment">// 8</span></span><br><span class="line">  [](<span class="type">const</span> NodeAttrs&amp; attrs) &#123;                                                     <span class="comment">// 9</span></span><br><span class="line">    <span class="keyword">return</span> std::vector&lt;std::string&gt;&#123;<span class="string">&quot;data&quot;</span>&#125;;                                       <span class="comment">// 10</span></span><br><span class="line">  &#125;)                                                                               <span class="comment">// 11</span></span><br><span class="line">.<span class="built_in">set_attr</span>&lt;nnvm::FInferShape&gt;(<span class="string">&quot;FInferShape&quot;</span>, QuadraticOpShape)                      <span class="comment">// 12</span></span><br><span class="line">.<span class="built_in">set_attr</span>&lt;nnvm::FInferType&gt;(<span class="string">&quot;FInferType&quot;</span>, QuadraticOpType)                         <span class="comment">// 13</span></span><br><span class="line">.<span class="built_in">set_attr</span>&lt;FCompute&gt;(<span class="string">&quot;FCompute&lt;cpu&gt;&quot;</span>, QuadraticOpForward&lt;cpu&gt;)                      <span class="comment">// 14</span></span><br><span class="line">.<span class="built_in">set_attr</span>&lt;nnvm::FGradient&gt;(<span class="string">&quot;FGradient&quot;</span>, ElemwiseGradUseIn&#123;<span class="string">&quot;_backward_quadratic&quot;</span>&#125;)  <span class="comment">// 15</span></span><br><span class="line">.<span class="built_in">set_attr</span>&lt;nnvm::FInplaceOption&gt;(<span class="string">&quot;FInplaceOption&quot;</span>,                                  <span class="comment">// 16</span></span><br><span class="line">  [](<span class="type">const</span> NodeAttrs&amp; attrs) &#123;                                                     <span class="comment">// 17</span></span><br><span class="line">    <span class="keyword">return</span> std::vector&lt;std::pair&lt;<span class="type">int</span>, <span class="type">int</span>&gt; &gt;&#123;&#123;<span class="number">0</span>, <span class="number">0</span>&#125;&#125;;                              <span class="comment">// 18</span></span><br><span class="line">  &#125;)                                                                               <span class="comment">// 19</span></span><br><span class="line">.<span class="built_in">add_argument</span>(<span class="string">&quot;data&quot;</span>, <span class="string">&quot;NDArray-or-Symbol&quot;</span>, <span class="string">&quot;Input ndarray&quot;</span>)                        <span class="comment">// 20</span></span><br><span class="line">.<span class="built_in">add_arguments</span>(QuadraticParam::__FIELDS__());                                      <span class="comment">// 21</span></span><br><span class="line"></span><br><span class="line"><span class="built_in">NNVM_REGISTER_OP</span>(_backward_quadratic)                                              <span class="comment">// 22</span></span><br><span class="line">.<span class="built_in">set_attr_parser</span>(ParamParser&lt;QuadraticParam&gt;)                                      <span class="comment">// 23</span></span><br><span class="line">.<span class="built_in">set_num_inputs</span>(<span class="number">2</span>)                                                                 <span class="comment">// 24</span></span><br><span class="line">.<span class="built_in">set_num_outputs</span>(<span class="number">1</span>)                                                                <span class="comment">// 25</span></span><br><span class="line">.<span class="built_in">set_attr</span>&lt;nnvm::TIsBackward&gt;(<span class="string">&quot;TIsBackward&quot;</span>, <span class="literal">true</span>)                                  <span class="comment">// 26</span></span><br><span class="line">.<span class="built_in">set_attr</span>&lt;FCompute&gt;(<span class="string">&quot;FCompute&lt;cpu&gt;&quot;</span>, QuadraticOpBackward&lt;cpu&gt;);                    <span class="comment">// 27</span></span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>Line 1: 注册 parameter struct</li>
+<li>Line 2: 注册名字为 <code>quadratic</code> 的operator, 方法是, 创建一个 <code>Op</code> 类型的实例, 保存该实例到 operator manager 中, 返回刚刚创建的 operator object.</li>
+<li>Lines 3-4: 增加描述文档作为该 operator 的 operator attribute. documentation engine 会抽取该描述文档并且显示到文档页面.</li>
+<li>Line 5: 给该 operator 设置 parameter struct parser. 用来解析 front 传来的 <code>a</code>, <code>b</code>, <code>c</code>.</li>
+<li>Line 6: 设置该 operator 的输入数量</li>
+<li>Line7: 设置该 operator 的输出数量</li>
+<li>Lines 8-11: 定义一个 function, 该 function 的作用是产生 operator input arguments 的 names, 并且 names 放在 vector 中. 这个 function 的使用场景是,  add missing arguments that users did not specify when creating a symbolic operator, 例如, <code>quad_func = mx.sym.quadratic()</code> 仍然是 valid 的 symbol 因为我们已经对该 computational graph 的该 operator node 增加了 attribute <code>FListInputNames</code>. MXNet would add the missing argument with name <code>quadratic0_data</code>, 其中, 前缀 <code>quadratic0</code> 是 operator 的 name 加上 an index, 后缀 <code>data</code> 来自于用户定义的 <code>FListInputName</code> 函数的返回值. 用户仍然可以像下面这样从 <code>quad_func</code> 生成一个 executor:</li>
+</ul>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">quad_exe = quad_func.simple_bind(ctx=mx.cpu(), quandratic0_data=(<span class="number">1</span>,))</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>Line 12: 注册 shape inference function</li>
+<li>Line 13: 注册 type inference function</li>
+<li>Line 14: 注册 forward function</li>
+<li>Lines 16-19: 这是一个注册函数, 表明哪个输出 tensor 可以 reuse 哪个输入 tensor 的 memory, 从而避免为 output tensor 分配 memory. 在 <code>quadratic</code> 这个 op 中, 只有一个输入和一个输出 tensor, 并且输出 tensor 可以 reuse 输入 tensor 的 memory space, 因此, 返回一个存储 <code>std::pair</code> 对的 <code>std::vector</code>, 其中, pair 对的作用是说,  <code>input[0]</code> 的 memory 可以被 <code>output[0]</code> reuse. 这里需要注意的是, 这只是给计算图的初始化提供了一个线索, 如果有其它的 Node 依赖 input tensor, 那么, input 的 memory space 就不会被 output 覆盖.</li>
+<li>Line 20: Define the input argument name as <code>data</code> for the operator</li>
+<li>Line 21: Add user input parameters <code>a</code>, <code>b</code>, <code>c</code> as the attributes of the operator</li>
+<li>Line 22: 注册个名字为 <code>_backward_quadratic</code> 的函数, 作用是完成 <code>quadratic</code> 的 backward pass. 名字最前面的下划线的意思是该函数不是直接暴露给用户的. 内部的 backward operator 的命名习惯是在相应的 forward operator 前面加上 <code>_backward_</code> 前缀.</li>
+<li>Line 23: 给 <code>_backward_quadratic</code> 设置 parameter parser.</li>
+<li>Line 24: 设置输入的数量</li>
+<li>Line 25: 设置输出的数量</li>
+<li>Line 26: 给 operator 添加 <code>TIsBackward</code> attribute. 添加该 attribute 的原因是, shape 和 type inference passes 都需要这个 attribute 来决定图中的某个 node 是 forward node 还是 backward node.</li>
+<li>Line 27: 注册 backward function</li>
+</ul>
+<p>到目前为止, 已经完成了 CPU 上的工作, 为了让代码也能够在 GPU 上工作, 只需要在 <code>quadratic_op.cu</code> 中增加以下代码. 注意, forward 和 backward functions 是通过 <code>FCompute&lt;gpu&gt;</code> 而不是 <code>FCompute&lt;cpu&gt;</code> 注册的.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">NNVM_REGISTER_OP</span>(quadratic)</span><br><span class="line">.<span class="built_in">set_attr</span>&lt;FCompute&gt;(<span class="string">&quot;FCompute&lt;gpu&gt;&quot;</span>, QuadraticOpForward&lt;gpu&gt;);</span><br><span class="line"></span><br><span class="line"><span class="built_in">NNVM_REGISTER_OP</span>(_backward_quadratic)</span><br><span class="line">.<span class="built_in">set_attr</span>&lt;FCompute&gt;(<span class="string">&quot;FCompute&lt;gpu&gt;&quot;</span>, QuadraticOpBackward&lt;gpu&gt;);</span><br></pre></td></tr></table></figure>
+
+<h2 id="Unit-Test"><a href="#Unit-Test" class="headerlink" title="Unit Test"></a>Unit Test</h2><p>现在已经在 MXNet backend 完成了 <code>quadratic</code> op 的实现, 如果使用 python, 那么, 在 <code>import MXNet as mx</code> 的时候, 两个运行该后端实现的 Python function 也同时生成了, 分别是用于 imperative programming 的 <code>MXNet.ndarray.quadratic</code> 和用于 symbolic programming 的 <code>MXNet.symbol.quadratic</code>.<br>为了在 frontend 进行测试, 需要在在 <code>test_operator.py</code> 中增加下面的代码. forward 的测试比较简单, 但是, backward 的测试稍显复杂. 首先创建一个 <code>quadratic</code> symbol, 然后喂到 <code>check_numeric_gradient</code> 中.  <code>check_numeric_gradient</code> 做的就是在在输入上加上一个轻微的扰动, 然后通过有限微分方法得到一个输出, 把该输出和通过 backward pass 得到的输出进行比较, 如果两个输出的差值在一定的范围内就认为测试通过, 否则测试不通过.(就是常规的检验 backward 的套路了)<br>这里使用 <code>mx.nd.quadratic</code> 检查 forward function, 使用 <code>check_numeric_gradient</code> 检查 backward function. 在 MXNet 中海油另外两个经常用到的 utility functions, <code>check_symbolic_forward</code> 和 <code>check_symbolic_backward</code>. 如果在单元测试中使用者两个函数, users need to pass in the operator symbols and expected results for comparison.</p>
+<p>以上内容<a target="_blank" rel="noopener" href="https://github.com/apache/incubator-mxnet/blob/master/docs/how_to/add_op_in_backend.md">翻译自文档</a></p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/MXNet/" rel="tag"># MXNet</a>
+              <a href="/tags/Framework/" rel="tag"># Framework</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/mxnet-source-code-memo/" rel="prev" title="MXNet Source Code Memo">
+      <i class="fa fa-chevron-left"></i> MXNet Source Code Memo
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/halide/" rel="next" title="Halide Notes-算法和计算解耦">
+      Halide Notes-算法和计算解耦 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Implementation"><span class="nav-number">1.</span> <span class="nav-text">Implementation</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#An-Operator-Example"><span class="nav-number">1.1.</span> <span class="nav-text">An Operator Example</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Parameter-Registration"><span class="nav-number">1.2.</span> <span class="nav-text">Parameter Registration</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Attribute-Inference"><span class="nav-number">1.3.</span> <span class="nav-text">Attribute Inference</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Forward-Function"><span class="nav-number">1.4.</span> <span class="nav-text">Forward Function</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Backward-Function"><span class="nav-number">1.5.</span> <span class="nav-text">Backward Function</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Operator-Registration"><span class="nav-number">1.6.</span> <span class="nav-text">Operator Registration</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Unit-Test"><span class="nav-number">1.7.</span> <span class="nav-text">Unit Test</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yushu.gao</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">92</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">32</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">94</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yushu.gao</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS-MML_HTMLorMML';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+</body>
+</html>

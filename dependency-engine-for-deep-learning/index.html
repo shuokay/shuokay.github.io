@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"shuokay.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":false,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="翻译自 MXNet 官方文档深度学习中, 我们希望框架运行速度越快越好, 支持的数据集&#x2F;模型越大越好. 一种显而易见的方法就是堆机器, 堆显卡. 这种方案带来的问题是: 如何在多台机器, 多块显卡上进行并行计算, 以及如何在多线程的情况下正确而高效的实现计算的同步.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="深度学习中的依赖引擎">
+<meta property="og:url" content="http://shuokay.com/dependency-engine-for-deep-learning/index.html">
+<meta property="og:site_name" content="Memo">
+<meta property="og:description" content="翻译自 MXNet 官方文档深度学习中, 我们希望框架运行速度越快越好, 支持的数据集&#x2F;模型越大越好. 一种显而易见的方法就是堆机器, 堆显卡. 这种方案带来的问题是: 如何在多台机器, 多块显卡上进行并行计算, 以及如何在多线程的情况下正确而高效的实现计算的同步.">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://shuokay.com/content/images/dependency-engine-for-deep-learning/dep_simple.png">
+<meta property="og:image" content="http://shuokay.com/content/images/dependency-engine-for-deep-learning/dep_simple.png">
+<meta property="og:image" content="http://shuokay.com/content/images/dependency-engine-for-deep-learning/dep_del.png">
+<meta property="og:image" content="http://shuokay.com/content/images/dependency-engine-for-deep-learning/dep_rand.png">
+<meta property="og:image" content="http://shuokay.com/content/images/dependency-engine-for-deep-learning/dep_net.png">
+<meta property="og:image" content="http://shuokay.com/content/images/dependency-engine-for-deep-learning/tag_var.png">
+<meta property="og:image" content="http://shuokay.com/content/images/dependency-engine-for-deep-learning/push_var.png">
+<meta property="og:image" content="http://shuokay.com/content/images/dependency-engine-for-deep-learning/dep_queue.gif">
+<meta property="og:image" content="http://shuokay.com/content/images/dependency-engine-for-deep-learning/dep_parallel.png">
+<meta property="og:image" content="http://shuokay.com/content/images/dependency-engine-for-deep-learning/push_seq.png">
+<meta property="og:image" content="http://shuokay.com/content/images/dependency-engine-for-deep-learning/engine_queue_step.png">
+<meta property="og:image" content="http://shuokay.com/content/images/dependency-engine-for-deep-learning/engine_queue_rand.png">
+<meta property="article:published_time" content="2017-03-10T02:12:48.000Z">
+<meta property="article:modified_time" content="2022-08-13T02:16:25.724Z">
+<meta property="article:author" content="yushu.gao">
+<meta property="article:tag" content="Deep Learning">
+<meta property="article:tag" content="MXNet">
+<meta property="article:tag" content="HPC">
+<meta property="article:tag" content="Dependency Engine">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://shuokay.com/content/images/dependency-engine-for-deep-learning/dep_simple.png">
+
+<link rel="canonical" href="http://shuokay.com/dependency-engine-for-deep-learning/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>深度学习中的依赖引擎 | Memo</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Memo</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="th fa-fw"></i>分类</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://shuokay.com/dependency-engine-for-deep-learning/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yushu.gao">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Memo">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          深度学习中的依赖引擎
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2017-03-10 10:12:48" itemprop="dateCreated datePublished" datetime="2017-03-10T10:12:48+08:00">2017-03-10</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Framework/" itemprop="url" rel="index"><span itemprop="name">Framework</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Framework/MXNet/" itemprop="url" rel="index"><span itemprop="name">MXNet</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>翻译自 MXNet <a target="_blank" rel="noopener" href="http://mxnet.io/architecture/note_engine.html">官方文档</a><br>深度学习中, 我们希望框架运行速度越快越好, 支持的数据集&#x2F;模型越大越好. 一种显而易见的方法就是堆机器, 堆显卡. 这种方案带来的问题是: 如何在多台机器, 多块显卡上进行并行计算, 以及如何在多线程的情况下正确而高效的实现计算的同步.</p>
+<span id="more"></span>
+<p>对于这个问题, 通常使用运行时依赖引擎来解决. 这篇文章的目的是讨论在深度学习中运行时依赖引擎的调度问题以及怎样通过运行时依赖引擎来加速和简化多设备上的深度学习. 本文还探讨了不具体操作的通用依赖引擎的设计方法.<br>本文中的大部分方法提现在了 MXNet 的依赖引擎中, 依赖关系跟踪方法主要由 <a target="_blank" rel="noopener" href="https://github.com/hotpxl">Yutian Li</a> 和 <a target="_blank" rel="noopener" href="https://github.com/jermainewang">Mingjie Wang</a> 完成.</p>
+<h1 id="Dependency-Scheduling"><a href="#Dependency-Scheduling" class="headerlink" title="Dependency Scheduling"></a>Dependency Scheduling</h1><p>尽管我们都想充分利用并行计算的优势, 但是, 在实践中, 对串行编程更熟悉. 因此, 能不能通过串行的方式编程, 却可以通过异步方式实现具体计算的并行呢?<br>例如下面的代码, <code>B=A+1</code> 和 <code>C=A+2</code> 可以以任意的顺序或者直接并行地执行.</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">A = <span class="number">2</span></span><br><span class="line">B = A + <span class="number">1</span></span><br><span class="line">C = A + <span class="number">2</span></span><br><span class="line">D = B * C</span><br></pre></td></tr></table></figure>
+
+<p>但是, 直接通过手写代码来确定他们的顺序比较困难, 因为上述最后一个操作 <code>D=B*C</code> 需要等到前面两个操作都完成之后才能运行, 下面的依赖图&#x2F;数据流图说明了这个问题.</p>
+<center><img src="/content/images/dependency-engine-for-deep-learning/dep_simple.png"></center>
+<p>依赖引擎的作用是维护一个操作序列, 根据依赖模式进行合理的调度操作序列, 从而尽可能地实现操作的并行. 因此, 在上面这个例子中, <code>B=A+1</code> 和 <code>C=A+2</code> 是并行地运行的, <code>D=B*C</code> 前面两个操作完成之后才运行.</p>
+<h1 id="Problems-in-Dependency-Scheduling"><a href="#Problems-in-Dependency-Scheduling" class="headerlink" title="Problems in Dependency Scheduling"></a>Problems in Dependency Scheduling</h1><p>依赖引擎使得写并发程序变得很简单, 但是, 因为操作变成了并行的模式, 因此, 带来了新的依赖关系跟踪问题. 下面分别阐述这些问题</p>
+<h2 id="Data-Flow-Dependency"><a href="#Data-Flow-Dependency" class="headerlink" title="Data Flow Dependency"></a>Data Flow Dependency</h2><p>数据流依赖描述的是一个计算的输出会以什么样的方式被其它的计算使用. 任何一个依赖引擎都要解决数据流依赖的问题.</p>
+<center><img src="/content/images/dependency-engine-for-deep-learning/dep_simple.png"></center>
+<p>带有数据流跟踪的库包括 Minerva 和 Purine2.</p>
+<h2 id="Memory-Recycling"><a href="#Memory-Recycling" class="headerlink" title="Memory Recycling"></a>Memory Recycling</h2><p>给变量分配的内存什么时候回收呢? 串行程序比较简单, 直接在变量 out of scope 的时候回收. 但是, 对于并行处理来说, 内存回收就变得比较复杂了, 如下图:</p>
+<center><img src="/content/images/dependency-engine-for-deep-learning/dep_del.png"></center>
+<p>在这个例子中, 两个操作都需要依赖于 <code>A</code>, 只有到这两个操作都完成之后才能回收 A 的内存. 引擎需要根据依赖关系去回收内存, 确保在 <code>B=A+1</code> 和 <code>C=A+2</code> 都完成之后才回收 A 的内存.</p>
+<h2 id="Random-Number-Generation"><a href="#Random-Number-Generation" class="headerlink" title="Random Number Generation"></a>Random Number Generation</h2><p>随机数生成器在机器学习中使用非常普遍, 并且给依赖引擎带来新的挑战. 例如下面这个例子:</p>
+<center><img src="/content/images/dependency-engine-for-deep-learning/dep_rand.png"></center>
+<p>这个例子中, 使用的是串行的方式生成的随机数, 虽然看上去随机数的生成可以使用并行的方式进行, 但是, 事实上, 伪随机数生成器在生成随机数的过程中会改变内部的状态, 因此, 伪随机数的生成并不是安全的, 这也就导致了随机数的生成不能并行. 另外, 即使伪随机数生成是线程安全的, 我们也不采用并行, 因为, 通过串行的方式, 才能保证随机数的生成结果是可复现的. 所以, 伪随机数生成需要串行.</p>
+<h1 id="Case-Study-A-Dependency-Engine-for-a-Multi-GPU-Neural-Network"><a href="#Case-Study-A-Dependency-Engine-for-a-Multi-GPU-Neural-Network" class="headerlink" title="Case Study: A Dependency Engine for a Multi-GPU Neural Network"></a>Case Study: A Dependency Engine for a Multi-GPU Neural Network</h1><p>这部分讨论在设计依赖引擎将会遇到的问题. 在讨论如何设计一个通用的依赖引擎之前, 我们首先来讨论一下, 在深度学习中, 依赖引擎在多 GPU 的训练中的作用是什么. 下面的伪代码描述了一个 batch 的数据是如何在一个两层的神经网络上进行训练的.</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># Example of one iteration Two GPU neural Net</span></span><br><span class="line">data = next_batch()</span><br><span class="line">data[gpu0].copyfrom(data[<span class="number">0</span>:<span class="number">50</span>])</span><br><span class="line">data[gpu1].copyfrom(data[<span class="number">50</span>:<span class="number">100</span>])</span><br><span class="line"><span class="comment"># forward, backprop on GPU 0</span></span><br><span class="line">fc1[gpu0] = FullcForward(data[gpu0], fc1_weight[gpu0])</span><br><span class="line">fc2[gpu0] = FullcForward(fc1[gpu0], fc2_weight[gpu0])</span><br><span class="line">fc2_ograd[gpu0] = LossGrad(fc2[gpu0], label[<span class="number">0</span>:<span class="number">50</span>])</span><br><span class="line">fc1_ograd[gpu0], fc2_wgrad[gpu0] =</span><br><span class="line">  FullcBackward(fc2_ograd[gpu0] , fc2_weight[gpu0])</span><br><span class="line">  _, fc1_wgrad[gpu0] = FullcBackward(fc1_ograd[gpu0] , fc1_weight[gpu0])</span><br><span class="line"><span class="comment"># forward, backprop on GPU 1</span></span><br><span class="line">fc1[gpu1] = FullcForward(data[gpu1], fc1_weight[gpu1])</span><br><span class="line">fc2[gpu1] = FullcForward(fc1[gpu1], fc2_weight[gpu1])</span><br><span class="line">fc2_ograd[gpu1] = LossGrad(fc2[gpu1], label[<span class="number">50</span>:<span class="number">100</span>])</span><br><span class="line">fc1_ograd[gpu1], fc2_wgrad[gpu1] =</span><br><span class="line">     FullcBackward(fc2_ograd[gpu1] , fc2_weight[gpu1])</span><br><span class="line">     _, fc1_wgrad[gpu1] = FullcBackward(fc1_ograd[gpu1] , fc1_weight[gpu1])</span><br><span class="line"><span class="comment"># aggregate gradient and update</span></span><br><span class="line">fc1_wgrad[cpu]  = fc1_wgrad[gpu0] + fc1_wgrad[gpu1]</span><br><span class="line">fc2_wgrad[cpu]  = fc2_wgrad[gpu0] + fc2_wgrad[gpu1]</span><br><span class="line">fc1_weight[cpu] -= lr *  fc1_wgrad[gpu0]</span><br><span class="line">fc2_weight[cpu] -= lr *  fc2_wgrad[gpu0]</span><br><span class="line">fc1_weight[cpu].copyto(fc1_weight[gpu0] , fc1_weight[gpu1])</span><br><span class="line">fc2_weight[cpu].copyto(fc2_weight[gpu0] , fc2_weight[gpu1])</span><br></pre></td></tr></table></figure>
+
+<p>在这个例子中, 数据 0 到 40 在 GPU0 上, 数据 5 到 99 在 GPU1 上, 梯度数据在 CPU 上进行聚合操作, 然后, 使用 SGD 算法更行模型参数, 并且把更新后的参数拷贝到两块 GPU 上. 这就是使用串行的方式去写并行程序的一种方式. 下面的依赖图描述了并行的过程:</p>
+<center><img src="/content/images/dependency-engine-for-deep-learning/dep_net.png"></center>
+<p>注意:</p>
+<ul>
+<li>对于每一层来说, 一旦计算完得到梯度数据, 该梯度数据可以马上拷贝到 CPU 上.</li>
+<li>模型参数(权值)数据在更新完之后可以马上从 CPU 拷贝到 GPU 上</li>
+<li>在前向传播过程中, 需要等待前一个迭代中 <code>fc1_weight[cpu].copyto(fc1_weight[gpu0] , fc1_weight[gpu1])</code> 完成之后才能进行.</li>
+<li>对于第 k 层, 在backward 完成之后, 新一轮的 forward 没有开始之前有一个时间差, 在这个时间内, 我们可以完成数据的拷贝工作(与其它层的 forward 和 backward 并行地进行).</li>
+</ul>
+<p>这种优化方法在多 GPU 的深度学习库中经常被采用, 例如 CXXNet. 其关键点是把数据的拷贝和其它的计算进行 overlap. 实现这一点并不容易. 因为, 在 backward 完成之后要马上进行拷贝操作, 接着还要在适当的时候进行 reduction 操作以及参数的更新操作.</p>
+<h1 id="Designing-a-Generic-Dependency-Engine"><a href="#Designing-a-Generic-Dependency-Engine" class="headerlink" title="Designing a Generic Dependency Engine"></a>Designing a Generic Dependency Engine</h1><p>至此希望各位对依赖引擎的重要性有了初步的认识. 接下来讨论以下如何设计和实现依赖引擎的通用接口. 接下来讨论的设计并不是唯一的方案, 只是针对大部分情况我们认为是可行的方案.<br>本文的目标是实现一个轻量的, 可通用的依赖引擎. 我们希望, 这个依赖引擎可以像插件一样很容易的集成到现有的深度学习库中, 而且, 通过很小的改动就可以应用到多台机器的场景. 为了实现这一点, 只需要关注依赖的跟踪, 而并不需要事先假设用户用户可以进行什么操作或者不可以进行什么操作.<br>总结来说, 本文设计的依赖引擎有以下几个特点(目标):</p>
+<p>对于调度的具体的用户操作是无感知的, 这样, 用户就可以随便使用任何操作</p>
+<ul>
+<li>不能只调度某些固定种类的对象<ul>
+<li>即能调度 CPU 上的依赖, 也能调度 GPU 上的依赖</li>
+<li>能够跟踪随机数生成器的依赖等</li>
+</ul>
+</li>
+<li>不需要分配资源. 要做的仅仅是跟踪依赖. 用户自己分配资源, 例如内存, 伪随机数生成器等.</li>
+</ul>
+<p>下面的 Python 代码提供了帮主我们完成目标的引擎接口. 当然, 实践中的实现是用 C++ 完成的.</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">DepEngine</span>(<span class="title class_ inherited__">object</span>):</span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">new_variable</span>():</span><br><span class="line">        <span class="string">&quot;&quot;&quot;Return a new variable tag</span></span><br><span class="line"><span class="string">        Returns</span></span><br><span class="line"><span class="string">        -------</span></span><br><span class="line"><span class="string">        vtag : Variable Tag</span></span><br><span class="line"><span class="string">            The token of the engine to represent dependencies.</span></span><br><span class="line"><span class="string">        &quot;&quot;&quot;</span></span><br><span class="line">        <span class="keyword">pass</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">push</span>(<span class="params">exec_func, read_vars, mutate_vars</span>):</span><br><span class="line">        <span class="string">&quot;&quot;&quot;Push the operation to the engine.</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        Parameters</span></span><br><span class="line"><span class="string">        ----------</span></span><br><span class="line"><span class="string">        exec_func : callable</span></span><br><span class="line"><span class="string">            The real operation to be performed.</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        read_vars : list of Variable Tags</span></span><br><span class="line"><span class="string">            The list of variables this operation will read from.</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        mutate_vars : list of Variable Tags</span></span><br><span class="line"><span class="string">            The list of variables this operation will mutate.</span></span><br><span class="line"><span class="string">        &quot;&quot;&quot;</span></span><br><span class="line">        <span class="keyword">pass</span></span><br></pre></td></tr></table></figure>
+
+<p>因为不能对要调度的内容做任何假设, 因此, 我们要求用户分配一个 <code>virtual tag</code>, <code>virtual tag</code> 是和具体的对象关联起来的, 在依赖引擎中, 使用 <code>virtual tag</code> 来表示需要调度的内容. 因此, 首先, 用户需要对要调度的内容分配 <code>virtual tag</code>, 并且把调度内容和 <code>virtual tag</code> 做好关联.</p>
+<center><img src="/content/images/dependency-engine-for-deep-learning/tag_var.png"></center>
+<p>然后, 用户调用 <code>push</code> 来告诉引擎需要进行什么操作, 并且还要通过 <code>read_vars</code> 和 <code>write_vars</code> 来声明该操作所需的依赖.</p>
+<ul>
+<li><code>read_vars</code> 是对象的 tag, push 给引擎的操作只会从该对象中做读取操作, 不会改变该对象.</li>
+<li><code>write_vars</code> 是对象的 tag, push 给引擎的操作将会改变该对象的内容.</li>
+</ul>
+<center><img src="/content/images/dependency-engine-for-deep-learning/push_var.png"></center>
+<p>上图描述了把 <code>B=A+1</code> push 给依赖引擎的过程. <code>B.data</code> 和 <code>A.data</code> 是真正的分配了资源的对象, 而引擎拿到的只是对象的 tag. 任何可执行的函数都可以处理.这种接口形式对于操作和资源都是通用.<br>下面, 我们看一下引擎内部是怎样通过 tag 来工作的. 考虑下面这段操作:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">B=A+<span class="number">1</span></span><br><span class="line">C=A+<span class="number">2</span></span><br><span class="line">A=C*<span class="number">2</span></span><br><span class="line">D=A+<span class="number">3</span></span><br></pre></td></tr></table></figure>
+
+<p>第一行读取的是可变变量 B 和变量 A, 第二行读取可变变量 C 和 变量 A……<br>引擎对于每一个变量维护了一个队列, 过程如下图所示, 绿色块表示读取操作, 红色块表示写入 (mutation) 操作.</p>
+<center><img src="/content/images/dependency-engine-for-deep-learning/dep_queue.gif"></center>
+<p>通过队列, 引擎发现, A 起始的两个绿色的块是可以并行的, 因为, 都是读操作, 而且, 两个操作之间没有任何冲突. 如下图所示:</p>
+<center><img src="/content/images/dependency-engine-for-deep-learning/dep_parallel.png"></center>
+<p>这个引擎最大的特点是, 其调度的内容不仅仅限于数值计算, 因为, 它调度的只是对象的 tag, 因此, 可以说, 该引擎可以调度任何需要调度的内容.<br>下面这张表描述了前面的程序 push sequence.</p>
+<center><img src="/content/images/dependency-engine-for-deep-learning/push_seq.png"></center>
+
+<h1 id="Porting-Existing-Code-to-the-Dependency-Engine"><a href="#Porting-Existing-Code-to-the-Dependency-Engine" class="headerlink" title="Porting Existing Code to the Dependency Engine"></a>Porting Existing Code to the Dependency Engine</h1><p>该引擎不处理内存分配或者需要运行的操作, 因此, 大部分现存代码可以很容易地通过本文描述的依赖引擎进行调度, 只需要两个步骤:</p>
+<ol>
+<li>对于所有的资源, 例如内存, 伪随机数生成器分配 tags</li>
+<li>通过 push 接口来 push 要进行的操作, 并且注意正确地设置 <code>read_vars</code> 和 <code>write_vars</code> tags</li>
+</ol>
+<h1 id="Implementing-the-Generic-Dependency-Engine"><a href="#Implementing-the-Generic-Dependency-Engine" class="headerlink" title="Implementing the Generic Dependency Engine"></a>Implementing the Generic Dependency Engine</h1><p>以上讨论了通用调度接口和调度方式, 这一部分讨论一下具体的实现. 基本内容如下:</p>
+<ul>
+<li>对于每一个 tag, 使用队列去跟踪目前有多少操作是依赖于该 tag 的</li>
+<li>对于每一个 operation. 使用 counter 去跟踪还有多少各依赖没有被满足</li>
+<li>操作完成之后, 更新队列 和 counter, 调度新的 operation</li>
+</ul>
+<p>下图是调度算法的可视化过程:</p>
+<center><img src="/content/images/dependency-engine-for-deep-learning/engine_queue_step.png"></center>
+
+<p>下图展示的是带有随机数生成器的例子:</p>
+<center><img src="/content/images/dependency-engine-for-deep-learning/engine_queue_rand.png"></center>
+
+<p>从上面的两个例子可以看出, 该算法主要是更新 operation 的等待队列并且在操作完成之后正确的进行状态转换. 另外, 还要保证状态转换是线程安全的.</p>
+<h2 id="Separate-Dependency-Tracking-with-Running-Policy"><a href="#Separate-Dependency-Tracking-with-Running-Policy" class="headerlink" title="Separate Dependency Tracking with Running Policy"></a>Separate Dependency Tracking with Running Policy</h2><p>以上讨论只是描述了依赖引擎如何决定让一个操作什么时间开始运行的, 并没有说明操作是如何运行的. 在实践中, 有很多方式运行具体的操作. 例如, 使用全局的线程池来运行所有的操作或者在每一个设备上使用特定的线程运行对应的操作.<br>操作运行的策略和依赖关系跟踪是完全独立的, 操作运行可以分离成一个独立的模块或者依赖关系跟踪模块的虚拟接口. 开发一个对所有的操作都公平的运行时策略并且顺利的进行调度这件事本身就是一个重要的系统化问题.</p>
+<h1 id="Discussion"><a href="#Discussion" class="headerlink" title="Discussion"></a>Discussion</h1><p>这篇文章讨论的设计并不是解决依赖关系跟踪问题的唯一方案. 这部分讨论一些其它的方案.</p>
+<h2 id="Dynamic-vs-Static"><a href="#Dynamic-vs-Static" class="headerlink" title="Dynamic vs. Static"></a>Dynamic vs. Static</h2><p>本文中讨论的依赖引擎接口在某种程度上是动态的，用户可以逐个推送操作，而不是声明整个依赖关系图(静态的). 在数据结构方面，动态调度可能需要比静态声明需要更多的开销. 然而, 动态调度更灵活, 例如支持命令式程序的自动并行已经命令式和符号式程序的混合编程. 还可以向接口添加一些级别的预先声明的操作，以启用数据结构重用.</p>
+<h2 id="Mutation-vs-Immutable"><a href="#Mutation-vs-Immutable" class="headerlink" title="Mutation vs. Immutable"></a>Mutation vs. Immutable</h2><p>本设计中的通用引擎接口支持对可变内容的显示调度. 在典型的数据流引擎中, 数据通常是不可变的. 不可变数据有很多优点, 例如, 他们通常更容易实现并行化, 并且, 通过重新计算, 在分布式系统中可以更容易的处理容错问题. 然而, 不可以数据有以下几个问题:</p>
+<ul>
+<li>很难调度资源竞争问题, 例如随机数和删除操作</li>
+<li>引擎通常需要管理资源（内存，随机数），以避免冲突. 很难插入用户分配的空间等.</li>
+<li>与分配的静态内存不可用, 也是通常要写入预分配的空间, 但是, 如果数据不可便, 这个操作无法完成.</li>
+</ul>
+<p>数据可变使得上述问题比较容易处理. 它在一个比数据流引擎低的级别，在某种意义上，如果我们为每个操作分配一个新的变量和内存，它可以用于调度不可变操作. 它也使得事情像随机数生成更容易，因为操作确实是一个状态的变化.</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Deep-Learning/" rel="tag"># Deep Learning</a>
+              <a href="/tags/MXNet/" rel="tag"># MXNet</a>
+              <a href="/tags/HPC/" rel="tag"># HPC</a>
+              <a href="/tags/Dependency-Engine/" rel="tag"># Dependency Engine</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/programming-models-for-deep-learning/" rel="prev" title="深度学习中的编程模型">
+      <i class="fa fa-chevron-left"></i> 深度学习中的编程模型
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/mxnet-parameter/" rel="next" title="MXNet 中 Parameter 模块的设计">
+      MXNet 中 Parameter 模块的设计 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Dependency-Scheduling"><span class="nav-number">1.</span> <span class="nav-text">Dependency Scheduling</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Problems-in-Dependency-Scheduling"><span class="nav-number">2.</span> <span class="nav-text">Problems in Dependency Scheduling</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#Data-Flow-Dependency"><span class="nav-number">2.1.</span> <span class="nav-text">Data Flow Dependency</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Memory-Recycling"><span class="nav-number">2.2.</span> <span class="nav-text">Memory Recycling</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Random-Number-Generation"><span class="nav-number">2.3.</span> <span class="nav-text">Random Number Generation</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Case-Study-A-Dependency-Engine-for-a-Multi-GPU-Neural-Network"><span class="nav-number">3.</span> <span class="nav-text">Case Study: A Dependency Engine for a Multi-GPU Neural Network</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Designing-a-Generic-Dependency-Engine"><span class="nav-number">4.</span> <span class="nav-text">Designing a Generic Dependency Engine</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Porting-Existing-Code-to-the-Dependency-Engine"><span class="nav-number">5.</span> <span class="nav-text">Porting Existing Code to the Dependency Engine</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Implementing-the-Generic-Dependency-Engine"><span class="nav-number">6.</span> <span class="nav-text">Implementing the Generic Dependency Engine</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#Separate-Dependency-Tracking-with-Running-Policy"><span class="nav-number">6.1.</span> <span class="nav-text">Separate Dependency Tracking with Running Policy</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Discussion"><span class="nav-number">7.</span> <span class="nav-text">Discussion</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#Dynamic-vs-Static"><span class="nav-number">7.1.</span> <span class="nav-text">Dynamic vs. Static</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Mutation-vs-Immutable"><span class="nav-number">7.2.</span> <span class="nav-text">Mutation vs. Immutable</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yushu.gao</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">92</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">32</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">94</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yushu.gao</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>

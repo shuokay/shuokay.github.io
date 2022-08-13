@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"shuokay.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":false,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="Deep residual net 微软亚洲研究院视觉计算组提出的工作, 开创了152层的deep network, 在ILSVRC2015的几个主要类别中取得第一名. 而且, 网络的 tansfer 性能非常好, 在MS COCO(Microsoft COmmon Objects in Context)中同样获得冠军.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Deep Residual Net 分析和实现">
+<meta property="og:url" content="http://shuokay.com/deep-residual-net/index.html">
+<meta property="og:site_name" content="Memo">
+<meta property="og:description" content="Deep residual net 微软亚洲研究院视觉计算组提出的工作, 开创了152层的deep network, 在ILSVRC2015的几个主要类别中取得第一名. 而且, 网络的 tansfer 性能非常好, 在MS COCO(Microsoft COmmon Objects in Context)中同样获得冠军.">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://shuokay.com/content/images/deep-residual-net/resnet.png">
+<meta property="og:image" content="http://shuokay.com/content/images/deep-residual-net/resnet_big.png">
+<meta property="article:published_time" content="2016-05-26T02:57:50.000Z">
+<meta property="article:modified_time" content="2022-08-13T02:16:25.724Z">
+<meta property="article:author" content="yushu.gao">
+<meta property="article:tag" content="Deep Learning">
+<meta property="article:tag" content="CNN">
+<meta property="article:tag" content="MXNet">
+<meta property="article:tag" content="ResNet">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://shuokay.com/content/images/deep-residual-net/resnet.png">
+
+<link rel="canonical" href="http://shuokay.com/deep-residual-net/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Deep Residual Net 分析和实现 | Memo</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Memo</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="th fa-fw"></i>分类</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://shuokay.com/deep-residual-net/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yushu.gao">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Memo">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Deep Residual Net 分析和实现
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2016-05-26 10:57:50" itemprop="dateCreated datePublished" datetime="2016-05-26T10:57:50+08:00">2016-05-26</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/CNN/" itemprop="url" rel="index"><span itemprop="name">CNN</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/CNN/Net-Architecture/" itemprop="url" rel="index"><span itemprop="name">Net Architecture</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>Deep residual net 微软亚洲研究院视觉计算组提出的工作, 开创了152层的deep network, 在ILSVRC2015的几个主要类别中取得第一名. 而且, 网络的 tansfer 性能非常好, 在MS COCO(Microsoft COmmon Objects in Context)中同样获得冠军.</p>
+<span id="more"></span>
+
+<h1 id="Deep-Residual-Learning-for-Image-Recognition"><a href="#Deep-Residual-Learning-for-Image-Recognition" class="headerlink" title="Deep Residual Learning for Image Recognition"></a>Deep Residual Learning for Image Recognition</h1><p>Deep residual network 可以看做是 Highway networks 的一个特例. 一个直观的想法是, 如果一个 shallow network 经过训练之后得到了一个比较好的解, 那么, 如果把它做成 deep 的版本, 其结果至少应该不能比 shallow 的版本差. 但是, 事实并不是如此, 这种现象, 在论文中作者称为是 degradation problem. 那么如何解决这个问题呢? 这就是作者提出的 residual network.<br>假设我要去逼近一个函数 \(H(x)\), 作者去 fit a residual mapping, 而不是去 fit the desired underlying mapping. 也就是说, 去 fit \(F(x)&#x3D;H(x)-x\), 那么原始的 desired underlying mapping 就是 \(F(x)+x\). 考虑一种极端的情况, 假设 identity mapping 是最优化的, 那么, 原来的方法的优化目标是 \(H(x)&#x3D;x\), 注意, 这里的 \(H(x)\) 是非线性映射, residual network 的优化目标是 \(H(x)&#x3D;F(x)+x\), 所以只需要优化 \(F(x)&#x3D;0\) 就可以了, 显然, 这个优化目标要简单地多.</p>
+<h1 id="实现方法"><a href="#实现方法" class="headerlink" title="实现方法"></a>实现方法</h1><center><img src="/content/images/deep-residual-net/resnet.png" width="300"></center>
+residual net 的一个 building block 如上图所示. 可以看到, 与传统的网络中的唯一的区别就是输入 `x` 直接做一个 identity map 加到输出上面去.
+
+<h2 id="维数匹配"><a href="#维数匹配" class="headerlink" title="维数匹配"></a>维数匹配</h2><p>这里可能会有人问为什么还要做 identity map, 为什么不直接加到输出上面? 这是因为要考虑到输入和输出的维数不想同的情况. 例如在下图中的情况.</p>
+<center><img src="/content/images/deep-residual-net/resnet_big.png" width="300"></center>
+输入是 64 维, 而下一个的 building block 维数是 128, 此时必须要做维数匹配.
+
+<h2 id="stride-2-的-convolution-操作"><a href="#stride-2-的-convolution-操作" class="headerlink" title="stride=2 的 convolution 操作"></a><code>stride=2</code> 的 convolution 操作</h2><p>上图中可以看到, 作者没有使用 pooling 操作, 而是使用 <code>stride=2</code> 的 conv 代替了 pooling. 之前曾经看过一篇文章是讲 conv 降维至少不会比 pooling 效果差. 找到了再补充.</p>
+<h2 id="代码实现"><a href="#代码实现" class="headerlink" title="代码实现"></a>代码实现</h2><p>MXNet 的实现方法要比 CAFFE 方便很多, 所以, 我用 MXNet 来实现.</p>
+<h3 id="基本的-convolution-操作的封装"><a href="#基本的-convolution-操作的封装" class="headerlink" title="基本的 convolution 操作的封装"></a>基本的 convolution 操作的封装</h3><p>首先我们要定义一个 bulid block, 而 build block 中主要部分就是 conv-BN-activation, 所以, 我们先定义一个 <code>ConvFactory</code> 来封装上述 3 个操作.</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">ConvFactory</span>(<span class="params">data, num_filter, kernel, stride=(<span class="params"><span class="number">1</span>, <span class="number">1</span></span>), pad=(<span class="params"><span class="number">0</span>, <span class="number">0</span></span>), act_type = <span class="string">&#x27;relu&#x27;</span>,last=<span class="literal">False</span></span>):</span><br><span class="line"><span class="comment"># 只有在一个build block 输出的时候才有activation 操作</span></span><br><span class="line">    conv = mx.symbol.Convolution(data = data, num_filter = num_filter, kernel = kernel, stride = stride, pad = pad)</span><br><span class="line">    <span class="keyword">if</span> last:</span><br><span class="line">        <span class="keyword">return</span> bn</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        bn = mx.symbol.BatchNorm(data=conv)</span><br><span class="line">        act = mx.symbol.Activation(data=bn, act_type=act_type)</span><br><span class="line">        <span class="keyword">return</span> act</span><br></pre></td></tr></table></figure>
+
+<h3 id="Residual-Net-的封装"><a href="#Residual-Net-的封装" class="headerlink" title="Residual Net 的封装"></a>Residual Net 的封装</h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">ResidualFactory</span>(<span class="params">data, num_filter, diff_dim=<span class="literal">False</span></span>):</span><br><span class="line">    <span class="keyword">if</span> diff_dim:</span><br><span class="line">        conv1 = ConvFactory(data=data,  num_filter=num_filter[<span class="number">0</span>], kernel=(<span class="number">3</span>,<span class="number">3</span>), stride=(<span class="number">2</span>,<span class="number">2</span>), pad=(<span class="number">1</span>,<span class="number">1</span>), last=<span class="literal">False</span>)</span><br><span class="line">        conv2 = ConvFactory(data=conv1, num_filter=num_filter[<span class="number">1</span>], kernel=(<span class="number">3</span>,<span class="number">3</span>), stride=(<span class="number">1</span>,<span class="number">1</span>), pad=(<span class="number">1</span>,<span class="number">1</span>), last=<span class="literal">True</span>)</span><br><span class="line">        <span class="comment"># 输入的build block的维数和当前build block的维数不同, 所以, 使用conv操作来进行维数匹配</span></span><br><span class="line">        _data = mx.symbol.Convolution(data=data,  num_filter=num_filter[<span class="number">1</span>], kernel=(<span class="number">3</span>,<span class="number">3</span>), stride=(<span class="number">2</span>,<span class="number">2</span>), pad=(<span class="number">1</span>,<span class="number">1</span>))</span><br><span class="line">        data  = _data+conv2</span><br><span class="line">        bn    = mx.symbol.BatchNorm(data=data)</span><br><span class="line">        act   = mx.symbol.Activation(data=bn, act_type=<span class="string">&#x27;relu&#x27;</span>)</span><br><span class="line">        <span class="keyword">return</span> act</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        _data=data</span><br><span class="line">        conv1 = ConvFactory(data=data,  num_filter=num_filter[<span class="number">0</span>], kernel=(<span class="number">3</span>,<span class="number">3</span>), stride=(<span class="number">1</span>,<span class="number">1</span>), pad=(<span class="number">1</span>,<span class="number">1</span>), last=<span class="literal">False</span>)</span><br><span class="line">        conv2 = ConvFactory(data=conv1, num_filter=num_filter[<span class="number">1</span>], kernel=(<span class="number">3</span>,<span class="number">3</span>), stride=(<span class="number">1</span>,<span class="number">1</span>), pad=(<span class="number">1</span>,<span class="number">1</span>), last=<span class="literal">True</span>)</span><br><span class="line">        data  = _data+conv2</span><br><span class="line">        bn    = mx.symbol.BatchNorm(data=data)</span><br><span class="line">        act   = mx.symbol.Activation(data=bn, act_type=<span class="string">&#x27;relu&#x27;</span>)</span><br><span class="line">        <span class="keyword">return</span> act</span><br></pre></td></tr></table></figure>
+
+<h3 id="组合成-Deep-Residual-Network"><a href="#组合成-Deep-Residual-Network" class="headerlink" title="组合成 Deep Residual Network"></a>组合成 Deep Residual Network</h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">ResidualSymbol</span>(<span class="params">data, n=<span class="number">9</span></span>):</span><br><span class="line"><span class="comment"># 通过改变n的值可以得到论文中几种层数的网络</span></span><br><span class="line">    <span class="string">&quot;stage 1&quot;</span></span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> xrange(n):</span><br><span class="line">        data = ResidualFactory(data, (<span class="number">16</span>, <span class="number">16</span>))</span><br><span class="line">    <span class="string">&quot;stage 2&quot;</span></span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> xrange(n):</span><br><span class="line">        <span class="keyword">if</span> i == <span class="number">0</span>:</span><br><span class="line">            data = ResidualFactory(data, (<span class="number">32</span>, <span class="number">32</span>), <span class="literal">True</span>)</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            data = ResidualFactory(data, (<span class="number">32</span>, <span class="number">32</span>))</span><br><span class="line">    <span class="string">&quot;stage 3&quot;</span></span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> xrange(n):</span><br><span class="line">        <span class="keyword">if</span> i == <span class="number">0</span>:</span><br><span class="line">            data = ResidualFactory(data, (<span class="number">64</span>, <span class="number">64</span>), <span class="literal">True</span>)</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            data = ResidualFactory(data, (<span class="number">64</span>, <span class="number">64</span>))</span><br><span class="line">    <span class="keyword">return</span> data</span><br></pre></td></tr></table></figure>
+
+<h3 id="实现备注说明"><a href="#实现备注说明" class="headerlink" title="实现备注说明"></a>实现备注说明</h3><ol>
+<li>使用的是 \(1 \times 1\) 的卷积操作来实现的维数匹配, 而不是论文中的 identity mapping</li>
+<li>修改 <code>ResidualSymbol</code> 中 <code>n</code> 的值为3, 5, 7, 9分别对应的网络层数为20, 32, 44, 56</li>
+<li>最终结果训练准确率为 98% 左右, 测试准确率为 90%</li>
+<li>代码是我很久之前为了练习使用 MXNet 写的, 后来 Kaiming 公开了模型, 发现有很多地方与原始论文都有区别</li>
+<li>完整的代码可以在我的<a target="_blank" rel="noopener" href="https://github.com/shuokay/resnet">github</a>上面下载到.</li>
+</ol>
+<h1 id="参考文献"><a href="#参考文献" class="headerlink" title="参考文献"></a>参考文献</h1><p><a target="_blank" rel="noopener" href="https://arxiv.org/abs/1512.03385">Deep Residual Learning for Image Recognition</a><br><a target="_blank" rel="noopener" href="https://github.com/KaimingHe/deep-residual-networks">CAFFE model of Deep Residual Networks</a></p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Deep-Learning/" rel="tag"># Deep Learning</a>
+              <a href="/tags/CNN/" rel="tag"># CNN</a>
+              <a href="/tags/MXNet/" rel="tag"># MXNet</a>
+              <a href="/tags/ResNet/" rel="tag"># ResNet</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/fast-rcnn/" rel="prev" title="Notes on Fast RCNN">
+      <i class="fa fa-chevron-left"></i> Notes on Fast RCNN
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/dl-binary-hash-code/" rel="next" title="Notes on Deep Learning of Binary Hash Codes for Fast Image Retrieval">
+      Notes on Deep Learning of Binary Hash Codes for Fast Image Retrieval <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Deep-Residual-Learning-for-Image-Recognition"><span class="nav-number">1.</span> <span class="nav-text">Deep Residual Learning for Image Recognition</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%AE%9E%E7%8E%B0%E6%96%B9%E6%B3%95"><span class="nav-number">2.</span> <span class="nav-text">实现方法</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BB%B4%E6%95%B0%E5%8C%B9%E9%85%8D"><span class="nav-number">2.1.</span> <span class="nav-text">维数匹配</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#stride-2-%E7%9A%84-convolution-%E6%93%8D%E4%BD%9C"><span class="nav-number">2.2.</span> <span class="nav-text">stride&#x3D;2 的 convolution 操作</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BB%A3%E7%A0%81%E5%AE%9E%E7%8E%B0"><span class="nav-number">2.3.</span> <span class="nav-text">代码实现</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9F%BA%E6%9C%AC%E7%9A%84-convolution-%E6%93%8D%E4%BD%9C%E7%9A%84%E5%B0%81%E8%A3%85"><span class="nav-number">2.3.1.</span> <span class="nav-text">基本的 convolution 操作的封装</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Residual-Net-%E7%9A%84%E5%B0%81%E8%A3%85"><span class="nav-number">2.3.2.</span> <span class="nav-text">Residual Net 的封装</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BB%84%E5%90%88%E6%88%90-Deep-Residual-Network"><span class="nav-number">2.3.3.</span> <span class="nav-text">组合成 Deep Residual Network</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AE%9E%E7%8E%B0%E5%A4%87%E6%B3%A8%E8%AF%B4%E6%98%8E"><span class="nav-number">2.3.4.</span> <span class="nav-text">实现备注说明</span></a></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E6%96%87%E7%8C%AE"><span class="nav-number">3.</span> <span class="nav-text">参考文献</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yushu.gao</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">92</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">32</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">94</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yushu.gao</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS-MML_HTMLorMML';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+</body>
+</html>

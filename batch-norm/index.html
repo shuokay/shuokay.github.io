@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"shuokay.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":false,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="在训练深层神经网络的过程中, 由于输入层的参数在不停的变化, 因此, 导致了当前层的分布在不停的变化, 这就导致了在训练的过程中, 要求 learning rate 要设置的非常小, 另外, 对参数的初始化的要求也很高. 作者把这种现象称为 internal convariate shift. Batch Normalization 的提出就是为了解决这个问题的. BN 在每一个 training">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Notes on Batch Normalization">
+<meta property="og:url" content="http://shuokay.com/batch-norm/index.html">
+<meta property="og:site_name" content="Memo">
+<meta property="og:description" content="在训练深层神经网络的过程中, 由于输入层的参数在不停的变化, 因此, 导致了当前层的分布在不停的变化, 这就导致了在训练的过程中, 要求 learning rate 要设置的非常小, 另外, 对参数的初始化的要求也很高. 作者把这种现象称为 internal convariate shift. Batch Normalization 的提出就是为了解决这个问题的. BN 在每一个 training">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2016-05-28T09:45:50.000Z">
+<meta property="article:modified_time" content="2022-08-13T02:16:25.723Z">
+<meta property="article:author" content="yushu.gao">
+<meta property="article:tag" content="Deep Learning">
+<meta property="article:tag" content="BatchNorm">
+<meta property="article:tag" content="CNN">
+<meta property="article:tag" content="MXNet">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://shuokay.com/batch-norm/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Notes on Batch Normalization | Memo</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Memo</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="th fa-fw"></i>分类</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://shuokay.com/batch-norm/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yushu.gao">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Memo">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Notes on Batch Normalization
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2016-05-28 17:45:50" itemprop="dateCreated datePublished" datetime="2016-05-28T17:45:50+08:00">2016-05-28</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/CNN/" itemprop="url" rel="index"><span itemprop="name">CNN</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/CNN/Op/" itemprop="url" rel="index"><span itemprop="name">Op</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>在训练深层神经网络的过程中, 由于输入层的参数在不停的变化, 因此, 导致了当前层的分布在不停的变化, 这就导致了在训练的过程中, 要求 learning rate 要设置的非常小, 另外, 对参数的初始化的要求也很高. 作者把这种现象称为 <em>internal convariate shift</em>. Batch Normalization 的提出就是为了解决这个问题的. BN 在每一个 training mini-batch 中对每一个 feature 进行 normalize. 通过这种方法, 使得网络可以使用较大的 learning rate, 而且, BN 具有一定的 regularization 作用.</p>
+<span id="more"></span>
+
+<h1 id="为什么需要-Batch-Normalization"><a href="#为什么需要-Batch-Normalization" class="headerlink" title="为什么需要 Batch Normalization"></a>为什么需要 Batch Normalization</h1><p>在神经网络的优化中最常用最进本的方法是 SGD, 其目标是寻找最小化 loss function 的参数:</p>
+
+\[
+\theta = \underset{\theta}{\mathrm{arg min}} \dfrac{1}{N} \sum_{i=1}^N{\mathcal L\left(x_i, \theta\right)}
+\]
+
+<p>在求解的过程中, 一般是使用 minibatch 的方法, 简单来说, 就是计算下面的梯度:</p>
+
+\[
+\dfrac{1}{m}\sum \dfrac{\partial{\mathcal L \left(x_i, \theta\right)}}{\partial \theta}
+\]
+
+<p>使用 minibatch 的方法有两个好处:</p>
+<ol>
+<li>minibatch 计算出来的 loss 可以看做是整个 trainset 的 loss 的近似值.</li>
+<li>minibatch 中, 可以并行地计算 m 各样本, 因此, 使用 minibatch 的方法比原始的 SGD 方法速度更快.</li>
+</ol>
+<p>然而, SGD 算法有其固有缺点:</p>
+<ol>
+<li>对初始值要求很高, 如果参数的初始化不好, 经常不能收敛</li>
+<li>学习率比较难设置, 由于每一层 input 数据的 scale 不同, 导致 backward 的梯度的scale 也不同, 为了保证不会 gradient vanish, 只能设置较小的 learning rate, 而, 较小的 learning rate 使得整个学习过程很慢</li>
+<li>第 N 层的输入受前面 N-1 层的影响, 在深度学习中, 网络层数很多, 因此, 及时前面 layer 的很小的影响, 当到达第 N 层的时候, 会被放大很多倍.</li>
+</ol>
+<p>在深度神经网络中, 每一层输入数据的分布都不同, 因此, 每一层的参数都要去学习不同的分布. 而主要由于上述 #3 的原因, 使得这个过程比较困难. 为了说明这个问题, 使用一个简单的例子. 考虑如下的一个两层的神经网络:</p>
+
+\[
+F_2\left(F_1\left(\theta_1, x\right), \theta_2\right)
+\]
+
+<p>\(F_1\) 的输出作为 \(F_2\) 的输入, 因此, 在学习的过程中, 当 \(F_1\) 的输入 \(x\) 的分布变化的时候(在选择 minibatch 的使用根本无法保证每次选择的 minibatch 的分布是相同的), \(F_2\) 的参数在向最优解收敛的过程中就会产生偏差, 因此, 导致了收敛速度变慢. 而 BN 就是要解决这个问题.<br>想象一下, 如果 \(F_2\) 的学习不受 \(F_1\) 的输入 \(x\) 的影响, 即不管 \(x\) 输入的是什么, \(F_2\) 的输入都是相同的分布, 这样, \(F_2\) 就不用调整去适应由于 \(x\) 输入变化带来的影响, 那么, 是否就可以解决这个问题了呢? 因此, 这就是 BN 的提出.</p>
+<h1 id="Batch-Normalization-是什么"><a href="#Batch-Normalization-是什么" class="headerlink" title="Batch Normalization 是什么"></a>Batch Normalization 是什么</h1><p><strong>Input:</strong> Values of \(x\) over a mini-batch, \(\mathcal{B}&#x3D;{x_{1\dots m}}\)<br><strong>Output:</strong> \(\gamma, \beta\)</p>
+
+\[
+\begin{align}
+{\mu}_{\beta} &=\frac{1}{m}\sum_{i=1}^{m}x_i\\
+{\sigma}_{\beta}^{2} &=\frac{1}{m}\sum_{i=1}^{m}\left(x_i-{\mu}_{\beta}\right)^2\\
+\hat{x}_i &=\frac{x_i-{\mu}_{\beta}}{\sqrt{{\sigma}_{\beta}^2+\epsilon}}\\
+y_i &= {\gamma}\hat{x}_i+\beta
+\end{align}
+\]
+
+
+<h1 id="为什么-Batch-Normalization-可以加速训练"><a href="#为什么-Batch-Normalization-可以加速训练" class="headerlink" title="为什么 Batch Normalization 可以加速训练"></a>为什么 Batch Normalization 可以加速训练</h1><ol>
+<li>允许网络使用较高的 learning rate. 在传统的深度网络训练中, 如果使用较大的 learning rate 很容易导致 gradient vanish 或者 gradient explode. 通过在整个网络中 normalize activations, 可以防止参数的较小的改变被应用到较大的或者次优的activation 中. 另一方面, BN 使得网络对于 parameter 的 scale 更加鲁棒. 通常情况下, large learning rate 会 increase the scale of layer parameters, 进而会放大 BP 的梯度, 导致了 model explosion. BN 的使用使得网络在 BP 的时候不会受到parameter scale 的影响. 这是因为:</li>
+</ol>
+
+$$
+\begin{align}
+& BN\left(Wu\right)=BN\left(\left(aW\right)u\right)\\
+\\
+& \frac{\partial{BN((aW)u)}}{\partial{u}}=\frac{\partial{Wu}}{\partial{u}} \\
+\\
+& \frac{\partial{BN((aW)u)}}{\partial{aW}}=\frac{1}{a} \cdot \frac{\partial{Wu}}{\partial{W}}
+\end{align}
+$$
+
+<ol start="2">
+<li>具有一定的regularization 作用, 可以减少 Dropout 的使用. dropout 的作用是方法 overfitting, 实验发现, BN 可以 reduce overfitting.</li>
+<li>降低 \(L_2\) 权重衰减系数.</li>
+<li>取消 LRN(Local Response Normalization).</li>
+<li>Reduce the photomatric distortions. 因为 BN 使得训练过程更快, 能 observe 到的 sample 次数变少, 所以, 减少 distorting 使得网络 focus 在真实的图片上面.</li>
+<li>BN 不仅仅限定在 ReLU 上, 而且, 对其它的 activation 也同样适用.</li>
+</ol>
+<h1 id="MXNet-代码"><a href="#MXNet-代码" class="headerlink" title="MXNet 代码"></a>MXNet 代码</h1><h2 id="Forward-阶段"><a href="#Forward-阶段" class="headerlink" title="Forward 阶段"></a>Forward 阶段</h2><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">virtual</span> <span class="type">void</span> <span class="title">Forward</span><span class="params">(<span class="type">const</span> OpContext &amp;ctx,</span></span></span><br><span class="line"><span class="params"><span class="function">​                       <span class="type">const</span> std::vector&lt;TBlob&gt; &amp;in_data,</span></span></span><br><span class="line"><span class="params"><span class="function">​                       <span class="type">const</span> std::vector&lt;OpReqType&gt; &amp;req,</span></span></span><br><span class="line"><span class="params"><span class="function">​                       <span class="type">const</span> std::vector&lt;TBlob&gt; &amp;out_data,</span></span></span><br><span class="line"><span class="params"><span class="function">​                       <span class="type">const</span> std::vector&lt;TBlob&gt; &amp;aux_states)</span> </span>&#123;</span><br><span class="line">​    <span class="keyword">using</span> <span class="keyword">namespace</span> mshadow;</span><br><span class="line">​    <span class="keyword">using</span> <span class="keyword">namespace</span> mshadow::expr;</span><br><span class="line">​    <span class="built_in">CHECK_EQ</span>(in_data.<span class="built_in">size</span>(), <span class="number">3</span>);</span><br><span class="line">​    <span class="built_in">CHECK_EQ</span>(aux_states.<span class="built_in">size</span>(), <span class="number">2</span>);</span><br><span class="line">​    <span class="keyword">if</span> (ctx.is_train) &#123;</span><br><span class="line">​      <span class="built_in">CHECK_EQ</span>(out_data.<span class="built_in">size</span>(), <span class="number">3</span>);</span><br><span class="line">​      <span class="built_in">CHECK_EQ</span>(req.<span class="built_in">size</span>(), <span class="number">3</span>);</span><br><span class="line">​    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">​      <span class="built_in">CHECK_GE</span>(out_data.<span class="built_in">size</span>(), <span class="number">1</span>);</span><br><span class="line">​      <span class="built_in">CHECK_GE</span>(req.<span class="built_in">size</span>(), <span class="number">1</span>);</span><br><span class="line">​      <span class="built_in">CHECK_EQ</span>(req[batchnorm::kOut], kWriteTo);</span><br><span class="line">​    &#125;</span><br><span class="line"></span><br><span class="line">  Stream&lt;xpu&gt; *s = ctx.<span class="built_in">get_stream</span>&lt;xpu&gt;();</span><br><span class="line">  <span class="comment">// 1/m</span></span><br><span class="line">  <span class="type">const</span> <span class="type">real_t</span> scale = <span class="built_in">static_cast</span>&lt;<span class="type">real_t</span>&gt;(in_data[batchnorm::kData].shape_[<span class="number">1</span>]) /</span><br><span class="line">                       <span class="built_in">static_cast</span>&lt;<span class="type">real_t</span>&gt;(in_data[batchnorm::kData].shape_.<span class="built_in">Size</span>());</span><br><span class="line">  Tensor&lt;xpu, <span class="number">4</span>&gt; data;</span><br><span class="line">  Tensor&lt;xpu, <span class="number">4</span>&gt; out;</span><br><span class="line">  <span class="keyword">if</span> (in_data[batchnorm::kData].<span class="built_in">ndim</span>() == <span class="number">2</span>) &#123;</span><br><span class="line">    Shape&lt;<span class="number">4</span>&gt; dshape = <span class="built_in">Shape4</span>(in_data[batchnorm::kData].shape_[<span class="number">0</span>],</span><br><span class="line">                             in_data[batchnorm::kData].shape_[<span class="number">1</span>], <span class="number">1</span>, <span class="number">1</span>);</span><br><span class="line">    <span class="comment">// 输入数据</span></span><br><span class="line">    data = in_data[batchnorm::kData].<span class="built_in">get_with_shape</span>&lt;xpu, <span class="number">4</span>, <span class="type">real_t</span>&gt;(dshape, s);</span><br><span class="line">    <span class="comment">// 输出数据</span></span><br><span class="line">    out = out_data[batchnorm::kOut].<span class="built_in">get_with_shape</span>&lt;xpu, <span class="number">4</span>, <span class="type">real_t</span>&gt;(dshape, s);</span><br><span class="line">  &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    data = in_data[batchnorm::kData].<span class="built_in">get</span>&lt;xpu, <span class="number">4</span>, <span class="type">real_t</span>&gt;(s);</span><br><span class="line">    out = out_data[batchnorm::kOut].<span class="built_in">get</span>&lt;xpu, <span class="number">4</span>, <span class="type">real_t</span>&gt;(s);</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="comment">// slope 是原文中的 \gamma</span></span><br><span class="line">  Tensor&lt;xpu, <span class="number">1</span>&gt; slope = in_data[batchnorm::kGamma].<span class="built_in">get</span>&lt;xpu, <span class="number">1</span>, <span class="type">real_t</span>&gt;(s);</span><br><span class="line">  <span class="comment">// bias 是算法中的 \beta</span></span><br><span class="line">  Tensor&lt;xpu, <span class="number">1</span>&gt; bias = in_data[batchnorm::kBeta].<span class="built_in">get</span>&lt;xpu, <span class="number">1</span>, <span class="type">real_t</span>&gt;(s);</span><br><span class="line">  <span class="comment">// 获取moving average, 如果 use_global_stats, 那么就要使用 moving average</span></span><br><span class="line">  Tensor&lt;xpu, <span class="number">1</span>&gt; moving_mean = aux_states[batchnorm::kMovingMean].<span class="built_in">get</span>&lt;xpu, <span class="number">1</span>, <span class="type">real_t</span>&gt;(s);</span><br><span class="line">  Tensor&lt;xpu, <span class="number">1</span>&gt; moving_var = aux_states[batchnorm::kMovingVar].<span class="built_in">get</span>&lt;xpu, <span class="number">1</span>, <span class="type">real_t</span>&gt;(s);</span><br><span class="line">  <span class="comment">// whether use global statistics</span></span><br><span class="line">  <span class="keyword">if</span> (ctx.is_train &amp;&amp; !param_.use_global_stats) &#123;</span><br><span class="line">    <span class="comment">// 不使用 moving average, 那么, 要针对当前 minibatch 计算期望和方差</span></span><br><span class="line">    Tensor&lt;xpu, <span class="number">1</span>&gt; mean = out_data[batchnorm::kMean].<span class="built_in">get</span>&lt;xpu, <span class="number">1</span>, <span class="type">real_t</span>&gt;(s);</span><br><span class="line">    Tensor&lt;xpu, <span class="number">1</span>&gt; var = out_data[batchnorm::kVar].<span class="built_in">get</span>&lt;xpu, <span class="number">1</span>, <span class="type">real_t</span>&gt;(s);</span><br><span class="line">    <span class="built_in">CHECK</span>(req[batchnorm::kMean] == kNullOp || req[batchnorm::kMean] == kWriteTo);</span><br><span class="line">    <span class="built_in">CHECK</span>(req[batchnorm::kVar] == kNullOp || req[batchnorm::kVar] == kWriteTo);</span><br><span class="line">    <span class="comment">// The first three steps must be enforced.</span></span><br><span class="line">    <span class="comment">// 计算当前 minibatch 的均值</span></span><br><span class="line">    mean = scale * <span class="built_in">sumall_except_dim</span>&lt;<span class="number">1</span>&gt;(data);</span><br><span class="line">    <span class="comment">// 计算当前 minibatch 的方差</span></span><br><span class="line">    var = scale * <span class="built_in">sumall_except_dim</span>&lt;<span class="number">1</span>&gt;(<span class="built_in">F</span>&lt;mshadow_op::square&gt;(</span><br><span class="line">        data - <span class="built_in">broadcast</span>&lt;<span class="number">1</span>&gt;(mean, data.shape_)));</span><br><span class="line">    <span class="keyword">if</span> (param_.fix_gamma) &#123;</span><br><span class="line">      <span class="comment">// 减均值, 除以方差, 其中 param_.eps 是一个非常小的值, 防止出现除 0 的错误</span></span><br><span class="line">      <span class="built_in">Assign</span>(out, req[batchnorm::kOut], (data - <span class="built_in">broadcast</span>&lt;<span class="number">1</span>&gt;(mean, data.shape_)) /</span><br><span class="line">             <span class="built_in">F</span>&lt;mshadow_op::square_root&gt;(<span class="built_in">broadcast</span>&lt;<span class="number">1</span>&gt;(var + param_.eps, data.shape_)) +</span><br><span class="line">             <span class="built_in">broadcast</span>&lt;<span class="number">1</span>&gt;(bias, out.shape_));</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      <span class="built_in">Assign</span>(out, req[batchnorm::kOut], <span class="built_in">broadcast</span>&lt;<span class="number">1</span>&gt;(slope, out.shape_) *</span><br><span class="line">             (data - <span class="built_in">broadcast</span>&lt;<span class="number">1</span>&gt;(mean, data.shape_)) /</span><br><span class="line">             <span class="built_in">F</span>&lt;mshadow_op::square_root&gt;(<span class="built_in">broadcast</span>&lt;<span class="number">1</span>&gt;(var + param_.eps, data.shape_)) +</span><br><span class="line">             <span class="built_in">broadcast</span>&lt;<span class="number">1</span>&gt;(bias, out.shape_));</span><br><span class="line">    &#125;</span><br><span class="line">  &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">  <span class="comment">// test/predict 或者 use_global_stats, 直接使用 moving average</span></span><br><span class="line">    <span class="built_in">Assign</span>(out, req[batchnorm::kOut], <span class="built_in">broadcast</span>&lt;<span class="number">1</span>&gt;(slope /</span><br><span class="line">                                        <span class="built_in">F</span>&lt;mshadow_op::square_root&gt;(moving_var + param_.eps),</span><br><span class="line">                                        data.shape_) * data +</span><br><span class="line">           <span class="built_in">broadcast</span>&lt;<span class="number">1</span>&gt;(bias - (slope * moving_mean) /</span><br><span class="line">                        <span class="built_in">F</span>&lt;mshadow_op::square_root&gt;(moving_var + param_.eps), data.shape_));</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="Backward-阶段"><a href="#Backward-阶段" class="headerlink" title="Backward 阶段"></a>Backward 阶段</h2><p>先给出梯度公式</p>
+
+\[
+\begin{align}
+\frac{\partial{l}}{\partial{\hat{x}_i}} &= \frac{\partial{l}}{\partial{y_i}} \cdot \gamma \\
+\frac{\partial{l}}{\partial{\sigma_{\mathcal{B}}^2}} &= \sum_{i=1}^m{\frac{\partial{l}}{\partial{\hat{x}_i}}\cdot\left(x_i-\mu_{\mathcal{B}}\right)} \cdot \frac{-1}{2}\left(\sigma_{\mathcal{B}^2}+\epsilon\right)^{-3/2} \\
+\frac{\partial{l}}{\partial{\mu_{\mathcal{B}}}} &= \left( \sum_{i=1}^m{\frac{\partial{l}}{\partial{\hat{x}_i}} \cdot \frac{-1}{\sqrt{\sigma_{\mathcal{B}}^2+\epsilon}}} \right) + \frac{\partial{l}}{\partial{\sigma_{\mathcal{B}}^2}} \cdot \frac{\sum_{i=1}^m{-2(x_i-\mu_{\mathcal{B}})}}{m} \\
+\frac{\partial{l}}{\partial{x_i}} &= \frac{\partial{l}}{\partial{\hat{x}_i}} \cdot \frac{1}{\sqrt{\sigma_{\mathcal{B}}^2+\epsilon}} + \frac{\partial{l}}{\partial{\sigma_{\mathcal{B}}^2}} \cdot \frac{2(x_i-\mu_{\mathcal{B}})}{m} + \frac{\partial{l}}{\partial{\mu_{\mathcal{B}}}} \cdot \frac{1}{m} \\
+\frac{\partial{l}}{\partial{\gamma}} &= \sum_{i=1}^m{\frac{\partial{l}}{\partial{y_i}}} \cdot \hat{x}_i \\
+\frac{\partial{l}}{\partial{\beta}} &= \sum_{i=1}^m{\frac{\partial{l}}{\partial{y_i}}}
+\end{align}
+\]
+
+
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">virtual</span> <span class="type">void</span> <span class="title">Backward</span><span class="params">(<span class="type">const</span> OpContext &amp;ctx,</span></span></span><br><span class="line"><span class="params"><span class="function">                      <span class="type">const</span> std::vector&lt;TBlob&gt; &amp;out_grad,</span></span></span><br><span class="line"><span class="params"><span class="function">                      <span class="type">const</span> std::vector&lt;TBlob&gt; &amp;in_data,</span></span></span><br><span class="line"><span class="params"><span class="function">                      <span class="type">const</span> std::vector&lt;TBlob&gt; &amp;out_data,</span></span></span><br><span class="line"><span class="params"><span class="function">                      <span class="type">const</span> std::vector&lt;OpReqType&gt; &amp;req,</span></span></span><br><span class="line"><span class="params"><span class="function">                      <span class="type">const</span> std::vector&lt;TBlob&gt; &amp;in_grad,</span></span></span><br><span class="line"><span class="params"><span class="function">                      <span class="type">const</span> std::vector&lt;TBlob&gt; &amp;aux_states)</span> </span>&#123;</span><br><span class="line">  <span class="keyword">using</span> <span class="keyword">namespace</span> mshadow;</span><br><span class="line">  <span class="keyword">using</span> <span class="keyword">namespace</span> mshadow::expr;</span><br><span class="line">  <span class="built_in">CHECK_EQ</span>(out_grad.<span class="built_in">size</span>(), <span class="number">1</span>);</span><br><span class="line">  <span class="built_in">CHECK_EQ</span>(in_data.<span class="built_in">size</span>(), <span class="number">3</span>);</span><br><span class="line">  <span class="built_in">CHECK_EQ</span>(out_data.<span class="built_in">size</span>(), <span class="number">3</span>);</span><br><span class="line">  <span class="built_in">CHECK_EQ</span>(in_grad.<span class="built_in">size</span>(), <span class="number">3</span>);</span><br><span class="line">  Stream&lt;xpu&gt; *s = ctx.<span class="built_in">get_stream</span>&lt;xpu&gt;();</span><br><span class="line">  Tensor&lt;xpu, <span class="number">4</span>&gt; data, grad, grad_in;</span><br><span class="line">  <span class="type">const</span> <span class="type">real_t</span> scale = <span class="built_in">static_cast</span>&lt;<span class="type">real_t</span>&gt;(out_grad[batchnorm::kOut].shape_[<span class="number">1</span>]) /</span><br><span class="line">                       <span class="built_in">static_cast</span>&lt;<span class="type">real_t</span>&gt;(out_grad[batchnorm::kOut].shape_.<span class="built_in">Size</span>());</span><br><span class="line">  <span class="keyword">if</span> (in_data[batchnorm::kData].<span class="built_in">ndim</span>() == <span class="number">2</span>) &#123;</span><br><span class="line">    Shape&lt;<span class="number">4</span>&gt; dshape = <span class="built_in">Shape4</span>(out_grad[batchnorm::kOut].shape_[<span class="number">0</span>],</span><br><span class="line">                             out_grad[batchnorm::kOut].shape_[<span class="number">1</span>], <span class="number">1</span>, <span class="number">1</span>);</span><br><span class="line">    data = in_data[batchnorm::kData].<span class="built_in">get_with_shape</span>&lt;xpu, <span class="number">4</span>, <span class="type">real_t</span>&gt;(dshape, s);</span><br><span class="line">    grad = out_grad[batchnorm::kOut].<span class="built_in">get_with_shape</span>&lt;xpu, <span class="number">4</span>, <span class="type">real_t</span>&gt;(dshape, s);</span><br><span class="line">    grad_in = in_grad[batchnorm::kData].<span class="built_in">get_with_shape</span>&lt;xpu, <span class="number">4</span>, <span class="type">real_t</span>&gt;(dshape, s);</span><br><span class="line">  &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    data = in_data[batchnorm::kData].<span class="built_in">get</span>&lt;xpu, <span class="number">4</span>, <span class="type">real_t</span>&gt;(s);</span><br><span class="line">    grad = out_grad[batchnorm::kOut].<span class="built_in">get</span>&lt;xpu, <span class="number">4</span>, <span class="type">real_t</span>&gt;(s);</span><br><span class="line">    grad_in = in_grad[batchnorm::kData].<span class="built_in">get</span>&lt;xpu, <span class="number">4</span>, <span class="type">real_t</span>&gt;(s);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  Tensor&lt;xpu, <span class="number">1</span>&gt; mean = out_data[batchnorm::kMean].<span class="built_in">get</span>&lt;xpu, <span class="number">1</span>, <span class="type">real_t</span>&gt;(s);</span><br><span class="line">  Tensor&lt;xpu, <span class="number">1</span>&gt; var = out_data[batchnorm::kVar].<span class="built_in">get</span>&lt;xpu, <span class="number">1</span>, <span class="type">real_t</span>&gt;(s);</span><br><span class="line">  Tensor&lt;xpu, <span class="number">1</span>&gt; slope = in_data[batchnorm::kGamma].<span class="built_in">get</span>&lt;xpu, <span class="number">1</span>, <span class="type">real_t</span>&gt;(s);</span><br><span class="line">  <span class="comment">// Tensor&lt;xpu, 1&gt; bias = in_data[kBeta].get&lt;xpu, 1, real_t&gt;(s);</span></span><br><span class="line">  Tensor&lt;xpu, <span class="number">1</span>&gt; gslope = in_grad[batchnorm::kGamma].<span class="built_in">get</span>&lt;xpu, <span class="number">1</span>, <span class="type">real_t</span>&gt;(s);</span><br><span class="line">  Tensor&lt;xpu, <span class="number">1</span>&gt; gbias = in_grad[batchnorm::kBeta].<span class="built_in">get</span>&lt;xpu, <span class="number">1</span>, <span class="type">real_t</span>&gt;(s);</span><br><span class="line">  <span class="comment">// update moving avg</span></span><br><span class="line">  Tensor&lt;xpu, <span class="number">1</span>&gt; moving_mean = aux_states[batchnorm::kMovingMean].<span class="built_in">get</span>&lt;xpu, <span class="number">1</span>, <span class="type">real_t</span>&gt;(s);</span><br><span class="line">  Tensor&lt;xpu, <span class="number">1</span>&gt; moving_var = aux_states[batchnorm::kMovingVar].<span class="built_in">get</span>&lt;xpu, <span class="number">1</span>, <span class="type">real_t</span>&gt;(s);</span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> (ctx.is_train &amp;&amp; !param_.use_global_stats) &#123;</span><br><span class="line">    <span class="comment">// get requested temp space</span></span><br><span class="line">    Tensor&lt;xpu, <span class="number">2</span>&gt; workspace = ctx.requested[batchnorm::kTempSpace].<span class="built_in">get_space</span>&lt;xpu&gt;(</span><br><span class="line">        mshadow::<span class="built_in">Shape2</span>(<span class="number">3</span>, mean.shape_[<span class="number">0</span>]), s);</span><br><span class="line">    Tensor&lt;xpu, <span class="number">1</span>&gt; gmean = workspace[<span class="number">0</span>];</span><br><span class="line">    Tensor&lt;xpu, <span class="number">1</span>&gt; gvar = workspace[<span class="number">1</span>];</span><br><span class="line">    Tensor&lt;xpu, <span class="number">1</span>&gt; tmp = workspace[<span class="number">2</span>];</span><br><span class="line">    <span class="comment">// 使用 moving average 算法, 更新 mean 和 var, 用于test/predict</span></span><br><span class="line">    moving_mean = moving_mean * param_.momentum + mean * (<span class="number">1</span> - param_.momentum);</span><br><span class="line">    moving_var = moving_var * param_.momentum + var * (<span class="number">1</span> - param_.momentum);</span><br><span class="line">    <span class="comment">// cal</span></span><br><span class="line">    <span class="comment">// 计算方差的梯度</span></span><br><span class="line">    gvar = <span class="built_in">sumall_except_dim</span>&lt;<span class="number">1</span>&gt;((grad * <span class="built_in">broadcast</span>&lt;<span class="number">1</span>&gt;(slope, data.shape_)) *</span><br><span class="line">                                (data - <span class="built_in">broadcast</span>&lt;<span class="number">1</span>&gt;(mean, data.shape_)) *</span><br><span class="line">                                <span class="number">-0.5f</span> *</span><br><span class="line">                                <span class="built_in">F</span>&lt;mshadow_op::power&gt;(<span class="built_in">broadcast</span>&lt;<span class="number">1</span>&gt;(var + param_.eps, data.shape_),</span><br><span class="line">                                                     <span class="number">-1.5f</span>));</span><br><span class="line">    <span class="comment">// 计算均值的梯度的第一部分</span></span><br><span class="line">    gmean = <span class="built_in">sumall_except_dim</span>&lt;<span class="number">1</span>&gt;(grad * <span class="built_in">broadcast</span>&lt;<span class="number">1</span>&gt;(slope, data.shape_));</span><br><span class="line">    gmean *= <span class="number">-1.0f</span> / <span class="built_in">F</span>&lt;mshadow_op::square_root&gt;(var + param_.eps);</span><br><span class="line">    tmp = scale * <span class="built_in">sumall_except_dim</span>&lt;<span class="number">1</span>&gt;(<span class="number">-2.0f</span> * (data - <span class="built_in">broadcast</span>&lt;<span class="number">1</span>&gt;(mean, data.shape_)));</span><br><span class="line">    tmp *= gvar;</span><br><span class="line">    <span class="comment">// 均值梯度的第二部分</span></span><br><span class="line">    gmean += tmp;</span><br><span class="line">    <span class="comment">// assign</span></span><br><span class="line">    <span class="keyword">if</span> (!param_.fix_gamma) &#123;</span><br><span class="line">      <span class="comment">//\gamma 的梯度</span></span><br><span class="line">      <span class="built_in">Assign</span>(gslope, req[batchnorm::kGamma],</span><br><span class="line">             <span class="built_in">sumall_except_dim</span>&lt;<span class="number">1</span>&gt;(</span><br><span class="line">                 grad * (data - <span class="built_in">broadcast</span>&lt;<span class="number">1</span>&gt;(mean, data.shape_)) /</span><br><span class="line">                 <span class="built_in">F</span>&lt;mshadow_op::square_root&gt;(<span class="built_in">broadcast</span>&lt;<span class="number">1</span>&gt;(var + param_.eps, data.shape_))));</span><br><span class="line">      <span class="comment">// 输入 x 的梯度</span></span><br><span class="line">      <span class="built_in">Assign</span>(grad_in, req[batchnorm::kData],</span><br><span class="line">             (grad * <span class="built_in">broadcast</span>&lt;<span class="number">1</span>&gt;(slope, data.shape_)) *</span><br><span class="line">             <span class="built_in">broadcast</span>&lt;<span class="number">1</span>&gt;(<span class="number">1.0f</span> / <span class="built_in">F</span>&lt;mshadow_op::square_root&gt;(var + param_.eps), data.shape_) +</span><br><span class="line">             <span class="built_in">broadcast</span>&lt;<span class="number">1</span>&gt;(gvar, data.shape_) * scale * <span class="number">2.0f</span> * (data - <span class="built_in">broadcast</span>&lt;<span class="number">1</span>&gt;(mean,</span><br><span class="line">                                                                                   data.shape_)) +</span><br><span class="line">             <span class="built_in">broadcast</span>&lt;<span class="number">1</span>&gt;(gmean, data.shape_) * scale);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      <span class="built_in">Assign</span>(grad_in, req[batchnorm::kData], grad *</span><br><span class="line">             <span class="built_in">broadcast</span>&lt;<span class="number">1</span>&gt;(<span class="number">1.0f</span> / <span class="built_in">F</span>&lt;mshadow_op::square_root&gt;(var + param_.eps), data.shape_) +</span><br><span class="line">             <span class="built_in">broadcast</span>&lt;<span class="number">1</span>&gt;(gvar, data.shape_) * scale * <span class="number">2.0f</span> * (data - <span class="built_in">broadcast</span>&lt;<span class="number">1</span>&gt;(mean,</span><br><span class="line">                                                                                   data.shape_)) +</span><br><span class="line">             <span class="built_in">broadcast</span>&lt;<span class="number">1</span>&gt;(gmean, data.shape_) * scale);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 偏置的梯度</span></span><br><span class="line">    <span class="built_in">Assign</span>(gbias, req[batchnorm::kBeta], <span class="built_in">sumall_except_dim</span>&lt;<span class="number">1</span>&gt;(grad));</span><br><span class="line">  &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    <span class="comment">// use global statistics with freeze moving mean and var.</span></span><br><span class="line">    <span class="keyword">if</span> (!param_.fix_gamma) &#123;</span><br><span class="line">      <span class="built_in">Assign</span>(gslope, req[batchnorm::kGamma],</span><br><span class="line">             <span class="built_in">sumall_except_dim</span>&lt;<span class="number">1</span>&gt;(</span><br><span class="line">                 grad * (data - <span class="built_in">broadcast</span>&lt;<span class="number">1</span>&gt;(moving_mean, data.shape_)) /</span><br><span class="line">                 <span class="built_in">F</span>&lt;mshadow_op::square_root&gt;(<span class="built_in">broadcast</span>&lt;<span class="number">1</span>&gt;(moving_var + param_.eps, data.shape_))));</span><br><span class="line">      <span class="built_in">Assign</span>(grad_in, req[batchnorm::kData], (grad * <span class="built_in">broadcast</span>&lt;<span class="number">1</span>&gt;(slope, data.shape_)) *</span><br><span class="line">             <span class="built_in">broadcast</span>&lt;<span class="number">1</span>&gt;(</span><br><span class="line">                 <span class="number">1.0f</span> / <span class="built_in">F</span>&lt;mshadow_op::square_root&gt;(moving_var + param_.eps), data.shape_));</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      <span class="built_in">Assign</span>(grad_in, req[batchnorm::kData], grad *</span><br><span class="line">             <span class="built_in">broadcast</span>&lt;<span class="number">1</span>&gt;(</span><br><span class="line">                 <span class="number">1.0f</span> / <span class="built_in">F</span>&lt;mshadow_op::square_root&gt;(moving_var + param_.eps), data.shape_));</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<h1 id="Batch-Normalization-使用方法"><a href="#Batch-Normalization-使用方法" class="headerlink" title="Batch Normalization 使用方法"></a>Batch Normalization 使用方法</h1><ol>
+<li>一般BN layer 放在 FC 和 conv 的后面</li>
+<li>在 train 阶段, 对每一个 minibatch 使用 BN, 那么, 在 test 或者 predict 的时候怎么使用 BN 呢? 常见的做法是使用整个 train set 计算出 \(\mu\). 由于 train set 的数据量非常大, 计算 \(\mu\) 计算量非常大, 所以, 经常采用的技术是使用 <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Moving_average">moving average</a> 算法, 在 train 阶段计算出 \(\mu\)</li>
+</ol>
+<h2 id="CAFFE-中的使用方法"><a href="#CAFFE-中的使用方法" class="headerlink" title="CAFFE 中的使用方法"></a>CAFFE 中的使用方法</h2><p>使用 residual net 网络作为示例</p>
+<figure class="highlight protobuf"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">layer &#123;</span><br><span class="line">  bottom: <span class="string">&quot;res2a_branch2b&quot;</span></span><br><span class="line">  top: <span class="string">&quot;res2a_branch2b&quot;</span></span><br><span class="line">  name: <span class="string">&quot;bn2a_branch2b&quot;</span></span><br><span class="line">  type: <span class="string">&quot;BatchNorm&quot;</span></span><br><span class="line">    # use_global_stats 表示是否使用全部数据的统计值(该数据实在train 阶段通过</span><br><span class="line">    # moving average 方法计算得到)训练阶段设置为 fasle, 表示通过当前的</span><br><span class="line">    # minibatch 数据计算得到, test/predict 阶段使用 通过全部数据计算得到的统计值</span><br><span class="line">  batch_norm_param &#123;</span><br><span class="line">    use_global_stats: <span class="literal">true</span></span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="MXNet-中的使用方法"><a href="#MXNet-中的使用方法" class="headerlink" title="MXNet 中的使用方法"></a>MXNet 中的使用方法</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># data 是输出数据, eps 是为了防止出现除 0 二废除 0 而给出的一个很小的值, momentum</span></span><br><span class="line"><span class="comment"># 是moving average 的动量项, fix_gamma 参考上面的 C++ 代码, use_global_stats 作用同</span></span><br><span class="line"><span class="comment"># CAFFE 中的解释.</span></span><br><span class="line">bn = mxnet.symbol.BatchNorm(data, eps, momentum, fix_gamma, use_global_stats)</span><br></pre></td></tr></table></figure>
+
+<h1 id="Reference"><a href="#Reference" class="headerlink" title="Reference"></a>Reference</h1><p><a target="_blank" rel="noopener" href="http://arxiv.org/abs/1502.03167">Batch Normalization</a></p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Deep-Learning/" rel="tag"># Deep Learning</a>
+              <a href="/tags/BatchNorm/" rel="tag"># BatchNorm</a>
+              <a href="/tags/CNN/" rel="tag"># CNN</a>
+              <a href="/tags/MXNet/" rel="tag"># MXNet</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/dl-binary-hash-code/" rel="prev" title="Notes on Deep Learning of Binary Hash Codes for Fast Image Retrieval">
+      <i class="fa fa-chevron-left"></i> Notes on Deep Learning of Binary Hash Codes for Fast Image Retrieval
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/facenet/" rel="next" title="Notes on FaceNet">
+      Notes on FaceNet <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81-Batch-Normalization"><span class="nav-number">1.</span> <span class="nav-text">为什么需要 Batch Normalization</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Batch-Normalization-%E6%98%AF%E4%BB%80%E4%B9%88"><span class="nav-number">2.</span> <span class="nav-text">Batch Normalization 是什么</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88-Batch-Normalization-%E5%8F%AF%E4%BB%A5%E5%8A%A0%E9%80%9F%E8%AE%AD%E7%BB%83"><span class="nav-number">3.</span> <span class="nav-text">为什么 Batch Normalization 可以加速训练</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#MXNet-%E4%BB%A3%E7%A0%81"><span class="nav-number">4.</span> <span class="nav-text">MXNet 代码</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#Forward-%E9%98%B6%E6%AE%B5"><span class="nav-number">4.1.</span> <span class="nav-text">Forward 阶段</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Backward-%E9%98%B6%E6%AE%B5"><span class="nav-number">4.2.</span> <span class="nav-text">Backward 阶段</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Batch-Normalization-%E4%BD%BF%E7%94%A8%E6%96%B9%E6%B3%95"><span class="nav-number">5.</span> <span class="nav-text">Batch Normalization 使用方法</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#CAFFE-%E4%B8%AD%E7%9A%84%E4%BD%BF%E7%94%A8%E6%96%B9%E6%B3%95"><span class="nav-number">5.1.</span> <span class="nav-text">CAFFE 中的使用方法</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#MXNet-%E4%B8%AD%E7%9A%84%E4%BD%BF%E7%94%A8%E6%96%B9%E6%B3%95"><span class="nav-number">5.2.</span> <span class="nav-text">MXNet 中的使用方法</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Reference"><span class="nav-number">6.</span> <span class="nav-text">Reference</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yushu.gao</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">92</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">32</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">94</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yushu.gao</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS-MML_HTMLorMML';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+</body>
+</html>

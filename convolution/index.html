@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"shuokay.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":false,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="卷积在 CNN 中是非常基础的一个操作, 但是, 一旦写出来, 要画不少的图, 所以, 一直拖了下来, 刚好最近看到一个比较好的图, 能够说明卷积转化为矩阵相乘就行操作的方法.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="CNN 基础之卷积及其矩阵加速">
+<meta property="og:url" content="http://shuokay.com/convolution/index.html">
+<meta property="og:site_name" content="Memo">
+<meta property="og:description" content="卷积在 CNN 中是非常基础的一个操作, 但是, 一旦写出来, 要画不少的图, 所以, 一直拖了下来, 刚好最近看到一个比较好的图, 能够说明卷积转化为矩阵相乘就行操作的方法.">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://shuokay.com/content/images/convolution/conv.gif">
+<meta property="og:image" content="http://shuokay.com/content/images/convolution/conv_matrix.png">
+<meta property="article:published_time" content="2016-06-08T11:53:18.000Z">
+<meta property="article:modified_time" content="2022-08-13T02:16:25.723Z">
+<meta property="article:author" content="yushu.gao">
+<meta property="article:tag" content="Deep Learning">
+<meta property="article:tag" content="CNN">
+<meta property="article:tag" content="HPC">
+<meta property="article:tag" content="im2col">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://shuokay.com/content/images/convolution/conv.gif">
+
+<link rel="canonical" href="http://shuokay.com/convolution/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>CNN 基础之卷积及其矩阵加速 | Memo</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Memo</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="th fa-fw"></i>分类</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://shuokay.com/convolution/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yushu.gao">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Memo">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          CNN 基础之卷积及其矩阵加速
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2016-06-08 19:53:18" itemprop="dateCreated datePublished" datetime="2016-06-08T19:53:18+08:00">2016-06-08</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/CNN/" itemprop="url" rel="index"><span itemprop="name">CNN</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/CNN/Convolution/" itemprop="url" rel="index"><span itemprop="name">Convolution</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>卷积在 CNN 中是非常基础的一个操作, 但是, 一旦写出来, 要画不少的图, 所以, 一直拖了下来, 刚好最近看到一个比较好的图, 能够说明卷积转化为矩阵相乘就行操作的方法.</p>
+<span id="more"></span>
+
+<h1 id="卷积操作的定义"><a href="#卷积操作的定义" class="headerlink" title="卷积操作的定义"></a>卷积操作的定义</h1><p>卷积就是卷积核和另外一个矩阵(图片)对应位置相乘然后结果相加.</p>
+<center><img src="/content/images/convolution/conv.gif" width=300></center>
+上图展示的是 `stride=1` 的情形, 既每次移动一个像素的位置, 根据需求, 也可以使用其他的 `stride`
+
+<h1 id="卷积计算的加速"><a href="#卷积计算的加速" class="headerlink" title="卷积计算的加速"></a>卷积计算的加速</h1><p>对于大的卷积核, 加速方法一般是使用傅里叶变换(或者其加强版: 快速傅里叶变换), 但是, 对于比较小的卷积核, 其转换到频域的计算量已经大于直接在空域进行卷积的计算量, 所以, 我们会发现在主流的深度学习框架中, 一般是直接在空域中进行卷积计算, 其加速计算的方法就是把卷积操作转换成矩阵相乘(因为有很多优化了的线性代数计算库和CUDA), 下面这张图充分说明了具体过程(2 维的情形).</p>
+<center><img src="/content/images/convolution/conv_matrix.png"><center>
+
+<ul>
+<li>在上图中, <code>input features</code>每一个二维矩阵对应与 RGB 图像的 channel 或者是 feature map 中的channel</li>
+<li>目前常见的卷积都是 cross channel 的卷积, 既卷积核矩阵是 3 维的(width, height, depth), depth 的大小和feature map 的depth.(depth 就是有几张 feature map, 不要被高大上的名词迷惑了)</li>
+<li>维卷积核的方法与 2 维的类似, 也是与 feature map 中相应的一个 3 维的矩阵对应位置元素相乘然后相加</li>
+<li>2 维的卷积相当于 depth&#x3D;1 的 3 维的卷积</li>
+</ul>
+<h1 id="im2col-in-Python"><a href="#im2col-in-Python" class="headerlink" title="im2col in Python"></a>im2col in Python</h1><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> numpy <span class="keyword">as</span> np</span><br><span class="line"><span class="keyword">def</span> <span class="title function_">get_im2col_indices</span>(<span class="params">x_shape, field_height, field_width, padding=<span class="number">1</span>, stride=<span class="number">1</span></span>):</span><br><span class="line">  <span class="comment"># First figure out what the size of the output should be</span></span><br><span class="line">  N, C, H, W = x_shape</span><br><span class="line">  <span class="keyword">assert</span> (H + <span class="number">2</span> * padding - field_height) % stride == <span class="number">0</span></span><br><span class="line">  <span class="keyword">assert</span> (W + <span class="number">2</span> * padding - field_height) % stride == <span class="number">0</span></span><br><span class="line">  out_height = (H + <span class="number">2</span> * padding - field_height) / stride + <span class="number">1</span></span><br><span class="line">  out_width = (W + <span class="number">2</span> * padding - field_width) / stride + <span class="number">1</span></span><br><span class="line">  i0 = np.repeat(np.arange(field_height), field_width)</span><br><span class="line">  i0 = np.tile(i0, C)</span><br><span class="line">  i1 = stride * np.repeat(np.arange(out_height), out_width)</span><br><span class="line">  j0 = np.tile(np.arange(field_width), field_height * C)</span><br><span class="line">  j1 = stride * np.tile(np.arange(out_width), out_height)</span><br><span class="line">  i = i0.reshape(-<span class="number">1</span>, <span class="number">1</span>) + i1.reshape(<span class="number">1</span>, -<span class="number">1</span>)</span><br><span class="line">  j = j0.reshape(-<span class="number">1</span>, <span class="number">1</span>) + j1.reshape(<span class="number">1</span>, -<span class="number">1</span>)</span><br><span class="line">  k = np.repeat(np.arange(C), field_height * field_width).reshape(-<span class="number">1</span>, <span class="number">1</span>)</span><br><span class="line">  <span class="keyword">return</span> (k, i, j)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">im2col_indices</span>(<span class="params">x, field_height, field_width, padding=<span class="number">1</span>, stride=<span class="number">1</span></span>):</span><br><span class="line">  <span class="string">&quot;&quot;&quot; An implementation of im2col based on some fancy indexing &quot;&quot;&quot;</span></span><br><span class="line">  <span class="comment"># Zero-pad the input</span></span><br><span class="line">  p = padding</span><br><span class="line">  x_padded = np.pad(x, ((<span class="number">0</span>, <span class="number">0</span>), (<span class="number">0</span>, <span class="number">0</span>), (p, p), (p, p)), mode=<span class="string">&#x27;constant&#x27;</span>)</span><br><span class="line">  k, i, j = get_im2col_indices(x.shape, field_height, field_width, padding, stride)</span><br><span class="line">  cols = x_padded[:, k, i, j]</span><br><span class="line">  C = x.shape[<span class="number">1</span>]</span><br><span class="line">  cols = cols.transpose(<span class="number">1</span>, <span class="number">2</span>, <span class="number">0</span>).reshape(field_height * field_width * C, -<span class="number">1</span>)</span><br><span class="line">  <span class="keyword">return</span> cols</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<h1 id="Reference"><a href="#Reference" class="headerlink" title="Reference"></a>Reference</h1><p><a target="_blank" rel="noopener" href="https://hal.archives-ouvertes.fr/file/index/docid/112631/filename/p1038112283956.pdf">High Performance Convolutional Neural Networks for Document Processing</a></p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Deep-Learning/" rel="tag"># Deep Learning</a>
+              <a href="/tags/CNN/" rel="tag"># CNN</a>
+              <a href="/tags/HPC/" rel="tag"># HPC</a>
+              <a href="/tags/im2col/" rel="tag"># im2col</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/caffe-predict/" rel="prev" title="使用 CAFFE 预测输入">
+      <i class="fa fa-chevron-left"></i> 使用 CAFFE 预测输入
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/rectifiers/" rel="next" title="Notes on Delving Deep into Rectifiers">
+      Notes on Delving Deep into Rectifiers <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8D%B7%E7%A7%AF%E6%93%8D%E4%BD%9C%E7%9A%84%E5%AE%9A%E4%B9%89"><span class="nav-number">1.</span> <span class="nav-text">卷积操作的定义</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8D%B7%E7%A7%AF%E8%AE%A1%E7%AE%97%E7%9A%84%E5%8A%A0%E9%80%9F"><span class="nav-number">2.</span> <span class="nav-text">卷积计算的加速</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#im2col-in-Python"><span class="nav-number">3.</span> <span class="nav-text">im2col in Python</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Reference"><span class="nav-number">4.</span> <span class="nav-text">Reference</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yushu.gao</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">92</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">32</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">94</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yushu.gao</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>

@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"shuokay.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":false,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="Linux 平台在使用过程中经常会有一些非日常使用的命令或者小工具, 但是, 这些命令和工具往往是提升工作效率的利器, 这里会不断总结和更新工作中使用的这些命令和工具. 另外, 一些比较”重”的工具, 例如 git, nginx, gcc 等在其内容增长到一定程度的时候为方便浏览会单独开一篇.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Linux Memo">
+<meta property="og:url" content="http://shuokay.com/linux-memo/index.html">
+<meta property="og:site_name" content="Memo">
+<meta property="og:description" content="Linux 平台在使用过程中经常会有一些非日常使用的命令或者小工具, 但是, 这些命令和工具往往是提升工作效率的利器, 这里会不断总结和更新工作中使用的这些命令和工具. 另外, 一些比较”重”的工具, 例如 git, nginx, gcc 等在其内容增长到一定程度的时候为方便浏览会单独开一篇.">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2015-12-31T17:00:55.000Z">
+<meta property="article:modified_time" content="2022-08-13T02:16:25.727Z">
+<meta property="article:author" content="yushu.gao">
+<meta property="article:tag" content="Linux">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://shuokay.com/linux-memo/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Linux Memo | Memo</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Memo</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="th fa-fw"></i>分类</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://shuokay.com/linux-memo/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yushu.gao">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Memo">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Linux Memo
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2016-01-01 01:00:55" itemprop="dateCreated datePublished" datetime="2016-01-01T01:00:55+08:00">2016-01-01</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Memo/" itemprop="url" rel="index"><span itemprop="name">Memo</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>Linux 平台在使用过程中经常会有一些非日常使用的命令或者小工具, 但是, 这些命令和工具往往是提升工作效率的利器, 这里会不断总结和更新工作中使用的这些命令和工具. 另外, 一些比较”重”的工具, 例如 <code>git</code>, <code>nginx</code>, <code>gcc</code> 等在其内容增长到一定程度的时候为方便浏览会单独开一篇.</p>
+<span id="more"></span>
+
+<h1 id="打包压缩"><a href="#打包压缩" class="headerlink" title="打包压缩"></a>打包压缩</h1><p>打包压缩的时候，忽略指定文件</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">tar zcvf files.tar.gz -X exclude.txt files/</span><br></pre></td></tr></table></figure>
+
+<h1 id="打包的同时删除文件"><a href="#打包的同时删除文件" class="headerlink" title="打包的同时删除文件"></a>打包的同时删除文件</h1><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">tar cvf tarname.tar <span class="built_in">dir</span> --remove-files</span><br></pre></td></tr></table></figure>
+
+<h1 id="按用户统计内存占用"><a href="#按用户统计内存占用" class="headerlink" title="按用户统计内存占用"></a>按用户统计内存占用</h1><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ps hax -o rss,user | awk <span class="string">&#x27;&#123;a[$2]+=$1;&#125;END&#123;for(i in a)print i&quot; &quot;int(a[i]/1024+0.5);&#125;&#x27;</span> | <span class="built_in">sort</span> -rnk2</span><br></pre></td></tr></table></figure>
+
+<h1 id="把控制台的输出同时输入到文件"><a href="#把控制台的输出同时输入到文件" class="headerlink" title="把控制台的输出同时输入到文件"></a>把控制台的输出同时输入到文件</h1><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">program [parmas] 2&gt;&amp;1 | <span class="built_in">tee</span> file.log</span><br></pre></td></tr></table></figure>
+
+<p><code>2&gt;&amp;1</code> 的意思是把channel 2(stderr)中的内容输出到channel 1(stdout) 中。</p>
+<h1 id="iostat"><a href="#iostat" class="headerlink" title="iostat"></a>iostat</h1><p>每隔 1s 输出结果</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">iostat 1 -h</span><br></pre></td></tr></table></figure>
+
+<h1 id="configure-编译"><a href="#configure-编译" class="headerlink" title="configure 编译"></a>configure 编译</h1><p>使用自定义的库和头文件目录，并且自定义安装位置</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">CFLAGS=<span class="string">&quot;-I/path/to/your/headers&quot;</span> LDFLAGS=<span class="string">&quot;-L/path/to/your/lib&quot;</span> ./configure --prefix=/home/users/yushu.gao/local/</span><br></pre></td></tr></table></figure>
+
+<h1 id="parallel-命令实现简单的并发"><a href="#parallel-命令实现简单的并发" class="headerlink" title="parallel 命令实现简单的并发"></a>parallel 命令实现简单的并发</h1><p>command 需要传入多个参数，在 file.txt 中的每一行是一次命令的参数, <code>--colsep &#39; &#39;</code> 表示用空格分隔不同的命令选项， <code>&#123;1&#125; &#123;2&#125;</code> 分别表示传入选项的占位信息。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">parallel --colsep <span class="string">&#x27; &#x27;</span> <span class="built_in">command</span> &#123;1&#125; &#123;2&#125; :::: file.txt</span><br></pre></td></tr></table></figure>
+
+<p>command 只有一个参数的情形</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">parallel -a file.txt <span class="built_in">command</span></span><br></pre></td></tr></table></figure>
+
+<h1 id="按照进程名字-kill"><a href="#按照进程名字-kill" class="headerlink" title="按照进程名字 kill"></a>按照进程名字 kill</h1><p>一种方法是使用 pkill, 但是, 有时候 pkill 不好使, 还是用最原始的方法吧</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ps -ef | grep <span class="string">&quot;name&quot;</span> | awk <span class="string">&#x27;&#123;print $2&#125;&#x27;</span> | xargs <span class="built_in">kill</span> -9</span><br></pre></td></tr></table></figure>
+
+<h1 id="防火墙"><a href="#防火墙" class="headerlink" title="防火墙"></a>防火墙</h1><p>允许访问某个端口</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo ufw allow <span class="variable">$PORT</span></span><br></pre></td></tr></table></figure>
+
+<h1 id="计算-SHA-1-MD5-等信息"><a href="#计算-SHA-1-MD5-等信息" class="headerlink" title="计算 SHA-1, MD5 等信息"></a>计算 SHA-1, MD5 等信息</h1><p>这些内容统统都可以借助 <code>OpenSSL</code> 来计算. 方法如下:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">openssl dgst -sha256 FILE</span><br></pre></td></tr></table></figure>
+
+<p>其它类型对应的参数如下:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">MESSAGE DIGEST COMMANDS</span><br><span class="line">md2 MD2 Digest</span><br><span class="line">md5 MD5 Digest</span><br><span class="line">mdc2 MDC2 Digest</span><br><span class="line">rmd160 RMD-160 Digest</span><br><span class="line">sha SHA Digest</span><br><span class="line">sha1 SHA-1 Digest</span><br><span class="line">sha224 SHA-224 Digest</span><br><span class="line">sha256 SHA-256 Digest</span><br><span class="line">sha384 SHA-384 Digest</span><br><span class="line">sha512 SHA-512 Digest</span><br></pre></td></tr></table></figure>
+
+<h1 id="修改文件夹的权限"><a href="#修改文件夹的权限" class="headerlink" title="修改文件夹的权限"></a>修改文件夹的权限</h1><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">chown</span> -R user:group FILE</span><br></pre></td></tr></table></figure>
+
+<h1 id="同步两台机器文件"><a href="#同步两台机器文件" class="headerlink" title="同步两台机器文件"></a>同步两台机器文件</h1><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 把 fold 目录下的文件全部同步到当前目录下如果 fold 后面不加/,那么,会把 fold 目录和 fold 目录整个同步到当前目录下</span></span><br><span class="line">rsync -av -C -e ssh user@IP:PORT/path/to/fold/ ./</span><br></pre></td></tr></table></figure>
+
+<h1 id="多线程下载"><a href="#多线程下载" class="headerlink" title="多线程下载"></a>多线程下载</h1><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># num 是并发连接的个数, url 是连接的地址</span></span><br><span class="line">aria2c -x num url</span><br></pre></td></tr></table></figure>
+
+<h1 id="结束同一个程序的多个实例"><a href="#结束同一个程序的多个实例" class="headerlink" title="结束同一个程序的多个实例"></a>结束同一个程序的多个实例</h1><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> pid <span class="keyword">in</span> $(ps -ef | awk <span class="string">&#x27;/some-search/ &#123;print $2&#125;&#x27;</span>); <span class="keyword">do</span> <span class="built_in">kill</span> -9 <span class="variable">$pid</span>; <span class="keyword">done</span></span><br></pre></td></tr></table></figure>
+
+<h1 id="pkill-按照名称-pattern-kill-掉"><a href="#pkill-按照名称-pattern-kill-掉" class="headerlink" title="pkill 按照名称 pattern kill 掉"></a>pkill 按照名称 pattern kill 掉</h1><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pkill -f pattern</span><br></pre></td></tr></table></figure>
+
+<h1 id="把一段内存空间开辟为硬盘使用"><a href="#把一段内存空间开辟为硬盘使用" class="headerlink" title="把一段内存空间开辟为硬盘使用"></a>把一段内存空间开辟为硬盘使用</h1><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># size 是表明最大的空间, 系统并不会立刻分配 32G 内存, 而是最大可以使用 32G 内存. data/ 是这部分内存要挂载到的目录</span></span><br><span class="line">mount tmpfs data/ -t tmpfs -o size=32G</span><br></pre></td></tr></table></figure>
+
+<h1 id="GCC"><a href="#GCC" class="headerlink" title="GCC"></a>GCC</h1><h2 id="编译选项"><a href="#编译选项" class="headerlink" title="编译选项"></a>编译选项</h2><p>如果编译的代码是在本地使用, 总是在编译阶段使用 <code>-march=native</code> 去编译.</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">-march=native</span><br></pre></td></tr></table></figure>
+
+<h1 id="Emacs"><a href="#Emacs" class="headerlink" title="Emacs"></a>Emacs</h1><h2 id="以服务的方式启动"><a href="#以服务的方式启动" class="headerlink" title="以服务的方式启动"></a>以服务的方式启动</h2><h3 id="开启服务"><a href="#开启服务" class="headerlink" title="开启服务"></a>开启服务</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">emacs --daemon</span><br></pre></td></tr></table></figure>
+
+<h3 id="停止服务"><a href="#停止服务" class="headerlink" title="停止服务"></a>停止服务</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">emacsclient -e <span class="string">&#x27;(kill-emacs)&#x27;</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="服务模式下启动"><a href="#服务模式下启动" class="headerlink" title="服务模式下启动"></a>服务模式下启动</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># Terminal 模式</span></span><br><span class="line">emacsclient -t</span><br><span class="line"><span class="comment"># UI 模式</span></span><br><span class="line">emacsclient -c</span><br></pre></td></tr></table></figure>
+
+<h2 id="Spacemacs"><a href="#Spacemacs" class="headerlink" title="Spacemacs"></a>Spacemacs</h2><h3 id="solarized-主题问题"><a href="#solarized-主题问题" class="headerlink" title="solarized 主题问题"></a>solarized 主题问题</h3><p>建议不要设置主题，直接使用terminal的主题，如遇到问题，参考 <a target="_blank" rel="noopener" href="https://github.com/syl20bnr/spacemacs/issues/1269#issuecomment-252244643">官方 issue</a><br>在 <code>.spacemacs</code> 的 <code>dotspacemacs/user-config</code>中配置以下内容</p>
+<figure class="highlight lisp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">;; Colortheme fix in terminal</span></span><br><span class="line">(<span class="name">custom-set-faces</span> (<span class="name">if</span> (<span class="name">not</span> window-system) &#x27;(default ((<span class="literal">t</span> (:background <span class="string">&quot;nil&quot;</span>))))))</span><br></pre></td></tr></table></figure>
+
+<h3 id="解决安装启动之后卡死问题"><a href="#解决安装启动之后卡死问题" class="headerlink" title="解决安装启动之后卡死问题"></a>解决安装启动之后卡死问题</h3><p>参考 <a target="_blank" rel="noopener" href="https://github.com/syl20bnr/spacemacs/blob/develop/doc/FAQ.org#why-is-spacemacs-hanging-on-startup">FAQ</a><br>原因: Helm 使用了 Tramp, Tramp 在启动的时候会检查 SSH&#x2F;DNS 的设置. 其根本原因是 ISP redirect non-existing addresses to their own servers. 解决方法是在 <code>.spacemacs</code> 的 <code>user-init</code> 部分增加下面的配置信息</p>
+<figure class="highlight lisp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">(<span class="name">setq</span> tramp-ssh-controlmaster-options</span><br><span class="line">      <span class="string">&quot;-o ControlMaster=auto -o ControlPath=&#x27;tramp.%%C&#x27; -o ControlPersist=no&quot;</span>)</span><br></pre></td></tr></table></figure>
+
+<p>或者直接在 <code>~/.ssh/config</code> 中配置:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">Host *</span><br><span class="line">ControlMaster auto</span><br><span class="line">ControlPath ~/.ssh/master -%r@%h:%p</span><br><span class="line">ControlPersist = no</span><br></pre></td></tr></table></figure>
+
+<h1 id="NVIDIA-显卡"><a href="#NVIDIA-显卡" class="headerlink" title="NVIDIA 显卡"></a>NVIDIA 显卡</h1><p>到目前为止的使用经验表明, 最好还是使用官方自带的显卡源. 更稳定</p>
+<h2 id="安装源里提供的驱动"><a href="#安装源里提供的驱动" class="headerlink" title="安装源里提供的驱动"></a>安装源里提供的驱动</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 移除显卡驱动</span></span><br><span class="line">sudo apt-get purge nvidia-*</span><br><span class="line"><span class="comment"># 添加第三方 repository</span></span><br><span class="line">sudo add-apt-repository ppa:graphics-drivers/ppa</span><br><span class="line"><span class="comment"># 更新源 &amp;&amp;　安装对应版本的驱动</span></span><br><span class="line">sudo apt-get update</span><br><span class="line">sudo apt-get install nvidia-version</span><br></pre></td></tr></table></figure>
+
+<h2 id="手动安装显卡"><a href="#手动安装显卡" class="headerlink" title="手动安装显卡"></a>手动安装显卡</h2><p>过程比较简单, 官网下载显卡驱动文件, <code>*.run</code> 结尾的. 然后运行该文件</p>
+<h3 id="内核升级后导致显卡驱动失效的解决办法"><a href="#内核升级后导致显卡驱动失效的解决办法" class="headerlink" title="内核升级后导致显卡驱动失效的解决办法"></a>内核升级后导致显卡驱动失效的解决办法</h3><ol>
+<li>切换到 <code>/usr/src/</code> 目录下, 会看到该目录下有各种内核文件的源代码和一个 NVIDIA 显卡驱动的文件夹. 该文件夹的命名方法为 <code>nvidia-version</code>, 例如, <code>nvidia-367.44</code>. 这个命名方式很重要, 后面会用到.</li>
+<li>使用 <code>dkms</code> rebuild 该驱动</li>
+<li>使用 <code>dkms</code> install 该驱动</li>
+</ol>
+<p>例如:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> /usr/src/</span><br><span class="line">dkms build -m nvidia -v 367.44</span><br><span class="line">dkms install -m nvidia -v 367.44</span><br></pre></td></tr></table></figure>
+
+<h1 id="tmux"><a href="#tmux" class="headerlink" title="tmux"></a>tmux</h1><h2 id="常用命令"><a href="#常用命令" class="headerlink" title="常用命令"></a>常用命令</h2><p>使用 256 色</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">tmux -2</span><br></pre></td></tr></table></figure>
+
+<p>新建一个 session</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">tmux new -s name</span><br></pre></td></tr></table></figure>
+
+<p>attach 到一个指定的 session 上面</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">tmux attach -t name</span><br></pre></td></tr></table></figure>
+
+<h1 id="Web-端浏览代码"><a href="#Web-端浏览代码" class="headerlink" title="Web 端浏览代码"></a>Web 端浏览代码</h1><p>有了vscode之后，这个方法没有存在的必要了。<br>OpenGrok 是一个在 web 端浏览代码的利器. 在使用之前首先要部署.<br>OpenGrok 是使用 Java 写的, 所以, 首先要安装Java. 而要想使用 Web 服务, 还要安装网络服务. 例如 tomcat8</p>
+<h2 id="安装网络服务"><a href="#安装网络服务" class="headerlink" title="安装网络服务"></a>安装网络服务</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo apt install tomcat8</span><br></pre></td></tr></table></figure>
+
+<h2 id="下载并解压-OpenGrok"><a href="#下载并解压-OpenGrok" class="headerlink" title="下载并解压 OpenGrok"></a>下载并解压 OpenGrok</h2><p><a target="_blank" rel="noopener" href="https://github.com/OpenGrok/OpenGrok">下载地址</a></p>
+<h2 id="部署"><a href="#部署" class="headerlink" title="部署"></a>部署</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo ./bin/OpenGrok deploy</span><br></pre></td></tr></table></figure>
+
+<h2 id="创建项目"><a href="#创建项目" class="headerlink" title="创建项目"></a>创建项目</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo ./bin/OpenGrok index ~/path/to/project</span><br></pre></td></tr></table></figure>
+
+<h1 id="npm-连接错误"><a href="#npm-连接错误" class="headerlink" title="npm 连接错误"></a>npm 连接错误</h1><p>需要关闭防火墙之后再安装 package, Ubuntu 关闭和打开防火墙的方法:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">sudo ufw <span class="built_in">disable</span></span><br><span class="line">sudo ufw <span class="built_in">enable</span></span><br></pre></td></tr></table></figure>
+
+<h1 id="cscope-使用方法"><a href="#cscope-使用方法" class="headerlink" title="cscope 使用方法"></a>cscope 使用方法</h1><blockquote>
+<p>有了vscode之后这个方法没有必要了。<br>cscope 是 linux 环境下支持跳转的源码阅读工具, cscope 可以单独使用也可以配合 emacs&#x2F;vim 使用. 首先要安装 cscope</p>
+</blockquote>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo apt install cscope</span><br></pre></td></tr></table></figure>
+
+<p>定义 cscope 要使用哪些文件建立 index, 例如:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">find . -name <span class="string">&quot;*.c&quot;</span> -o -name <span class="string">&quot;*.cpp&quot;</span> -o -name <span class="string">&quot;*.h&quot;</span> -o -name <span class="string">&quot;*.hpp&quot;</span> &gt; cscope.files</span><br></pre></td></tr></table></figure>
+
+<p>建立相应的数据库:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">cscope -R -b -i cscope.files</span><br></pre></td></tr></table></figure>
+
+<p>或者使用所有的文件建立 index:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">cscope -R</span><br></pre></td></tr></table></figure>
+
+<p>之后就可以进入 cscope 的交互页面进行操作了:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">cscope -d</span><br></pre></td></tr></table></figure>
+
+<p>退出交互页面的快捷键是<code>ctrl+d</code><br>在 spacemacs 中是集成了 cscope 功能, 直接加入 <code>cscope</code> layer 就可以了</p>
+<h1 id="spacemacs-tmux-macOS-iterm"><a href="#spacemacs-tmux-macOS-iterm" class="headerlink" title="spacemacs+tmux+macOS+iterm"></a>spacemacs+tmux+macOS+iterm</h1><p>这里主要是要解决在Ubuntu系统上，spacemacs 在运行daemon模式时，python mode 显示不正常的问题。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 编译安装 ncurses-6, 默认编译选项会出错，需要做些调整, 参考https://stackoverflow.com/questions/37475222/ncurses-6-0-compilation-error-error-expected-before-int</span></span><br><span class="line">wget http://ftp.gnu.org/gnu/ncurses/ncurses-6.0.tar.gz</span><br><span class="line">./configure CPPFLAGS=<span class="string">&quot;-P&quot;</span></span><br><span class="line"><span class="comment"># 编译安装最新版tmux 2.6+</span></span><br><span class="line"><span class="comment"># 在 .zshrc 中配置:</span></span><br><span class="line"><span class="built_in">export</span> TERM=xterm-256color</span><br></pre></td></tr></table></figure>
+
+<h1 id="使用tmux之后powerline-symbol不能显示"><a href="#使用tmux之后powerline-symbol不能显示" class="headerlink" title="使用tmux之后powerline symbol不能显示"></a>使用tmux之后powerline symbol不能显示</h1><p>首先确认 symbol 字体是安装了的<br>然后保证本地和远端的 LANG 环境变量设置是一致的。</p>
+<h1 id="自动增量备份"><a href="#自动增量备份" class="headerlink" title="自动增量备份"></a>自动增量备份</h1><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 增量备份</span></span><br><span class="line">rsync -r /home/luban/workspace/ /nfs/project/gaoyushu/workspace/</span><br></pre></td></tr></table></figure>
+
+<p>crontab 配置: <code>backup.tab</code></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">0 1 * * * /usr/bin/rsync -r /home/luban/workspace/ /nfs/project/gaoyushu/workspace/</span><br></pre></td></tr></table></figure>
+
+<p>crontab 参考资料：<a target="_blank" rel="noopener" href="https://tecadmin.net/crontab-in-linux-with-20-examples-of-cron-schedule/#">crontab</a></p>
+<h1 id="解决不能输入中文的问题"><a href="#解决不能输入中文的问题" class="headerlink" title="解决不能输入中文的问题"></a>解决不能输入中文的问题</h1><p>Ubuntu 输入</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo locale-gen zh_CN.UTF-8</span><br></pre></td></tr></table></figure>
+
+<p>CentOS 输入</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">localedef -c -f UTF-8 -i en_US en_US.UTF-8</span><br></pre></td></tr></table></figure>
+
+<p>然后修改环境变量 <code>LANG</code> 与本地相同</p>
+<h1 id="取消-sudo-名利每次都要输入密码"><a href="#取消-sudo-名利每次都要输入密码" class="headerlink" title="取消 sudo 名利每次都要输入密码"></a>取消 sudo 名利每次都要输入密码</h1><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo visudo</span><br></pre></td></tr></table></figure>
+
+<p>然后在打开的文件的<strong>末尾</strong>加入：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">username     ALL=(ALL) NOPASSWD:ALL</span><br></pre></td></tr></table></figure>
+
+<h1 id="让-Ubuntu-记住-ssh-key-的-password-phase"><a href="#让-Ubuntu-记住-ssh-key-的-password-phase" class="headerlink" title="让 Ubuntu 记住 ssh key 的 password phase"></a>让 Ubuntu 记住 ssh key 的 password phase</h1><p>使用 keychain 解决</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">sudo apt install keychain</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p>然后在shell配置文件种加入一下配置，而且必须是shell的配置文件， 在<code>.profile</code>中加入不生效</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">keychain id_rs id_rsa</span><br><span class="line"><span class="built_in">source</span> ~/.keychain/`<span class="built_in">uname</span> -n`-sh</span><br></pre></td></tr></table></figure>
+
+<h1 id="autossh-实现反向代理"><a href="#autossh-实现反向代理" class="headerlink" title="autossh 实现反向代理"></a>autossh 实现反向代理</h1><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">autossh -p 26170 -M 26500 -o <span class="string">&quot;PasswordAuthentication=no&quot;</span> -NfR 26501:127.0.0.1:22 root@ip</span><br></pre></td></tr></table></figure>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Linux/" rel="tag"># Linux</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/mxnet-memo/" rel="prev" title="MXNet Memo">
+      <i class="fa fa-chevron-left"></i> MXNet Memo
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/samba-memo/" rel="next" title="Samba Memo">
+      Samba Memo <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%89%93%E5%8C%85%E5%8E%8B%E7%BC%A9"><span class="nav-number">1.</span> <span class="nav-text">打包压缩</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%89%93%E5%8C%85%E7%9A%84%E5%90%8C%E6%97%B6%E5%88%A0%E9%99%A4%E6%96%87%E4%BB%B6"><span class="nav-number">2.</span> <span class="nav-text">打包的同时删除文件</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%8C%89%E7%94%A8%E6%88%B7%E7%BB%9F%E8%AE%A1%E5%86%85%E5%AD%98%E5%8D%A0%E7%94%A8"><span class="nav-number">3.</span> <span class="nav-text">按用户统计内存占用</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%8A%8A%E6%8E%A7%E5%88%B6%E5%8F%B0%E7%9A%84%E8%BE%93%E5%87%BA%E5%90%8C%E6%97%B6%E8%BE%93%E5%85%A5%E5%88%B0%E6%96%87%E4%BB%B6"><span class="nav-number">4.</span> <span class="nav-text">把控制台的输出同时输入到文件</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#iostat"><span class="nav-number">5.</span> <span class="nav-text">iostat</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#configure-%E7%BC%96%E8%AF%91"><span class="nav-number">6.</span> <span class="nav-text">configure 编译</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#parallel-%E5%91%BD%E4%BB%A4%E5%AE%9E%E7%8E%B0%E7%AE%80%E5%8D%95%E7%9A%84%E5%B9%B6%E5%8F%91"><span class="nav-number">7.</span> <span class="nav-text">parallel 命令实现简单的并发</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%8C%89%E7%85%A7%E8%BF%9B%E7%A8%8B%E5%90%8D%E5%AD%97-kill"><span class="nav-number">8.</span> <span class="nav-text">按照进程名字 kill</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E9%98%B2%E7%81%AB%E5%A2%99"><span class="nav-number">9.</span> <span class="nav-text">防火墙</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%AE%A1%E7%AE%97-SHA-1-MD5-%E7%AD%89%E4%BF%A1%E6%81%AF"><span class="nav-number">10.</span> <span class="nav-text">计算 SHA-1, MD5 等信息</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%BF%AE%E6%94%B9%E6%96%87%E4%BB%B6%E5%A4%B9%E7%9A%84%E6%9D%83%E9%99%90"><span class="nav-number">11.</span> <span class="nav-text">修改文件夹的权限</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%90%8C%E6%AD%A5%E4%B8%A4%E5%8F%B0%E6%9C%BA%E5%99%A8%E6%96%87%E4%BB%B6"><span class="nav-number">12.</span> <span class="nav-text">同步两台机器文件</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%A4%9A%E7%BA%BF%E7%A8%8B%E4%B8%8B%E8%BD%BD"><span class="nav-number">13.</span> <span class="nav-text">多线程下载</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E7%BB%93%E6%9D%9F%E5%90%8C%E4%B8%80%E4%B8%AA%E7%A8%8B%E5%BA%8F%E7%9A%84%E5%A4%9A%E4%B8%AA%E5%AE%9E%E4%BE%8B"><span class="nav-number">14.</span> <span class="nav-text">结束同一个程序的多个实例</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#pkill-%E6%8C%89%E7%85%A7%E5%90%8D%E7%A7%B0-pattern-kill-%E6%8E%89"><span class="nav-number">15.</span> <span class="nav-text">pkill 按照名称 pattern kill 掉</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%8A%8A%E4%B8%80%E6%AE%B5%E5%86%85%E5%AD%98%E7%A9%BA%E9%97%B4%E5%BC%80%E8%BE%9F%E4%B8%BA%E7%A1%AC%E7%9B%98%E4%BD%BF%E7%94%A8"><span class="nav-number">16.</span> <span class="nav-text">把一段内存空间开辟为硬盘使用</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#GCC"><span class="nav-number">17.</span> <span class="nav-text">GCC</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BC%96%E8%AF%91%E9%80%89%E9%A1%B9"><span class="nav-number">17.1.</span> <span class="nav-text">编译选项</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Emacs"><span class="nav-number">18.</span> <span class="nav-text">Emacs</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BB%A5%E6%9C%8D%E5%8A%A1%E7%9A%84%E6%96%B9%E5%BC%8F%E5%90%AF%E5%8A%A8"><span class="nav-number">18.1.</span> <span class="nav-text">以服务的方式启动</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%BC%80%E5%90%AF%E6%9C%8D%E5%8A%A1"><span class="nav-number">18.1.1.</span> <span class="nav-text">开启服务</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%81%9C%E6%AD%A2%E6%9C%8D%E5%8A%A1"><span class="nav-number">18.1.2.</span> <span class="nav-text">停止服务</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%9C%8D%E5%8A%A1%E6%A8%A1%E5%BC%8F%E4%B8%8B%E5%90%AF%E5%8A%A8"><span class="nav-number">18.1.3.</span> <span class="nav-text">服务模式下启动</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Spacemacs"><span class="nav-number">18.2.</span> <span class="nav-text">Spacemacs</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#solarized-%E4%B8%BB%E9%A2%98%E9%97%AE%E9%A2%98"><span class="nav-number">18.2.1.</span> <span class="nav-text">solarized 主题问题</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%A7%A3%E5%86%B3%E5%AE%89%E8%A3%85%E5%90%AF%E5%8A%A8%E4%B9%8B%E5%90%8E%E5%8D%A1%E6%AD%BB%E9%97%AE%E9%A2%98"><span class="nav-number">18.2.2.</span> <span class="nav-text">解决安装启动之后卡死问题</span></a></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#NVIDIA-%E6%98%BE%E5%8D%A1"><span class="nav-number">19.</span> <span class="nav-text">NVIDIA 显卡</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AE%89%E8%A3%85%E6%BA%90%E9%87%8C%E6%8F%90%E4%BE%9B%E7%9A%84%E9%A9%B1%E5%8A%A8"><span class="nav-number">19.1.</span> <span class="nav-text">安装源里提供的驱动</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%89%8B%E5%8A%A8%E5%AE%89%E8%A3%85%E6%98%BE%E5%8D%A1"><span class="nav-number">19.2.</span> <span class="nav-text">手动安装显卡</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%86%85%E6%A0%B8%E5%8D%87%E7%BA%A7%E5%90%8E%E5%AF%BC%E8%87%B4%E6%98%BE%E5%8D%A1%E9%A9%B1%E5%8A%A8%E5%A4%B1%E6%95%88%E7%9A%84%E8%A7%A3%E5%86%B3%E5%8A%9E%E6%B3%95"><span class="nav-number">19.2.1.</span> <span class="nav-text">内核升级后导致显卡驱动失效的解决办法</span></a></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#tmux"><span class="nav-number">20.</span> <span class="nav-text">tmux</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%B8%B8%E7%94%A8%E5%91%BD%E4%BB%A4"><span class="nav-number">20.1.</span> <span class="nav-text">常用命令</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Web-%E7%AB%AF%E6%B5%8F%E8%A7%88%E4%BB%A3%E7%A0%81"><span class="nav-number">21.</span> <span class="nav-text">Web 端浏览代码</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AE%89%E8%A3%85%E7%BD%91%E7%BB%9C%E6%9C%8D%E5%8A%A1"><span class="nav-number">21.1.</span> <span class="nav-text">安装网络服务</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%8B%E8%BD%BD%E5%B9%B6%E8%A7%A3%E5%8E%8B-OpenGrok"><span class="nav-number">21.2.</span> <span class="nav-text">下载并解压 OpenGrok</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%83%A8%E7%BD%B2"><span class="nav-number">21.3.</span> <span class="nav-text">部署</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%88%9B%E5%BB%BA%E9%A1%B9%E7%9B%AE"><span class="nav-number">21.4.</span> <span class="nav-text">创建项目</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#npm-%E8%BF%9E%E6%8E%A5%E9%94%99%E8%AF%AF"><span class="nav-number">22.</span> <span class="nav-text">npm 连接错误</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#cscope-%E4%BD%BF%E7%94%A8%E6%96%B9%E6%B3%95"><span class="nav-number">23.</span> <span class="nav-text">cscope 使用方法</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#spacemacs-tmux-macOS-iterm"><span class="nav-number">24.</span> <span class="nav-text">spacemacs+tmux+macOS+iterm</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%BD%BF%E7%94%A8tmux%E4%B9%8B%E5%90%8Epowerline-symbol%E4%B8%8D%E8%83%BD%E6%98%BE%E7%A4%BA"><span class="nav-number">25.</span> <span class="nav-text">使用tmux之后powerline symbol不能显示</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%87%AA%E5%8A%A8%E5%A2%9E%E9%87%8F%E5%A4%87%E4%BB%BD"><span class="nav-number">26.</span> <span class="nav-text">自动增量备份</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%A7%A3%E5%86%B3%E4%B8%8D%E8%83%BD%E8%BE%93%E5%85%A5%E4%B8%AD%E6%96%87%E7%9A%84%E9%97%AE%E9%A2%98"><span class="nav-number">27.</span> <span class="nav-text">解决不能输入中文的问题</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8F%96%E6%B6%88-sudo-%E5%90%8D%E5%88%A9%E6%AF%8F%E6%AC%A1%E9%83%BD%E8%A6%81%E8%BE%93%E5%85%A5%E5%AF%86%E7%A0%81"><span class="nav-number">28.</span> <span class="nav-text">取消 sudo 名利每次都要输入密码</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%AE%A9-Ubuntu-%E8%AE%B0%E4%BD%8F-ssh-key-%E7%9A%84-password-phase"><span class="nav-number">29.</span> <span class="nav-text">让 Ubuntu 记住 ssh key 的 password phase</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#autossh-%E5%AE%9E%E7%8E%B0%E5%8F%8D%E5%90%91%E4%BB%A3%E7%90%86"><span class="nav-number">30.</span> <span class="nav-text">autossh 实现反向代理</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yushu.gao</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">92</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">32</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">94</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yushu.gao</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>

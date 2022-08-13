@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"shuokay.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":false,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="在上一篇中介绍了如何使用 MXNet 的 legacy 接口实现一个Operator, 本文介绍如何使用nnvm接口实现Operator.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="MXNet 源码详解--自定义Operator(nnvm方法)">
+<meta property="og:url" content="http://shuokay.com/mxnet-source-code-operator-nnvm/index.html">
+<meta property="og:site_name" content="Memo">
+<meta property="og:description" content="在上一篇中介绍了如何使用 MXNet 的 legacy 接口实现一个Operator, 本文介绍如何使用nnvm接口实现Operator.">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2020-09-17T07:59:52.000Z">
+<meta property="article:modified_time" content="2022-08-13T02:16:25.731Z">
+<meta property="article:author" content="yushu.gao">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://shuokay.com/mxnet-source-code-operator-nnvm/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>MXNet 源码详解--自定义Operator(nnvm方法) | Memo</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Memo</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="th fa-fw"></i>分类</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://shuokay.com/mxnet-source-code-operator-nnvm/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yushu.gao">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Memo">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          MXNet 源码详解--自定义Operator(nnvm方法)
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2020-09-17 15:59:52" itemprop="dateCreated datePublished" datetime="2020-09-17T15:59:52+08:00">2020-09-17</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>在上一篇中介绍了如何使用 MXNet 的 legacy 接口实现一个Operator, 本文介绍如何使用nnvm接口实现Operator.</p>
+<span id="more"></span>
+<p>本文仍然以实现一个量化训练的Operator为例, 具体的数学过程参考上一篇.<br>使用nnvm实现Operator和原来的legacy接口要实现的内容比较类似, 只不过nnvm方式所有的接口都是使用函数实现的, 因此, 在Operator中无法记录Operator的中间状态, 所有需要记录的状态都要在外部初始化, 然后以参数的形式传到相应的函数中进行更新.<br>nnvm 的方法实现Operator同样需要实现3个主要的部分, Parameter 的定义, Operator的计算, 以及Operator的属性.<br>由于量化训练的原理在上一篇中已经讲过了, 因此, 在这片文章中只关注具体的代码实现.</p>
+<h1 id="属性参数定义"><a href="#属性参数定义" class="headerlink" title="属性参数定义"></a>属性参数定义</h1><p>属性参数Parameter的定义和之前的完全一致, 这里直接跳过了.</p>
+<h1 id="计算的定义"><a href="#计算的定义" class="headerlink" title="计算的定义"></a>计算的定义</h1><p>计算的定义接口和legacy的方法也几乎相同, 只不过, 这里不需要继承Operator类了, 而是直接实现具体的计算函数.</p>
+<h1 id="Forward"><a href="#Forward" class="headerlink" title="Forward"></a>Forward</h1><p>这里为了简单, 同样默认只支持了 <code>float</code> 类型.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span> &lt;<span class="keyword">typename</span> xpu&gt;</span><br><span class="line"><span class="function"><span class="type">static</span> <span class="type">void</span> <span class="title">QuantizationCompute</span><span class="params">(<span class="type">const</span> nnvm::NodeAttrs&amp; attrs,</span></span></span><br><span class="line"><span class="params"><span class="function">                                <span class="type">const</span> OpContext&amp; ctx,</span></span></span><br><span class="line"><span class="params"><span class="function">                                <span class="type">const</span> std::vector&lt;TBlob&gt;&amp; inputs,</span></span></span><br><span class="line"><span class="params"><span class="function">                                <span class="type">const</span> std::vector&lt;OpReqType&gt;&amp; req,</span></span></span><br><span class="line"><span class="params"><span class="function">                                <span class="type">const</span> std::vector&lt;TBlob&gt;&amp; outputs)</span> </span>&#123;</span><br><span class="line">  <span class="keyword">using</span> <span class="keyword">namespace</span> mshadow;</span><br><span class="line">  <span class="keyword">using</span> <span class="keyword">namespace</span> mshadow::expr;</span><br><span class="line">  Stream&lt;xpu&gt;* s = ctx.<span class="built_in">get_stream</span>&lt;xpu&gt;();</span><br><span class="line">  <span class="type">const</span> <span class="keyword">auto</span>&amp; param = dmlc::<span class="built_in">get</span>&lt;QuantiParam&gt;(attrs.parsed);</span><br><span class="line">  <span class="keyword">using</span> DType = <span class="type">float</span>;</span><br><span class="line">  DType qmin = <span class="number">-127</span>, qmax = <span class="number">127</span>;</span><br><span class="line">  Tensor&lt;xpu, <span class="number">4</span>, DType&gt; data = inputs[quanti::kData].<span class="built_in">get</span>&lt;xpu, <span class="number">4</span>, DType&gt;(s);</span><br><span class="line">  Tensor&lt;xpu, <span class="number">4</span>, DType&gt; out = outputs[quanti::kOut].<span class="built_in">get</span>&lt;xpu, <span class="number">4</span>, DType&gt;(s);</span><br><span class="line">  DType scale = param.scale;</span><br><span class="line">  out = <span class="built_in">F</span>&lt;mshadow_op::minimum&gt;(<span class="built_in">F</span>&lt;mshadow_op::maximum&gt;(<span class="built_in">F</span>&lt;mshadow_op::round&gt;(scale * data), qmin),</span><br><span class="line">                               qmax) /</span><br><span class="line">        scale;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h1 id="Backward"><a href="#Backward" class="headerlink" title="Backward"></a>Backward</h1><p>在反向中, 需要特别注意的一点是, 对于网络来说, 输出的节点的梯度是放在 inputs 中的, 而输入节点的 grad 是放在 ouputs 中的, 这是因为, 在 nnvm 中, 由于计算图的关系, 在计算梯度的时候, 我们是从前向图的输出节点的grad去计算输入节点的grad, 因此, 计算梯度的计算图恰好和前向图是反的. 在gradient graph 中, 原始数据的输入对应的梯度体现在计算图中是输出, 原始数据的输出对应的梯度体现在计算图中是出入.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span> &lt;<span class="keyword">typename</span> xpu&gt;</span><br><span class="line"><span class="function"><span class="type">static</span> <span class="type">void</span> <span class="title">QuantizationGrad</span><span class="params">(<span class="type">const</span> nnvm::NodeAttrs&amp; attrs,</span></span></span><br><span class="line"><span class="params"><span class="function">                             <span class="type">const</span> OpContext&amp; ctx,</span></span></span><br><span class="line"><span class="params"><span class="function">                             <span class="type">const</span> std::vector&lt;TBlob&gt;&amp; inputs,</span></span></span><br><span class="line"><span class="params"><span class="function">                             <span class="type">const</span> std::vector&lt;OpReqType&gt;&amp; req,</span></span></span><br><span class="line"><span class="params"><span class="function">                             <span class="type">const</span> std::vector&lt;TBlob&gt;&amp; outputs)</span> </span>&#123;</span><br><span class="line">  <span class="keyword">using</span> <span class="keyword">namespace</span> mshadow;</span><br><span class="line">  Stream&lt;xpu&gt;* s = ctx.<span class="built_in">get_stream</span>&lt;xpu&gt;();</span><br><span class="line">  <span class="keyword">using</span> DType=<span class="type">float</span>;</span><br><span class="line">  Tensor&lt;xpu, <span class="number">4</span>, DType&gt; dgrad = outputs[quanti::kData].<span class="built_in">get</span>&lt;xpu, <span class="number">4</span>, DType&gt;(s);</span><br><span class="line">  Tensor&lt;xpu, <span class="number">4</span>, DType&gt; ograd = inputs[quanti::kOut].<span class="built_in">get</span>&lt;xpu, <span class="number">4</span>, DType&gt;(s);</span><br><span class="line">  <span class="built_in">Assign</span>(dgrad, req[quanti::kData], ograd);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h1 id="计算属性"><a href="#计算属性" class="headerlink" title="计算属性"></a>计算属性</h1><p>同样的, 我们也需要对计算定义一些属性, 类似上一篇中的 InferShape, InferType 等, nnvm 简化了这部分的工作, 直接注册成对应的方法就可以了.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">NNVM_REGISTER_OP</span>(Quanti)</span><br><span class="line">    .<span class="built_in">set_num_inputs</span>(<span class="number">1</span>)</span><br><span class="line">    .<span class="built_in">set_num_outputs</span>(<span class="number">1</span>)</span><br><span class="line">    .<span class="built_in">set_attr_parser</span>(ParamParser&lt;QuantiParam&gt;)</span><br><span class="line">    .<span class="built_in">set_attr</span>&lt;nnvm::FListInputNames&gt;(<span class="string">&quot;FListInputNames&quot;</span>,</span><br><span class="line">                                     [](<span class="type">const</span> NodeAttrs&amp; attrs) &#123;</span><br><span class="line">                                       <span class="keyword">return</span> std::<span class="built_in">vector</span>&lt;std::string&gt;(&#123;<span class="string">&quot;data&quot;</span>&#125;);</span><br><span class="line">                                     &#125;)</span><br><span class="line">    .<span class="built_in">set_attr</span>&lt;mxnet::FInferShape&gt;(<span class="string">&quot;FInferShape&quot;</span>, ElemwiseShape&lt;<span class="number">-1</span>, <span class="number">1</span>&gt;)</span><br><span class="line">    .<span class="built_in">set_attr</span>&lt;nnvm::FInferType&gt;(<span class="string">&quot;FInferType&quot;</span>, ElemwiseType&lt;<span class="number">-1</span>, <span class="number">1</span>&gt;)</span><br><span class="line">    .<span class="built_in">set_attr</span>&lt;FCompute&gt;(<span class="string">&quot;FCompute&lt;cpu&gt;&quot;</span>, QuantizationCompute&lt;cpu&gt;)</span><br><span class="line">    .<span class="built_in">set_attr</span>&lt;nnvm::FGradient&gt;(<span class="string">&quot;FGradient&quot;</span>, ElemwiseGradUseNone&#123;<span class="string">&quot;_backward_Quanti&quot;</span>&#125;)</span><br><span class="line">    .<span class="built_in">add_argument</span>(<span class="string">&quot;data&quot;</span>, <span class="string">&quot;NDArray-or-Symbol&quot;</span>, <span class="string">&quot;&quot;</span>)</span><br><span class="line">    .<span class="built_in">add_arguments</span>(QuantiParam::__FIELDS__());</span><br><span class="line"><span class="built_in">NNVM_REGISTER_OP</span>(_backward_Quanti)</span><br><span class="line">    .<span class="built_in">set_attr_parser</span>(ParamParser&lt;QuantiParam&gt;)</span><br><span class="line">    .<span class="built_in">set_num_inputs</span>(<span class="number">1</span>)</span><br><span class="line">    .<span class="built_in">set_num_outputs</span>(<span class="number">1</span>)</span><br><span class="line">    .<span class="built_in">set_attr</span>&lt;nnvm::TIsBackward&gt;(<span class="string">&quot;TIsBackward&quot;</span>, <span class="literal">true</span>)</span><br><span class="line">    .<span class="built_in">set_attr</span>&lt;FCompute&gt;(<span class="string">&quot;FCompute&lt;cpu&gt;&quot;</span>, QuantizationGrad&lt;cpu&gt;);</span><br></pre></td></tr></table></figure>
+<p>从上面的代码可以看到几个比较重要的地方: InferShape, InferType 和上一篇一样, 也是通过输入的Shape和Type去推导其它输入输出数据的Shape和Type, FCompute用来指定该Operator的具体的计算的实现. 整体上看, 和上一篇基于类的方法要完成的工作是一样的, 只不过换了一种方式.<br>最后在对应的 .cu 文件中指定在GPU上如何计算之后, 整个Operator就完成了.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">NNVM_REGISTER_OP</span>(Quanti).<span class="built_in">set_attr</span>&lt;FCompute&gt;(<span class="string">&quot;FCompute&lt;gpu&gt;&quot;</span>, QuantizationCompute&lt;gpu&gt;);</span><br><span class="line"><span class="built_in">NNVM_REGISTER_OP</span>(_backward_Quanti).<span class="built_in">set_attr</span>&lt;FCompute&gt;(<span class="string">&quot;FCompute&lt;gpu&gt;&quot;</span>, QuantizationGrad&lt;gpu&gt;);</span><br></pre></td></tr></table></figure>
+
+<h1 id="如何选择"><a href="#如何选择" class="headerlink" title="如何选择"></a>如何选择</h1><p>最后说一说在实现具体的Operator的时候, 是选择基于上一篇介绍的基于class的方法还是选择本篇介绍的基于nnvm的方法.<br>理论上, 在写一个Operator的时候, 使用两种方法的任意一种都是可以的, MXNet 需要做到兼容上一篇的class的方法. 两种方法各有优缺点, 但是, 我个人推荐使用nnvm的这种方法.</p>
+<ol>
+<li>由于nnvm兼容之前的代码做的还不够完备, 如果现在使用class方法实现Operator的话可能会出现一些不可预料的问题. 下面会举例说明我遇到的一些兼容方面的问题.</li>
+<li>使用 nnvm 的方法的话Operator写起来更方面一些. 模式也更加统一.</li>
+</ol>
+<h2 id="nnvm-兼容旧代码的问题"><a href="#nnvm-兼容旧代码的问题" class="headerlink" title="nnvm 兼容旧代码的问题"></a>nnvm 兼容旧代码的问题</h2><p>到目前为止, 我至少碰到了三次因为兼容做的不完备导致而踩到的坑.<br>一次是 <code>InplaceOption</code> 的坑, 由于没有兼容<code>InplaceOption</code>选项, 网络在设置OpReqType的时候出现了问题, 训练的时候直接崩溃. 解决方法是在 <code>legacy_op_util.cc</code> 中加上对于 <code>InplaceOption</code> 的兼容.<br>第二次的问题就更隐蔽了, 在使用CacheOp的时候, 由于我需要在运行之前, 根据用户的设置, 修改graph的一些属性, 因此, 在我拿到CacheOp的graph之后, 我会去修改graph中节点的一些attrs并且保存该graph. 但是, 由于兼容的问题, 在我修改了graph之后, 虽然落盘的graph显示是已经修改了attrs, 但是, 实际上在内存中用于训练的graph并没有变更attrs. 最终, 导致, 模型训练完之后再load模型进行inference的时候结果完全不符合预期. 解决方法大概有两个, 一个是把graph保存成json文件之后重新load该文件去build graph, 另外一种方法是在MXNet中fix, 见 <a target="_blank" rel="noopener" href="https://github.com/shuokay/incubator-mxnet/commit/9865ce9213af956bb200eeb414daff31055d9096">https://github.com/shuokay/incubator-mxnet/commit/9865ce9213af956bb200eeb414daff31055d9096</a><br>第三次是, 由于nnvm的模式不保存内部状态, 因此导致, 之前用class方法写的带有内部状态的Operator全部都需要做相应的修改, 去掉内部状态.</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/mxnet-source-code-operator/" rel="prev" title="MXNet 源码详解--自定义Operator">
+      <i class="fa fa-chevron-left"></i> MXNet 源码详解--自定义Operator
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/dmlc-core-parameter/" rel="next" title="MXNet 源码详解 -- Parameter">
+      MXNet 源码详解 -- Parameter <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%B1%9E%E6%80%A7%E5%8F%82%E6%95%B0%E5%AE%9A%E4%B9%89"><span class="nav-number">1.</span> <span class="nav-text">属性参数定义</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%AE%A1%E7%AE%97%E7%9A%84%E5%AE%9A%E4%B9%89"><span class="nav-number">2.</span> <span class="nav-text">计算的定义</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Forward"><span class="nav-number">3.</span> <span class="nav-text">Forward</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Backward"><span class="nav-number">4.</span> <span class="nav-text">Backward</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%AE%A1%E7%AE%97%E5%B1%9E%E6%80%A7"><span class="nav-number">5.</span> <span class="nav-text">计算属性</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%A6%82%E4%BD%95%E9%80%89%E6%8B%A9"><span class="nav-number">6.</span> <span class="nav-text">如何选择</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#nnvm-%E5%85%BC%E5%AE%B9%E6%97%A7%E4%BB%A3%E7%A0%81%E7%9A%84%E9%97%AE%E9%A2%98"><span class="nav-number">6.1.</span> <span class="nav-text">nnvm 兼容旧代码的问题</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yushu.gao</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">92</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">32</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">94</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yushu.gao</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>

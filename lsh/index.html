@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"shuokay.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":false,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="LSH (Local Sensitive Hash) 是一种在大规模数据中寻找相似数据的方法. LSH 算是一种随机算法 (Random Algorithm). Random Algorithm 的特点是, 它不能保证每次都返回准确的结果, 但是, 它是已较高的概率保证返回正确的结果, 或者是与正确结果很接近的 value. 而且, 如果计算资源足够, 概率可以 as high as desire">
+<meta property="og:type" content="article">
+<meta property="og:title" content="大规模高维数据检索算法LSH">
+<meta property="og:url" content="http://shuokay.com/lsh/index.html">
+<meta property="og:site_name" content="Memo">
+<meta property="og:description" content="LSH (Local Sensitive Hash) 是一种在大规模数据中寻找相似数据的方法. LSH 算是一种随机算法 (Random Algorithm). Random Algorithm 的特点是, 它不能保证每次都返回准确的结果, 但是, 它是已较高的概率保证返回正确的结果, 或者是与正确结果很接近的 value. 而且, 如果计算资源足够, 概率可以 as high as desire">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://shuokay.com/content/images/lsh/lsh.png">
+<meta property="article:published_time" content="2016-07-26T01:52:40.000Z">
+<meta property="article:modified_time" content="2022-08-13T02:16:25.727Z">
+<meta property="article:author" content="yushu.gao">
+<meta property="article:tag" content="LSH">
+<meta property="article:tag" content="Data Retrieval">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://shuokay.com/content/images/lsh/lsh.png">
+
+<link rel="canonical" href="http://shuokay.com/lsh/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>大规模高维数据检索算法LSH | Memo</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Memo</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="th fa-fw"></i>分类</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://shuokay.com/lsh/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yushu.gao">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Memo">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          大规模高维数据检索算法LSH
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2016-07-26 09:52:40" itemprop="dateCreated datePublished" datetime="2016-07-26T09:52:40+08:00">2016-07-26</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/LSH/" itemprop="url" rel="index"><span itemprop="name">LSH</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>LSH (Local Sensitive Hash) 是一种在大规模数据中寻找相似数据的方法. LSH 算是一种随机算法 (Random Algorithm). Random Algorithm 的特点是, 它不能保证每次都返回准确的结果, 但是, 它是已较高的概率保证返回正确的结果, 或者是与正确结果很接近的 value. 而且, 如果计算资源足够, 概率可以 as high as desired. LSH 以小概率的搜索失败为代价, 大幅度降低了搜索时间复杂度.</p>
+<span id="more"></span>
+
+<h1 id="问题描述"><a href="#问题描述" class="headerlink" title="问题描述"></a>问题描述</h1><p>给定一个 query point, 需要在数据集中找到该point, 或者, 找到与该 query 最接近的 point. 对于任意一个 query point, 希望算法能够以 \(1-\sigma\) 的概率保证能够找到最相似的 point. 理论上讲, 可以通过线性搜索的方法, 遍历一遍整个数据集, 对于数据中的每一个 point, 计算与 query point 的距离 (例如欧氏距离), 但是, 考虑到数据集中的数据达到上千万条, 每个数据是成百上千维的向量, 因此, 线性搜索的方式耗时非常长. 因此, 在这种情况下, 就不能使用线性搜索了. 目前场合用的方法是树方法和 Hash.</p>
+<h1 id="树方法"><a href="#树方法" class="headerlink" title="树方法"></a>树方法</h1><p>树方法和二叉树的搜索很相似: 从根节点开始, 分别和左子树和右子树的根节点比较, 重复该过程. 理想的时间复杂度是 \(O(N)\). 如果, 是一维空间, 就是 binary search, 如果是高维空间, 就是 kD tree. KD tree 在空间维数比较高的时候也会 break down, 时间复杂度退化到 \(O(N)\).</p>
+<h1 id="Hash"><a href="#Hash" class="headerlink" title="Hash"></a>Hash</h1><p>Hash 通过 hash function 把一个 point 映射到一个value, 通常, point 是高维的, value 是低维的. 在 hash 的过程中有可能把不同的 points 映射到了同一个value, 有很多方法解决这个问题. 一个 well designed hash table 可以在 \(O(1)\) 的时间内完成搜索 (吊炸天~). 理想的 hash function 可以把相似的 points 分到不同的 buckets. 这样, 通过 hash table 可以在 \(O(1)\) 的时间内找到 the exact match. 然而理想很完美, 现实中很难找到这样的 hash function. 于是, 就有了 LSH 来找到 approximate (near) matches.</p>
+<h1 id="Local-Sensitive-Hash"><a href="#Local-Sensitive-Hash" class="headerlink" title="Local Sensitive Hash"></a>Local Sensitive Hash</h1><p>LSH 的想法很简单, <strong>如果两个 points 本来就比较接近, 那么, 在通过 “projection” 之后的位置仍然是接近的. 反之, 如果距离较远, hash 之后距离仍然较远</strong>. 例如, 在下图中, 在球面上面, 两个圆点比较接近, 两个方点的距离比较远, 那么, 把该球面上的所有的点投影到平面上的时候, 以较大概率发生的是: 两个原点仍然距离较近, 两个方点的距离仍然较远.(只有在一些比较特殊的角度上面投影, 才会使得投影后的原点距离较远, 方点距离较近). LSH 的目的是, 如果两个 points 比较相似, 那么, 通过 hash function 映射之后, 这两个 points 落入到 hash table 的同一个 bucket 中, 反之, 如果不相似的 points 落入到不同的 bucket 中. 因此, 在 LSH 中, 重点是找到符合要求的 hash function.</p>
+<center><img src="/content/images/lsh/lsh.png" width=300></center>
+
+<p>LSH 所有的魔法全部集中在 LSH hash function 上面. LSH hash function 的要求是:</p>
+<ul>
+<li><p>对于 \({\cal R}^d\) 中的两个相似的点 \(p\) 和 \(q\), 通过 hash 之后, 它们有较高的概率落入到同一个 bucket 中.</p>
+
+\[
+P_H \left[ h(p)=h(q) \right] \geq P_1 \text{ for } \Vert p-q \Vert \leq R_1
+\]
+
+</li>
+<li><p>对于 \({\cal R}^d\) 中的两个不相似的点 \(p\) 和 \(q\), 通过 hash 之后, 它们有较小的概率落入到同一个 bucket 中.</p>
+
+\[
+P_H \left[ h(p)=h(q) \right] \leq P_2 \text{ for } \Vert p-q \Vert \geq cR_1 = R_2
+\]
+</li>
+</ul>
+<p>上述公式中, \(R_1 &lt; R_2\). 至于该 hash 函数怎么选择, 有很多方法, 其中有一种方法是 random projection. 其核心是 scalar projection: \(h(\overrightarrow{v})&#x3D;\overrightarrow{v} \cdot \overrightarrow{x} \), \( \overrightarrow{v} \) 是高维空间的待搜索的点, \( \overrightarrow{x} \) 是其元素从 Gaussian distribution 中采样得到的向量. 然后, 这个 scalar projection 的结果通过 hash function 映射到 hash bin. hash function 为:</p>
+
+\[
+h^{x,b}(\overrightarrow{v})=\left\lfloor \dfrac{\overrightarrow{x} \cdot \overrightarrow{v}+b}{w} \right\rfloor
+\]
+
+
+<p>LSH function 保证了 \(P_1&gt;P_2\), 为了 magnify the difference between \(P_1\) and \(P_2\), 可以把 \(k\) 个 hash function 进行concatenate. 这样, \({\left(\dfrac{P_1}{P_2}\right)}^k \gg \dfrac{P_1}{P_2}\), 如果在 \(k\) 个 hash 中, 都成功找到 query point, 就可以以更大的自信说找到的 point 就是最 match 的 point. 然而, 这样有个缺点是, 通过 concatenate 只有, 上述情形发生的概率是 \(P_1^k\), 非常小的值. 为了解决这个问题, 使用 \(L\) 个 independent 的 projection, 然后, 从中对 neighbor 采样.</p>
+<h1 id="实现"><a href="#实现" class="headerlink" title="实现"></a>实现</h1><p>总的来说, 是使用了两个 hash function, \(T_1\) 和 \(T_2\), \(T_1\) 就是用来做传统的 hash.</p>
+
+\[
+T_1 = \left( \sum_i H_i k_i \text{ mod } P_1 \right)
+\]
+
+<p>由于在 hash 中存在冲突的现象, 所以, LSH 中引入了第二个 hash function \(T_2\), 和 \(T_1\) 形式是一样的, 作用是 check that points retrieved from the hash table do indeed match the query. 具体做法是: 把 \(T_2\) 的结果(fingerprints)存储到 \(I_1\) 对应的 bin 中. 于是, 在 retrieval 的时候, 直接比较 fingerprints, 由于 fingerprints 比较短, 速度比直接比较两个 \(k\) 维的向量速度要快.</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/LSH/" rel="tag"># LSH</a>
+              <a href="/tags/Data-Retrieval/" rel="tag"># Data Retrieval</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/bovw/" rel="prev" title="BoVW 图像检索">
+      <i class="fa fa-chevron-left"></i> BoVW 图像检索
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/install-mxnet-ubuntu-1604/" rel="next" title="Ubuntu 16.04 LTS 安装 MXNet 过程">
+      Ubuntu 16.04 LTS 安装 MXNet 过程 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E9%97%AE%E9%A2%98%E6%8F%8F%E8%BF%B0"><span class="nav-number">1.</span> <span class="nav-text">问题描述</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%A0%91%E6%96%B9%E6%B3%95"><span class="nav-number">2.</span> <span class="nav-text">树方法</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Hash"><span class="nav-number">3.</span> <span class="nav-text">Hash</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Local-Sensitive-Hash"><span class="nav-number">4.</span> <span class="nav-text">Local Sensitive Hash</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%AE%9E%E7%8E%B0"><span class="nav-number">5.</span> <span class="nav-text">实现</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yushu.gao</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">92</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">32</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">94</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yushu.gao</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS-MML_HTMLorMML';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+</body>
+</html>

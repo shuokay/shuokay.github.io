@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"shuokay.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":false,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="翻译自 MXNet 官方文档在深度学习领域有很多深度学习库, 每个库都有其独特之处. 从系统优化和用户体验角度讲, 每个库有什么优点和缺点呢? 这篇文章对编程模型做了比较, 讨论了他们基本的优缺点以及我们可以从中学习到什么.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="深度学习中的编程模型">
+<meta property="og:url" content="http://shuokay.com/programming-models-for-deep-learning/index.html">
+<meta property="og:site_name" content="Memo">
+<meta property="og:description" content="翻译自 MXNet 官方文档在深度学习领域有很多深度学习库, 每个库都有其独特之处. 从系统优化和用户体验角度讲, 每个库有什么优点和缺点呢? 这篇文章对编程模型做了比较, 讨论了他们基本的优缺点以及我们可以从中学习到什么.">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://shuokay.com/content/images/programming-models-for-deep-learning/comp_graph.png">
+<meta property="og:image" content="http://shuokay.com/content/images/programming-models-for-deep-learning/comp_graph.png">
+<meta property="og:image" content="http://shuokay.com/content/images/programming-models-for-deep-learning/comp_graph_fold.png">
+<meta property="article:published_time" content="2017-03-08T14:03:37.000Z">
+<meta property="article:modified_time" content="2022-08-13T02:16:25.732Z">
+<meta property="article:author" content="yushu.gao">
+<meta property="article:tag" content="MXNet">
+<meta property="article:tag" content="HPC">
+<meta property="article:tag" content="Framework">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://shuokay.com/content/images/programming-models-for-deep-learning/comp_graph.png">
+
+<link rel="canonical" href="http://shuokay.com/programming-models-for-deep-learning/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>深度学习中的编程模型 | Memo</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Memo</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="th fa-fw"></i>分类</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://shuokay.com/programming-models-for-deep-learning/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yushu.gao">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Memo">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          深度学习中的编程模型
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2017-03-08 22:03:37" itemprop="dateCreated datePublished" datetime="2017-03-08T22:03:37+08:00">2017-03-08</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Framework/" itemprop="url" rel="index"><span itemprop="name">Framework</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Framework/MXNet/" itemprop="url" rel="index"><span itemprop="name">MXNet</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/HPC/" itemprop="url" rel="index"><span itemprop="name">HPC</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>翻译自 MXNet <a target="_blank" rel="noopener" href="http://mxnet.io/architecture/program_model.html">官方文档</a><br>在深度学习领域有很多深度学习库, 每个库都有其独特之处. 从系统优化和用户体验角度讲, 每个库有什么优点和缺点呢? 这篇文章对编程模型做了比较, 讨论了他们基本的优缺点以及我们可以从中学习到什么.</p>
+<span id="more"></span>
+<p>这篇文章不会对各种深度学习库做 benchmark, 而是主要讨论编程模型本身, 而不是具体的实现. 根据用户接口的不同, 把库分成了几类, 讨论了接口的形式是怎样影响了灵活性和性能的. 这里的讨论并不仅限于深度学习, 这里使用深度学习只是为了使用具体的例子来说明使用案例和具体的优化.</p>
+<h1 id="Symbolic-vs-Imperative-Programs"><a href="#Symbolic-vs-Imperative-Programs" class="headerlink" title="Symbolic vs. Imperative Programs"></a>Symbolic vs. Imperative Programs</h1><p>首先来比较一下符号编程(也称为声明式编程) 和 命令式编程. 如果是使用 C++ 或者 Python, 那么, 对命令式编程应该是非常熟悉了, 命令式编程在运行他们的时候马上进行计算. 用 Python 写的大部分代码都是命令式的, 例如下面这一段 NumPy 的代码:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> numpy <span class="keyword">as</span> np</span><br><span class="line">a = np.ones(<span class="number">10</span>)</span><br><span class="line">b = np.ones(<span class="number">10</span>) * <span class="number">2</span></span><br><span class="line">c = b * a</span><br><span class="line">d = c + <span class="number">1</span></span><br></pre></td></tr></table></figure>
+
+<p>当程序执行 <code>c = b * a</code> 的时候, 程序执行的是真是的计算.</p>
+<p>符号式编程和命令式编程有一些区别, 下面这一段代码的功能和上面的代码相同, 只不过, 这里使用的是符号式编程完成的:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">A = Variable(<span class="string">&#x27;A&#x27;</span>)</span><br><span class="line">B = Variable(<span class="string">&#x27;B&#x27;</span>)</span><br><span class="line">C = B * A</span><br><span class="line">D = C + Constant(<span class="number">1</span>)</span><br><span class="line"><span class="comment"># compiles the function</span></span><br><span class="line">f = <span class="built_in">compile</span>(D)</span><br><span class="line">d = f(A=np.ones(<span class="number">10</span>), B=np.ones(<span class="number">10</span>)*<span class="number">2</span>)</span><br></pre></td></tr></table></figure>
+
+<p>符号式和命令式的区别是: 在符号式中执行到 <code>C = B * A</code> 的时候, 并没有进行真正的计算, 取而代之的是, 这个操作仅仅是生成了一个表示当前计算的计算图. 下图表示了用来计算 <code>D</code> 的计算图</p>
+<center><img src="/content/images/programming-models-for-deep-learning/comp_graph.png"></center>
+不管是显式的还是隐式的, 所有的符号式编程都有一个 compile 的步骤, 这个过程把计算图转换成一个可被调用的函数. 计算只是在代码的最后一行才真正执行. 符号式编程最大的特点是计算图的定义和编译有着清晰的边界.
+
+<p>命令式的深度学习库有 Torch, Chainer, Minerva, 符号式的深度学习库包括 Theano, CGT, TensorFlow 等. Caffe, CXXNet 这类使用配置文件的库也可以看作是符号式的, 其配置文件定义了计算图.</p>
+<p>接下来, 对比一下符号式和命令式.</p>
+<h2 id="Imperative-Programs-Are-More-Flexible"><a href="#Imperative-Programs-Are-More-Flexible" class="headerlink" title="Imperative Programs Are More Flexible"></a>Imperative Programs Are More Flexible</h2><p>通常来说, 命令式比符号式更灵活. 当使用 Python 来写一段代码的时候, 使用的就是 Python 本身, 但是, 对于符号式来说就有所不同了. 例如下面这段代码, 怎样转换成符号式呢?</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">a = <span class="number">2</span></span><br><span class="line">b = a + <span class="number">1</span></span><br><span class="line">d = np.zeros(<span class="number">10</span>)</span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(d):</span><br><span class="line">    d += np.zeros(<span class="number">10</span>)</span><br></pre></td></tr></table></figure>
+
+<p>这里有点小困难, 因为上述代码中有一个 for 循环, 在符号式中, 要想支持循环这种语法比较困难. 使用 Python 写的符号式代码, 本质上并不是 Python 代码, 实际上, 在符号式中, Python 代码只是一种描述语言, Python 写出来的代码是符号式定义的一种 Domain Specific Language (DSL). 符号式是 DSL 的一种更强形式, 它可以生成计算图或者神经网络的配置结构. 从这个意义上讲, 所有配置文件输入的库都是符号式的.</p>
+<p>命令式的编程更 native, 因此, 在命令式中可以非常容易的使用 native 的语法, 例如打印, 条件, 循环等宿主语言的特定.</p>
+<h2 id="Symbolic-Programs-Are-More-Efficient"><a href="#Symbolic-Programs-Are-More-Efficient" class="headerlink" title="Symbolic Programs Are More Efficient"></a>Symbolic Programs Are More Efficient</h2><p>上面的分析表明, 命令式编程比较灵活而且可以充分利用宿主语言的特定, 那么, 为什么还有很多深度学习库使用符号式编程呢? 最主要的原因是符号式的效率更高, 包括内存使用效率和运行效率. 为了说明这个问题, 考虑前面的那个例子:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> numpy <span class="keyword">as</span> np</span><br><span class="line">a = np.ones(<span class="number">10</span>)</span><br><span class="line">b = np.ones(<span class="number">10</span>) * <span class="number">2</span></span><br><span class="line">c = b * a</span><br><span class="line">d = c + <span class="number">1</span></span><br><span class="line">...</span><br></pre></td></tr></table></figure>
+
+<center><img src="/content/images/programming-models-for-deep-learning/comp_graph.png"></center>
+
+<p>假设数组中的内一个元素占用 8 字节的空间, 那么, 上述代码占用的空间为 <code>4*10*8=320</code>, C 和 D 可以共享内存, 因此, 实际上占用是 <code>3*10*8=240</code>.</p>
+<p>符号式更严格, 对 D 做 compile 操作之后, 相当于<strong>明确</strong>告诉了系统, 我只关心 D 的输出, 其它的都不管, 因此, 中间状态 (C) 完全是透明的, 因此, 系统就可以放心大胆地去 reuse C 的内存空间.</p>
+<p>另外一方面, 命令式的特点是, 它需要时时刻刻为将来考虑. 举例来说, 如果上述代码在 console 执行, 那么, 当前状态的下, 所有的变量都有可能在将来的某个时间会用到, 所以, 所有的变量都需要保持, 因此就无法进行变量内存的 reuse. 当然, 实际情况并没有这么严重, Python 拥有内存回收机制, 会在合适的时间回收内存. 这个例子是想说明, 命令式编程<strong>需要时时刻刻为将来的所有状态做好准备</strong>. 因此, 这就严重限制了内存的优化.</p>
+<p>符号式还可以进行另外一种优化, 称为计算折叠. 在上述例子中, 乘法和加法可以折叠成一个操作. 如下图所示. 计算折叠什么优点呢? 举个例子来说, 如果代码是跑在 GPU 上面的, 那么, 未折叠的计算需要两个 GPU kernel, 通过计算折叠之后只需要一个 kernel. 这也是 Caffe 等库中需要手动优化的地方. 计算折叠大大提高了计算效率.</p>
+<center><img src="/content/images/programming-models-for-deep-learning/comp_graph_fold.png"></center>
+
+<p>命令式是无法进行计算折叠的, 因为, 当前的变量有可能在将来会被用到. 符号式就不同了, 符号式中, 系统得到了整个计算图的结构, 因此可以马上知道哪些变量会用到, 哪些变量不会用到.</p>
+<h2 id="Model-Checkpoint"><a href="#Model-Checkpoint" class="headerlink" title="Model Checkpoint"></a>Model Checkpoint</h2><p>深度学习中, 存储&#x2F;载入模型很重要. 模型的存储包括两部分, 一部分是描述了网络结构的配置文件, 一部分是模型的参数. 符号式可以很容易的存储配置文件, 因为, 符号构建并没有任何计算, 因此, 可以直接序列化计算图, 并且, 在需要的时候直接载入. 因此, 网络结构的存储并不需要一个单独的 layer.</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">A = Variable(<span class="string">&#x27;A&#x27;</span>)</span><br><span class="line">B = Variable(<span class="string">&#x27;B&#x27;</span>)</span><br><span class="line">C = B * A</span><br><span class="line">D = C + Constant(<span class="number">1</span>)</span><br><span class="line">D.save(<span class="string">&#x27;mygraph&#x27;</span>)</span><br><span class="line">...</span><br><span class="line">D2 = load(<span class="string">&#x27;mygraph&#x27;</span>)</span><br><span class="line">f = <span class="built_in">compile</span>([D2])</span><br><span class="line"><span class="comment"># more operations</span></span><br><span class="line">...</span><br></pre></td></tr></table></figure>
+
+<p>对于命令式来说, 要么存储整个代码, 要么构建一个单独的用于存储的 layer.</p>
+<h2 id="Parameter-Updates"><a href="#Parameter-Updates" class="headerlink" title="Parameter Updates"></a>Parameter Updates</h2><p>命令式程序都是计算流图, 计算流图描述了如何进行技术, 但是, 没有描述怎样进行更新参数. 这是因为, 参数更新引入了数据改变, 计算流图无法支持. 大部分的符号式库都引入了一种特殊的语句来支持这种数据更新操作.</p>
+<p>使用命令式来进行参数更新非常简单, 尤其是过个更新之间相互关联的情况. 对于符号式编程来说, update statement 被调用之后也是马上执行, 从这个意义上来说, 大部分的符号式编程在 update 的时候 fall back 到了命令式. 当然在计算梯度的时候仍然使用的是符号式.</p>
+<h2 id="There-Is-No-Strict-Boundary"><a href="#There-Is-No-Strict-Boundary" class="headerlink" title="There Is No Strict Boundary"></a>There Is No Strict Boundary</h2><p>通过以上的比较, 可以发现, 符号式无法完全胜过命令式, 命令式也不是完全优于符号式. 在实践中, 这两种方法并没有非常严格的界限, 例如, 可以给 Python 创建一个及时编译器来编译 Python 代码, 编译之后的代码就可以利用一些全局信息了.</p>
+<h1 id="Big-vs-Small-Operations"><a href="#Big-vs-Small-Operations" class="headerlink" title="Big vs. Small Operations"></a>Big vs. Small Operations</h1><p>现在来讨论以下深度学习库中的操作, 通常, 这些操作可以分为两类:</p>
+<ul>
+<li>大操作, 例如 FullConncted 和 BatchNormalization</li>
+<li>小操作, 例如 element-wise 的乘法和加法</li>
+</ul>
+<p>CXXNet 和 Caffe 支持的是大操作，Theano 和 Minerva 支持的是细粒度的操作.</p>
+<h2 id="Smaller-Operations-Can-Be-More-Flexible"><a href="#Smaller-Operations-Can-Be-More-Flexible" class="headerlink" title="Smaller Operations Can Be More Flexible"></a>Smaller Operations Can Be More Flexible</h2><p>使用小操作很容易组合成大操作, 例如, sigmoid 操作很容易通过一个除法操作和一个幂操作来实现</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sigmoid(x) = <span class="number">1.0</span> / (<span class="number">1.0</span> + exp(-x))</span><br></pre></td></tr></table></figure>
+
+<p>把小抄做作为基础模块, 很容易构建出大操作, 这些操作与 Caffe 中的 layer 相比, 除了更小, 没有区别</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">SigmoidLayer(x) = EWiseDivisionLayer(<span class="number">1.0</span>, AddScalarLayer(ExpLayer(-x), <span class="number">1.0</span>))</span><br></pre></td></tr></table></figure>
+
+<p>这个表达式由 3 个 layers 组成, 每一个 layer 都有其 forward 和 backward 操作. 使用小操作, 只需要对小抄做进行祝贺就可以快速地构建新的 layers.</p>
+<h2 id="Big-Operations-Are-More-Efficient"><a href="#Big-Operations-Are-More-Efficient" class="headerlink" title="Big Operations Are More Efficient"></a>Big Operations Are More Efficient</h2><p>直接构建 sigmoid 层需要使用 3 个 layer operations 而不是一个</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">SigmoidLayer(x) = EWiseDivisionLayer(<span class="number">1.0</span>, AddScalarLayer(ExpLayer(-x),   <span class="number">1.0</span>))</span><br></pre></td></tr></table></figure>
+
+<p>这个代码产生计算和内存的开销（可以优化，但有成本）<br>CXXNet 和 Caffe 使用了一种不同的方案, 为了直接支持粗粒度的操作, 例如 BatchNormalization 和 Sigmoid, 计算核都是手动进行优化的, 在每个粗粒度的操作中, 只有一个或少数几个 CUDA kernel, 从而使得这种粗粒度的实现运行效率更高.</p>
+<h2 id="Compilation-and-Optimization"><a href="#Compilation-and-Optimization" class="headerlink" title="Compilation and Optimization"></a>Compilation and Optimization</h2>
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/MXNet/" rel="tag"># MXNet</a>
+              <a href="/tags/HPC/" rel="tag"># HPC</a>
+              <a href="/tags/Framework/" rel="tag"># Framework</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/optimizing-memory-consumption-in-deep-learning/" rel="prev" title="深度学习中内存占用的优化">
+      <i class="fa fa-chevron-left"></i> 深度学习中内存占用的优化
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/dependency-engine-for-deep-learning/" rel="next" title="深度学习中的依赖引擎">
+      深度学习中的依赖引擎 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Symbolic-vs-Imperative-Programs"><span class="nav-number">1.</span> <span class="nav-text">Symbolic vs. Imperative Programs</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#Imperative-Programs-Are-More-Flexible"><span class="nav-number">1.1.</span> <span class="nav-text">Imperative Programs Are More Flexible</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Symbolic-Programs-Are-More-Efficient"><span class="nav-number">1.2.</span> <span class="nav-text">Symbolic Programs Are More Efficient</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Model-Checkpoint"><span class="nav-number">1.3.</span> <span class="nav-text">Model Checkpoint</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Parameter-Updates"><span class="nav-number">1.4.</span> <span class="nav-text">Parameter Updates</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#There-Is-No-Strict-Boundary"><span class="nav-number">1.5.</span> <span class="nav-text">There Is No Strict Boundary</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Big-vs-Small-Operations"><span class="nav-number">2.</span> <span class="nav-text">Big vs. Small Operations</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#Smaller-Operations-Can-Be-More-Flexible"><span class="nav-number">2.1.</span> <span class="nav-text">Smaller Operations Can Be More Flexible</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Big-Operations-Are-More-Efficient"><span class="nav-number">2.2.</span> <span class="nav-text">Big Operations Are More Efficient</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Compilation-and-Optimization"><span class="nav-number">2.3.</span> <span class="nav-text">Compilation and Optimization</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yushu.gao</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">92</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">32</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">94</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yushu.gao</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>

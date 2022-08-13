@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"shuokay.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":false,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="BoVW (Bag of Visual Word) 是在传统图像检索领域里比较常用的一种方法. 大体可以分为三个步骤: 特征提取, 聚类(类似于寻找一组基), 计算图片在基上的坐标. 算法的创新点是对图片的特征寻找基. 这样, 在基固定的情况下, 所有的图片都可以使用这组基来唯一的表示. 而且, 由于基的维数是固定的, 也为相似度计算提供了极大的方便. 根据检索图片的不同, 可以选用不同的特征提取">
+<meta property="og:type" content="article">
+<meta property="og:title" content="BoVW 图像检索">
+<meta property="og:url" content="http://shuokay.com/bovw/index.html">
+<meta property="og:site_name" content="Memo">
+<meta property="og:description" content="BoVW (Bag of Visual Word) 是在传统图像检索领域里比较常用的一种方法. 大体可以分为三个步骤: 特征提取, 聚类(类似于寻找一组基), 计算图片在基上的坐标. 算法的创新点是对图片的特征寻找基. 这样, 在基固定的情况下, 所有的图片都可以使用这组基来唯一的表示. 而且, 由于基的维数是固定的, 也为相似度计算提供了极大的方便. 根据检索图片的不同, 可以选用不同的特征提取">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2016-07-21T13:51:52.000Z">
+<meta property="article:modified_time" content="2022-08-13T02:16:25.723Z">
+<meta property="article:author" content="yushu.gao">
+<meta property="article:tag" content="Image Retrieval">
+<meta property="article:tag" content="SIFT">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://shuokay.com/bovw/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>BoVW 图像检索 | Memo</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Memo</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="th fa-fw"></i>分类</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://shuokay.com/bovw/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yushu.gao">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Memo">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          BoVW 图像检索
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2016-07-21 21:51:52" itemprop="dateCreated datePublished" datetime="2016-07-21T21:51:52+08:00">2016-07-21</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Image-Retrieval/" itemprop="url" rel="index"><span itemprop="name">Image Retrieval</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>BoVW (Bag of Visual Word) 是在传统图像检索领域里比较常用的一种方法. 大体可以分为三个步骤: 特征提取, 聚类(类似于寻找一组基), 计算图片在基上的坐标. 算法的创新点是对图片的特征寻找基. 这样, 在基固定的情况下, 所有的图片都可以使用这组基来唯一的表示. 而且, 由于基的维数是固定的, 也为相似度计算提供了极大的方便. 根据检索图片的不同, 可以选用不同的特征提取方法.</p>
+<span id="more"></span>
+
+<h1 id="特征提取"><a href="#特征提取" class="headerlink" title="特征提取"></a>特征提取</h1><p>根据检索图片的特点, 可以选用不同的特征提取方法, 最终, 图像中的特征要映射到一组基上面.</p>
+<h1 id="聚类"><a href="#聚类" class="headerlink" title="聚类"></a>聚类</h1><p>聚类的目的是为了给图片的特征寻找一组合适的基(大部分时候论文中叫做簇, 为了方便理解, 这里仍然使用基这个名词). 聚类的中心点的个数需要自定义. 一般情况, 聚类中心的数量要大于一张图片中的特征的数量. 假设一张图片中特征的数量是 \(n\), 我比较喜欢选择的聚类中心的数量是 \(kn^2\). 这样做的目的是为了图片特征表达的稀疏性. 为了理解这一点, 假设选择的聚类中心个数为\(2\), 那么, 每张图片中提取的特征的数量是\(100\), 那么, 这种情况下, 所有不同的坐标个数是 \(101\), 也就是说, 最理想的情况下, 这种方法能够检索的图像的数量是\(101\)张. 如果聚类中心数量为\(1000\), 好吧, 我暂时没有计算出来具体数字.o(╯□╰)o 反正是一个好大好大的数字.<br>由于从 train set 中提取的特征的数量特别多(比如, 每张图片1000个特征, 10000张图片的话就是1kw的特征), 如果直接聚类的话(聚类中心为 \(10^3\) 量级), 由于 sample 的数量特别多, 聚类时长无法接受, 常用的做法是先进行抽样, 然后用抽样得到的样本进行聚类. 抽样又有两种方法, 一种是对原始图片进行抽样, 然后对样本图片提取特征, 聚类. 另外一种做法是对全部图片的特征进行抽样, 然后对抽样特征进行聚类.</p>
+<h1 id="计算坐标"><a href="#计算坐标" class="headerlink" title="计算坐标"></a>计算坐标</h1><p>通过聚类, 我们得到了一个模型, 假设该,模型的聚类中心的数量是 \(\cal N\), 并且赋予聚类中心顺序, 那么, 使用该聚类模型对 train set 中的每一张图片的特征进行预测, 得到这张图片每一个特征所在的聚类中心\(P\), 计算\(P\) 的 histogram, 就的到了相应的 \(\cal N\) 维的特征. 如果每一张图片提取的特征的数量不同(例如 SIFT 特征)(即使相同, 也推荐做一下归一化), 那么, 还需要对 histogram 做一个归一化操作. 这样, 就可以得到每一张图片一个 \(\cal N\) 维的 code.</p>
+<h1 id="检索"><a href="#检索" class="headerlink" title="检索"></a>检索</h1><p>对一张图片, 计算其code, 然后和train set 中的图片的 code 比较距离. 距离越近越相似, 说明图片越相似.</p>
+<h1 id="训练代码"><a href="#训练代码" class="headerlink" title="训练代码"></a>训练代码</h1><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> cv2</span><br><span class="line"><span class="keyword">import</span> numpy <span class="keyword">as</span> np</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">extract_sift</span>(<span class="params">mats</span>):</span><br><span class="line">    sifts = []</span><br><span class="line">    <span class="keyword">for</span> mat <span class="keyword">in</span> mats:</span><br><span class="line">        _, sift = cv2.xfeatures2d.SIFT_create(nfeatures=<span class="number">500</span>).detectAndCompute(</span><br><span class="line">            mat, <span class="literal">None</span>)</span><br><span class="line">        sifts.append(sift)</span><br><span class="line">    <span class="keyword">return</span> sifts</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">train_kmeans</span>(<span class="params">sifts</span>):</span><br><span class="line">    <span class="comment"># put all sit description to on numpy.array</span></span><br><span class="line">    code_dim = <span class="number">0</span></span><br><span class="line">    <span class="keyword">for</span> sift <span class="keyword">in</span> sifts:</span><br><span class="line">        <span class="keyword">if</span> sift <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span>:</span><br><span class="line">            code_dim += <span class="number">1</span></span><br><span class="line">    codes = np.empty((code_dim, <span class="number">128</span>))</span><br><span class="line">    cur_row = <span class="number">0</span></span><br><span class="line">    <span class="keyword">for</span> sift <span class="keyword">in</span> sifts:</span><br><span class="line">        <span class="keyword">if</span> sift <span class="keyword">is</span> <span class="literal">None</span>:</span><br><span class="line">            <span class="keyword">continue</span></span><br><span class="line">        codes[cur_row:cur_row + sift.shape[<span class="number">0</span>], :] = sift</span><br><span class="line">        cur_row += sift.shape[<span class="number">0</span>]</span><br><span class="line">    kmean_model = MiniBatchKMeans(</span><br><span class="line">        n_clusters=<span class="number">500</span>,</span><br><span class="line">        max_iter=<span class="number">10000</span>,</span><br><span class="line">        batch_size=<span class="number">100</span>, )</span><br><span class="line">    kmean_model.fit(codes)</span><br><span class="line">    <span class="keyword">return</span> kmean_model</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">compute_codebook</span>(<span class="params">sifts, kmeans_model</span>):</span><br><span class="line">    n_clusters = kmeans_model.get_params()[<span class="string">&#x27;n_clusters&#x27;</span>]</span><br><span class="line">    codebook = np.empty((<span class="built_in">len</span>(sifts), n_clusters))</span><br><span class="line">    bins = <span class="built_in">range</span>(<span class="number">1</span> + kmeans_model.get_params()[<span class="string">&#x27;n_clusters&#x27;</span>])</span><br><span class="line">    <span class="keyword">for</span> idx, sift <span class="keyword">in</span> <span class="built_in">enumerate</span>(sifts):</span><br><span class="line">        <span class="keyword">if</span> sift <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span>:</span><br><span class="line">            hist, _ = np.histogram(</span><br><span class="line">                kmeans_model.predict(sift), bins=bins, density=<span class="literal">True</span>)</span><br><span class="line">            codebook[idx] = hist</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            codebook[idx] = np.zeros(n_clusters) + np.NaN</span><br><span class="line">    <span class="keyword">return</span> codebook</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<h1 id="思考"><a href="#思考" class="headerlink" title="思考"></a>思考</h1><p>由于对特征进行聚类之后计算 histogram, 把 histogram 的结果用来计算相似度, 所以, 这就损失了原始特征在图片中的位置信息. 一种比较直观的方法是对图片先进行分块, 对每一块计算其code, 然后把所有快的code组合到一起进行比较相似度, 但是, 这种方法又损失和旋转不变性和平移不变性.</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Image-Retrieval/" rel="tag"># Image Retrieval</a>
+              <a href="/tags/SIFT/" rel="tag"># SIFT</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/softmax-loss/" rel="prev" title="Softmax 输出及其反向传播推导">
+      <i class="fa fa-chevron-left"></i> Softmax 输出及其反向传播推导
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/lsh/" rel="next" title="大规模高维数据检索算法LSH">
+      大规模高维数据检索算法LSH <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E7%89%B9%E5%BE%81%E6%8F%90%E5%8F%96"><span class="nav-number">1.</span> <span class="nav-text">特征提取</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%81%9A%E7%B1%BB"><span class="nav-number">2.</span> <span class="nav-text">聚类</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%AE%A1%E7%AE%97%E5%9D%90%E6%A0%87"><span class="nav-number">3.</span> <span class="nav-text">计算坐标</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%A3%80%E7%B4%A2"><span class="nav-number">4.</span> <span class="nav-text">检索</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%AE%AD%E7%BB%83%E4%BB%A3%E7%A0%81"><span class="nav-number">5.</span> <span class="nav-text">训练代码</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%80%9D%E8%80%83"><span class="nav-number">6.</span> <span class="nav-text">思考</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yushu.gao</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">92</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">32</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">94</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yushu.gao</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS-MML_HTMLorMML';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+</body>
+</html>

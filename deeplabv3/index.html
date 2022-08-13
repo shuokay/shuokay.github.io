@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"shuokay.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":false,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="Gluon 是 MXNet 实现的一套同时可以支持动态图和静态图的计算接口。和原有的 Symbol 接口相比，Gluon 的封装层次更高，在某种程度上使用更灵活。本文记录在学习Gluon的过程中实现 DeepLab V3 的过程。同时，数据的处理和输入也是使用的 Gluon 中提供的 Dataset 接口。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="使用 Gluon 实现 DeepLab V3">
+<meta property="og:url" content="http://shuokay.com/deeplabv3/index.html">
+<meta property="og:site_name" content="Memo">
+<meta property="og:description" content="Gluon 是 MXNet 实现的一套同时可以支持动态图和静态图的计算接口。和原有的 Symbol 接口相比，Gluon 的封装层次更高，在某种程度上使用更灵活。本文记录在学习Gluon的过程中实现 DeepLab V3 的过程。同时，数据的处理和输入也是使用的 Gluon 中提供的 Dataset 接口。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://shuokay.com/content/images/deeplabv3/deeplabv3.png">
+<meta property="og:image" content="http://shuokay.com/content/images/deeplabv3/miou-curve.png">
+<meta property="article:published_time" content="2018-01-20T11:09:53.000Z">
+<meta property="article:modified_time" content="2022-08-13T02:16:25.724Z">
+<meta property="article:author" content="yushu.gao">
+<meta property="article:tag" content="Deep Learning">
+<meta property="article:tag" content="CNN">
+<meta property="article:tag" content="MXNet">
+<meta property="article:tag" content="Gluon">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://shuokay.com/content/images/deeplabv3/deeplabv3.png">
+
+<link rel="canonical" href="http://shuokay.com/deeplabv3/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>使用 Gluon 实现 DeepLab V3 | Memo</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Memo</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="th fa-fw"></i>分类</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://shuokay.com/deeplabv3/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yushu.gao">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Memo">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          使用 Gluon 实现 DeepLab V3
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2018-01-20 19:09:53" itemprop="dateCreated datePublished" datetime="2018-01-20T19:09:53+08:00">2018-01-20</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/CNN/" itemprop="url" rel="index"><span itemprop="name">CNN</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/CNN/Semantic-Segmentation/" itemprop="url" rel="index"><span itemprop="name">Semantic Segmentation</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>Gluon 是 MXNet 实现的一套同时可以支持动态图和静态图的计算接口。和原有的 Symbol 接口相比，Gluon 的封装层次更高，在某种程度上使用更灵活。本文记录在学习Gluon的过程中实现 DeepLab V3 的过程。同时，数据的处理和输入也是使用的 Gluon 中提供的 Dataset 接口。</p>
+<span id="more"></span>
+
+<h1 id="DeepLabV3"><a href="#DeepLabV3" class="headerlink" title="DeepLabV3"></a>DeepLabV3</h1><p>首先要简要说明一下 DeepLab V3。DeepLab V3 和 PSPNet 基本一致，主要不同在于如何融合不同特征，改进了 PSPnet 的 ASPP module。PSPNet 在把 dilated conv 作用到 feature map 上的时候，如果 dilation rate 太大，那么，3x3 的 conv 就无法获取全局的特征而是退化到了一个 1x1 的 conv，为了有效提取全局特征， DeepLab V3 使用了 Global average pooling 操作。其它部分基本上和 PSPNet 是相同的，也讲不出什么道理。</p>
+<center><img src="/content/images/deeplabv3/deeplabv3.png"></center>
+
+<h1 id="Bottleneck"><a href="#Bottleneck" class="headerlink" title="Bottleneck"></a>Bottleneck</h1><p>因为基本网络结构延续resent的思想，因此，首先要实现resnet的基本模块。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">Bottleneck</span>(<span class="title class_ inherited__">HybridBlock</span>):</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, channels, strides, in_channels=<span class="number">0</span></span>):</span><br><span class="line">        <span class="built_in">super</span>(Bottleneck, self).__init__()</span><br><span class="line">        self.body = HybridSequential(prefix=<span class="string">&quot;&quot;</span>)</span><br><span class="line">        self.body.add(nn.Conv2D(channels=channels // <span class="number">4</span>, kernel_size=<span class="number">1</span>, strides=<span class="number">1</span>))</span><br><span class="line">        self.body.add(nn.BatchNorm())</span><br><span class="line">        self.body.add(nn.Activation(<span class="string">&#x27;relu&#x27;</span>))</span><br><span class="line">        self.body.add(nn.Conv2D(channels=channels // <span class="number">4</span>, kernel_size=<span class="number">3</span>, strides=strides, padding=<span class="number">1</span>, use_bias=<span class="literal">False</span>, in_channels=channels // <span class="number">4</span>))</span><br><span class="line">        self.body.add(nn.BatchNorm())</span><br><span class="line">        self.body.add(nn.Activation(<span class="string">&#x27;relu&#x27;</span>))</span><br><span class="line">        self.body.add(nn.Conv2D(channels, kernel_size=<span class="number">1</span>, strides=<span class="number">1</span>))</span><br><span class="line">        self.body.add(nn.BatchNorm())</span><br><span class="line">        self.downsample = nn.HybridSequential()</span><br><span class="line">        self.downsample.add(nn.Conv2D(channels=channels, kernel_size=<span class="number">1</span>, strides=strides, use_bias=<span class="literal">False</span>, in_channels=in_channels))</span><br><span class="line">        self.downsample.add(nn.BatchNorm())</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">hybrid_forward</span>(<span class="params">self, F, x</span>):</span><br><span class="line">        residual = self.downsample(x)</span><br><span class="line">        x = self.body(x)</span><br><span class="line">        x = F.Activation(residual + x, act_type=<span class="string">&quot;relu&quot;</span>)</span><br><span class="line">        <span class="keyword">return</span> x</span><br></pre></td></tr></table></figure>
+
+<h1 id="DilatedBottleneck"><a href="#DilatedBottleneck" class="headerlink" title="DilatedBottleneck"></a>DilatedBottleneck</h1><p>DeepLab V3 和原始的 resnet 其中的一个不同点是deeplab V3 的网络使用了 dialted conv，目的是为了使用更少的参数来cover 到更大的 receptive field。在没有dilated conv的场景下，为了 cover 更大的 receptive field， 通常有两个做法：1. 使用pooling 操作，2. 使用更大的卷积核。Pooling 操作的存在的问题是损失和空间细节信息，这在semantic segmentation 这种追求像素级精度的场景下不太合适；使用更大的卷积核导致网络的参数量增加，网络有过拟合的风险。因此，目前dilated conv 在 semantic segmentation 领域非常流行。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">DilatedBottleneck</span>(<span class="title class_ inherited__">HybridBlock</span>):</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, channels, strides, dilation=<span class="number">2</span>, in_channels=<span class="number">0</span></span>):</span><br><span class="line">        <span class="built_in">super</span>(DilatedBottleneck, self).__init__()</span><br><span class="line">        self.body = HybridSequential(prefix=<span class="string">&quot;dialted-conv&quot;</span>)</span><br><span class="line">        self.body.add(nn.Conv2D(channels=channels // <span class="number">4</span>, kernel_size=<span class="number">1</span>, strides=<span class="number">1</span>))</span><br><span class="line">        self.body.add(nn.BatchNorm())</span><br><span class="line">        self.body.add(nn.Activation(<span class="string">&#x27;relu&#x27;</span>))</span><br><span class="line">        self.body.add(nn.Conv2D(channels=channels // <span class="number">4</span>, kernel_size=<span class="number">3</span>, strides=strides, padding=dilation, dilation=dilation, use_bias=<span class="literal">False</span>, in_channels=channels // <span class="number">4</span>))</span><br><span class="line">        self.body.add(nn.BatchNorm())</span><br><span class="line">        self.body.add(nn.Activation(<span class="string">&#x27;relu&#x27;</span>))</span><br><span class="line">        self.body.add(nn.Conv2D(channels, kernel_size=<span class="number">1</span>, strides=<span class="number">1</span>))</span><br><span class="line">        self.body.add(nn.BatchNorm())</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">hybrid_forward</span>(<span class="params">self, F, x</span>):</span><br><span class="line">        residual = x</span><br><span class="line">        x = self.body(x)</span><br><span class="line">        x = F.Activation(residual + x, act_type=<span class="string">&quot;relu&quot;</span>)</span><br><span class="line">        <span class="keyword">return</span> x</span><br></pre></td></tr></table></figure>
+
+<h1 id="ASPP"><a href="#ASPP" class="headerlink" title="ASPP"></a>ASPP</h1><p>DeepLab V3 的 ASPP 和 PSPNet 中的略有不同，主要是有一个 global average pooling。global average pooling 的 kernel size 要根据具体的 feature map 大小进行调整。<br>双线性插值的 UpSampling 似乎不太好用 gluon 接口实现。主要是因为，在双线性插值的时候，要提供一个 Data 的 symbol 和 weight 的symbol。下面代码的双线性插值是通过 deconv 实现的。双线性插值的 weight 是不需要训练的，因此，通过 deconv 实现 memory 占用会浪费一些。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">ASPP</span>(<span class="title class_ inherited__">HybridBlock</span>):</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self</span>):</span><br><span class="line">        <span class="built_in">super</span>(ASPP, self).__init__(gap_kernel=<span class="number">56</span>)</span><br><span class="line">        self.aspp0 = nn.HybridSequential()</span><br><span class="line">        self.aspp0.add(nn.Conv2D(channels=<span class="number">256</span>, kernel_size=<span class="number">1</span>, strides=<span class="number">1</span>, padding=<span class="number">0</span>))</span><br><span class="line">        self.aspp0.add(nn.BatchNorm())</span><br><span class="line">        self.aspp1 = self._make_aspp(<span class="number">6</span>)</span><br><span class="line">        self.aspp2 = self._make_aspp(<span class="number">12</span>)</span><br><span class="line">        self.aspp3 = self._make_aspp(<span class="number">18</span>)</span><br><span class="line">        self.gap = nn.HybridSequential()</span><br><span class="line">        self.gap.add(nn.AvgPool2D(pool_size=gap_kernel, strides=<span class="number">1</span>))</span><br><span class="line">        self.gap.add(nn.Conv2D(channels=<span class="number">256</span>, kernel_size=<span class="number">1</span>))</span><br><span class="line">        self.gap.add(nn.BatchNorm())</span><br><span class="line">        upsampling = nn.Conv2DTranspose(channels=<span class="number">256</span>, kernel_size=gap_kernel*<span class="number">2</span>, strides=gap_kernel, padding=gap_kernel/<span class="number">2</span>, weight_initializer=mx.init.Bilinear(), use_bias=<span class="literal">False</span>, groups=<span class="number">256</span>)</span><br><span class="line">        upsampling.collect_params().<span class="built_in">setattr</span>(<span class="string">&quot;lr_mult&quot;</span>, <span class="number">0.0</span>)</span><br><span class="line">        self.gap.add(upsampling)</span><br><span class="line">        self.concurent = gluon.contrib.nn.HybridConcurrent(axis=<span class="number">1</span>)</span><br><span class="line">        self.concurent.add(self.aspp0)</span><br><span class="line">        self.concurent.add(self.aspp1)</span><br><span class="line">        self.concurent.add(self.aspp2)</span><br><span class="line">        self.concurent.add(self.aspp3)</span><br><span class="line">        self.concurent.add(self.gap)</span><br><span class="line">        self.fire = nn.HybridSequential()</span><br><span class="line">        self.fire.add(nn.Conv2D(channels=<span class="number">256</span>, kernel_size=<span class="number">1</span>))</span><br><span class="line">        self.fire.add(nn.BatchNorm())</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">hybrid_forward</span>(<span class="params">self, F, x</span>):</span><br><span class="line">        <span class="keyword">return</span> self.fire(self.concurent(x))</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">_make_aspp</span>(<span class="params">self, dilation</span>):</span><br><span class="line">        aspp = nn.HybridSequential()</span><br><span class="line">        aspp.add(nn.Conv2D(channels=<span class="number">256</span>, kernel_size=<span class="number">3</span>, strides=<span class="number">1</span>, dilation=dilation, padding=dilation))</span><br><span class="line">        aspp.add(nn.BatchNorm())</span><br><span class="line">        <span class="keyword">return</span> aspp</span><br></pre></td></tr></table></figure>
+
+<h1 id="DeepLab-V3"><a href="#DeepLab-V3" class="headerlink" title="DeepLab V3"></a>DeepLab V3</h1><p>最后就是组合上述模块，实现 DeepLab V3。仍然有一个 deconv 实现双线性插值上采样的过程。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">ResNetFCN</span>(<span class="params">pretrained=<span class="literal">False</span></span>):</span><br><span class="line"></span><br><span class="line">    resnet = gluon.model_zoo.vision.resnet50_v1(pretrained=pretrained)</span><br><span class="line">    net = nn.HybridSequential()</span><br><span class="line">    <span class="keyword">for</span> layer <span class="keyword">in</span> resnet.features[:<span class="number">6</span>]:</span><br><span class="line">        net.add(layer)</span><br><span class="line">    <span class="keyword">with</span> net.name_scope():</span><br><span class="line">        net.add(Bottleneck(<span class="number">1024</span>, strides=<span class="number">2</span>, in_channels=<span class="number">512</span>))</span><br><span class="line">        <span class="keyword">for</span> _ <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">6</span>):</span><br><span class="line">            net.add(DilatedBottleneck(channels=<span class="number">1024</span>, strides=<span class="number">1</span>, dilation=<span class="number">2</span>, in_channels=<span class="number">1024</span>))</span><br><span class="line">        net.add(nn.Conv2D(channels=<span class="number">2048</span>, kernel_size=<span class="number">1</span>, strides=<span class="number">1</span>, padding=<span class="number">0</span>))</span><br><span class="line">        <span class="keyword">for</span> _ <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">3</span>):</span><br><span class="line">            net.add(DilatedBottleneck(channels=<span class="number">2048</span>, strides=<span class="number">1</span>, dilation=<span class="number">4</span>, in_channels=<span class="number">2048</span>))</span><br><span class="line">        net.add(ASPP())</span><br><span class="line">        upsampling = nn.Conv2DTranspose(channels=<span class="number">4</span>, kernel_size=<span class="number">32</span>, strides=<span class="number">16</span>, padding=<span class="number">8</span>, weight_initializer=mx.init.Bilinear(), use_bias=<span class="literal">False</span>, groups=<span class="number">4</span>)</span><br><span class="line">        upsampling.collect_params().<span class="built_in">setattr</span>(<span class="string">&quot;lr_mult&quot;</span>, <span class="number">0.0</span>)</span><br><span class="line">        net.add(upsampling)</span><br><span class="line">        net.add(nn.BatchNorm())</span><br><span class="line">    <span class="keyword">return</span> net</span><br></pre></td></tr></table></figure>
+
+<h1 id="DataIter"><a href="#DataIter" class="headerlink" title="DataIter"></a>DataIter</h1><p>Gluon 提供了一套更灵活的feed数据的接口，下面是语义分割中的一个例子。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">DataIter</span>(gluon.data.Dataset):</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, images, labels, train=<span class="literal">True</span></span>):</span><br><span class="line">        self.data = images</span><br><span class="line">        self.label = labels</span><br><span class="line">        self.train = train</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__getitem__</span>(<span class="params">self, idx</span>):</span><br><span class="line">        <span class="keyword">if</span> self.train:</span><br><span class="line">            image, label = rand_crop(self.data[idx], self.label[idx])</span><br><span class="line">            <span class="keyword">return</span> nd.array(image), nd.array(label)</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            <span class="keyword">return</span> nd.array(self.data[idx]), nd.array(self.label[idx])</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__len__</span>(<span class="params">self</span>):</span><br><span class="line">        <span class="keyword">return</span> self.data.shape[<span class="number">0</span>]</span><br></pre></td></tr></table></figure>
+
+<h1 id="训练"><a href="#训练" class="headerlink" title="训练"></a>训练</h1><h2 id="对网络进行初始化"><a href="#对网络进行初始化" class="headerlink" title="对网络进行初始化"></a>对网络进行初始化</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">ctx = [mx.gpu(i) <span class="keyword">for</span> i <span class="keyword">in</span> cfg.ctx]</span><br><span class="line">net = ResNetFCN(pretrained=<span class="literal">True</span>)</span><br><span class="line">net.initialize(init=mx.init.MSRAPrelu())</span><br><span class="line">net.collect_params().reset_ctx(ctx=ctx)</span><br><span class="line"><span class="keyword">if</span> cfg.finetune:</span><br><span class="line">    net.collect_params().load(cfg.base_param, ctx=ctx)</span><br><span class="line">net.hybridize()</span><br><span class="line">mx.nd.waitall()</span><br></pre></td></tr></table></figure>
+
+<h2 id="定义相应的-DataIter"><a href="#定义相应的-DataIter" class="headerlink" title="定义相应的 DataIter"></a>定义相应的 DataIter</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">train_iter = DataIter(train_images, train_labels)</span><br><span class="line">val_iter = DataIter(val_images, val_labels)</span><br><span class="line">train_data = gluon.data.DataLoader(train_iter, cfg.batch_size, last_batch=<span class="string">&quot;discard&quot;</span>, shuffle=<span class="literal">True</span>)</span><br><span class="line">val_data = gluon.data.DataLoader(val_iter, cfg.batch_size, last_batch=<span class="string">&quot;discard&quot;</span>)</span><br></pre></td></tr></table></figure>
+
+<h2 id="定义loss和训练方法"><a href="#定义loss和训练方法" class="headerlink" title="定义loss和训练方法"></a>定义loss和训练方法</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">loss = gluon.loss.SoftmaxCrossEntropyLoss(axis=<span class="number">1</span>)</span><br><span class="line">trainer = gluon.Trainer(net.collect_params(), <span class="string">&#x27;adam&#x27;</span>, &#123;<span class="string">&#x27;learning_rate&#x27;</span>: cfg.lr&#125;)</span><br></pre></td></tr></table></figure>
+
+<h2 id="tensorboard"><a href="#tensorboard" class="headerlink" title="tensorboard"></a>tensorboard</h2><p>通过tensorboard监控训练过程</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">train_writer = SummaryWriter(cfg.train_logdir)</span><br><span class="line">eval_writer = SummaryWriter(cfg.eval_logdir)</span><br></pre></td></tr></table></figure>
+
+<h2 id="迭代训练"><a href="#迭代训练" class="headerlink" title="迭代训练"></a>迭代训练</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line">test_miou_list = []</span><br><span class="line"><span class="keyword">for</span> epoch <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">100000</span>):</span><br><span class="line">    <span class="keyword">for</span> idx, batch <span class="keyword">in</span> <span class="built_in">enumerate</span>(train_data):</span><br><span class="line">        data, label = batch</span><br><span class="line">        data = gluon.utils.split_and_load(data, ctx)</span><br><span class="line">        label = gluon.utils.split_and_load(label, ctx)</span><br><span class="line">        losses = []</span><br><span class="line">        <span class="keyword">with</span> mx.autograd.record():</span><br><span class="line">            outputs = [net(x) <span class="keyword">for</span> x <span class="keyword">in</span> data]</span><br><span class="line">            losses = [loss(yhat, y) <span class="keyword">for</span> yhat, y <span class="keyword">in</span> <span class="built_in">zip</span>(outputs, label)]</span><br><span class="line">        <span class="keyword">for</span> l <span class="keyword">in</span> losses:</span><br><span class="line">            l.backward()</span><br><span class="line">        <span class="keyword">if</span> count % <span class="number">10</span> == <span class="number">0</span>:</span><br><span class="line">          mx.nd.waitall()</span><br><span class="line">        trainer.step(cfg.batch_size)</span><br><span class="line">        <span class="keyword">if</span> count % cfg.test_interval == <span class="number">0</span>:</span><br><span class="line">            train_miou = np.array([IoU(yhat, y) <span class="keyword">for</span> yhat, y <span class="keyword">in</span> <span class="built_in">zip</span>(outputs, label)]).mean()</span><br><span class="line">            train_mloss = np.array([l.<span class="built_in">sum</span>().asscalar() <span class="keyword">for</span> l <span class="keyword">in</span> losses]).mean()</span><br><span class="line">            eval_mloss, eval_miou = evaluate(net, val_data, loss, ctx)</span><br><span class="line">            logging.info(<span class="string">&quot;epoch: %d\ttrain-loss: %f\ttrain-miou: %f\ttest-loss: %f\ttest-miou: %f&quot;</span> % (epoch, train_mloss, train_miou, eval_mloss, eval_miou))</span><br><span class="line">            train_writer.add_scalar(<span class="string">&quot;loss&quot;</span>, train_mloss, count)</span><br><span class="line">            train_writer.add_scalar(<span class="string">&quot;miou&quot;</span>, train_miou, count)</span><br><span class="line">            eval_writer.add_scalar(<span class="string">&quot;loss&quot;</span>, eval_mloss, count)</span><br><span class="line">            eval_writer.add_scalar(<span class="string">&quot;miou&quot;</span>, eval_miou, count)</span><br><span class="line">            net.collect_params().save(os.path.join(cfg.params_dir, <span class="built_in">str</span>(count)))</span><br><span class="line">            <span class="comment"># 监督训练过程，如果 10 次 evaluation 的结果变化不大，就减小 learning rate</span></span><br><span class="line">            <span class="keyword">if</span> <span class="built_in">len</span>(test_miou_list) &gt; <span class="number">10</span>:</span><br><span class="line">                test_miou_list.pop(<span class="number">0</span>)</span><br><span class="line">                test_miou_list.append(eval_miou)</span><br><span class="line">                <span class="keyword">if</span> <span class="built_in">max</span>(test_miou_list) - <span class="built_in">min</span>(test_miou_list) &lt; <span class="number">0.01</span>:</span><br><span class="line">                    lr = lr / <span class="number">10.0</span></span><br><span class="line">                    trainer.set_learning_rate(lr)</span><br><span class="line">        count += <span class="number">1</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="IoU"><a href="#IoU" class="headerlink" title="IoU"></a>IoU</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> __future__ <span class="keyword">import</span> division</span><br><span class="line"><span class="keyword">def</span> <span class="title function_">IoU</span>(<span class="params">yhat, y</span>):</span><br><span class="line">    <span class="keyword">if</span> <span class="built_in">isinstance</span>(yhat, mx.nd.NDArray):</span><br><span class="line">        yhat = yhat.asnumpy()</span><br><span class="line">    <span class="keyword">if</span> <span class="built_in">isinstance</span>(y, mx.nd.NDArray):</span><br><span class="line">        y = y.asnumpy()</span><br><span class="line">    yhat = yhat.argmax(axis=<span class="number">1</span>)</span><br><span class="line">    a_and_b = np.<span class="built_in">sum</span>((y == yhat) * (y &gt; <span class="number">0</span>))</span><br><span class="line">    a_or_b = np.<span class="built_in">sum</span>(((y &gt; <span class="number">0</span>) + (yhat) &gt; <span class="number">0</span>))</span><br><span class="line">    <span class="keyword">return</span> a_and_b / a_or_b <span class="keyword">if</span> a_or_b &gt; <span class="number">0</span> <span class="keyword">else</span> <span class="number">0</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="评估算法"><a href="#评估算法" class="headerlink" title="评估算法"></a>评估算法</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">evaluate</span>(<span class="params">net, val_data, loss, ctx</span>):</span><br><span class="line">    eval_loss, eval_iou = [], []</span><br><span class="line">    <span class="keyword">for</span> idx, batch <span class="keyword">in</span> <span class="built_in">enumerate</span>(val_data):</span><br><span class="line">        data, label = batch</span><br><span class="line">        data = gluon.utils.split_and_load(data, ctx)</span><br><span class="line">        label = gluon.utils.split_and_load(label, ctx)</span><br><span class="line">        losses = []</span><br><span class="line">        <span class="keyword">with</span> mx.autograd.record(train_mode=<span class="literal">False</span>):</span><br><span class="line">            outputs = [net(x) <span class="keyword">for</span> x <span class="keyword">in</span> data]</span><br><span class="line">            losses = [loss(yhat, y) <span class="keyword">for</span> yhat, y <span class="keyword">in</span> <span class="built_in">zip</span>(outputs, label)]</span><br><span class="line">            eval_loss += [l.<span class="built_in">sum</span>().asscalar() <span class="keyword">for</span> l <span class="keyword">in</span> losses]</span><br><span class="line">            eval_iou += [IoU(yhat, y) <span class="keyword">for</span> yhat, y <span class="keyword">in</span> <span class="built_in">zip</span>(outputs, label)]</span><br><span class="line">    <span class="keyword">return</span> np.array(eval_loss).mean(), np.array(eval_iou).mean()</span><br></pre></td></tr></table></figure>
+
+<center><img src="/content/images/deeplabv3/miou-curve.png"></center>
+
+<h1 id="需要注意的点"><a href="#需要注意的点" class="headerlink" title="需要注意的点"></a>需要注意的点</h1><p>因为 MXNet 使用了 lazy evaluation 策略，因此，在训练的过程中，我们至少需要每隔几个迭代要同步一次数据，否则前端不停地把计算 push 到后端，导致显存会爆掉。同步数据有多种方式，例如，上面训练代码中，for 循环中的 <code>mx.nd.waitall()</code> 是一种方式，还有通过消费计算结果，例如打印 loss 等来实现同步。数据同步也不能太频繁，否则影响计算效率。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Deep-Learning/" rel="tag"># Deep Learning</a>
+              <a href="/tags/CNN/" rel="tag"># CNN</a>
+              <a href="/tags/MXNet/" rel="tag"># MXNet</a>
+              <a href="/tags/Gluon/" rel="tag"># Gluon</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/halide/" rel="prev" title="Halide Notes-算法和计算解耦">
+      <i class="fa fa-chevron-left"></i> Halide Notes-算法和计算解耦
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/faster-rcnn/" rel="next" title="Notes on Faster RCNN">
+      Notes on Faster RCNN <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#DeepLabV3"><span class="nav-number">1.</span> <span class="nav-text">DeepLabV3</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Bottleneck"><span class="nav-number">2.</span> <span class="nav-text">Bottleneck</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#DilatedBottleneck"><span class="nav-number">3.</span> <span class="nav-text">DilatedBottleneck</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#ASPP"><span class="nav-number">4.</span> <span class="nav-text">ASPP</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#DeepLab-V3"><span class="nav-number">5.</span> <span class="nav-text">DeepLab V3</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#DataIter"><span class="nav-number">6.</span> <span class="nav-text">DataIter</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%AE%AD%E7%BB%83"><span class="nav-number">7.</span> <span class="nav-text">训练</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AF%B9%E7%BD%91%E7%BB%9C%E8%BF%9B%E8%A1%8C%E5%88%9D%E5%A7%8B%E5%8C%96"><span class="nav-number">7.1.</span> <span class="nav-text">对网络进行初始化</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AE%9A%E4%B9%89%E7%9B%B8%E5%BA%94%E7%9A%84-DataIter"><span class="nav-number">7.2.</span> <span class="nav-text">定义相应的 DataIter</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AE%9A%E4%B9%89loss%E5%92%8C%E8%AE%AD%E7%BB%83%E6%96%B9%E6%B3%95"><span class="nav-number">7.3.</span> <span class="nav-text">定义loss和训练方法</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#tensorboard"><span class="nav-number">7.4.</span> <span class="nav-text">tensorboard</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%BF%AD%E4%BB%A3%E8%AE%AD%E7%BB%83"><span class="nav-number">7.5.</span> <span class="nav-text">迭代训练</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#IoU"><span class="nav-number">7.6.</span> <span class="nav-text">IoU</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%AF%84%E4%BC%B0%E7%AE%97%E6%B3%95"><span class="nav-number">7.7.</span> <span class="nav-text">评估算法</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E9%9C%80%E8%A6%81%E6%B3%A8%E6%84%8F%E7%9A%84%E7%82%B9"><span class="nav-number">8.</span> <span class="nav-text">需要注意的点</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yushu.gao</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">92</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">32</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">94</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yushu.gao</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>

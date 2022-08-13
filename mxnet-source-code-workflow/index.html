@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"shuokay.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":false,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="对于用户来说, MXNet 工作的基本流程是, 首先通过 symbol 定义一个 computation graph, 然后, 把数据绑定到 symbol 上, 最后, 执行 forward 和 backward 完成模型的优化. 下面通过一个最简单的例子来说明这个过程.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="MXNet 源码分析-基本流程">
+<meta property="og:url" content="http://shuokay.com/mxnet-source-code-workflow/index.html">
+<meta property="og:site_name" content="Memo">
+<meta property="og:description" content="对于用户来说, MXNet 工作的基本流程是, 首先通过 symbol 定义一个 computation graph, 然后, 把数据绑定到 symbol 上, 最后, 执行 forward 和 backward 完成模型的优化. 下面通过一个最简单的例子来说明这个过程.">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2017-05-29T09:37:34.000Z">
+<meta property="article:modified_time" content="2022-08-13T02:16:25.731Z">
+<meta property="article:author" content="yushu.gao">
+<meta property="article:tag" content="MXNet">
+<meta property="article:tag" content="Framework">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://shuokay.com/mxnet-source-code-workflow/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>MXNet 源码分析-基本流程 | Memo</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Memo</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="th fa-fw"></i>分类</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://shuokay.com/mxnet-source-code-workflow/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yushu.gao">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Memo">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          MXNet 源码分析-基本流程
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2017-05-29 17:37:34" itemprop="dateCreated datePublished" datetime="2017-05-29T17:37:34+08:00">2017-05-29</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Framework/" itemprop="url" rel="index"><span itemprop="name">Framework</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Framework/MXNet/" itemprop="url" rel="index"><span itemprop="name">MXNet</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>对于用户来说, MXNet 工作的基本流程是, 首先通过 symbol 定义一个 computation graph, 然后, 把数据绑定到 symbol 上, 最后, 执行 forward 和 backward 完成模型的优化. 下面通过一个最简单的例子来说明这个过程.</p>
+<span id="more"></span>
+<p>C++ API 提供了一个简单的例子:</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">void</span> <span class="title">MLP</span><span class="params">()</span> </span>&#123;</span><br><span class="line">  <span class="keyword">auto</span> sym_x = Symbol::<span class="built_in">Variable</span>(<span class="string">&quot;X&quot;</span>);  <span class="comment">//定义一个 Symbol, 网络的出入节点, 后面会把网络的输入数据绑定到该Symbol(内部是绑定的 computation graph 的 node 上去)</span></span><br><span class="line">  <span class="keyword">auto</span> sym_label = Symbol::<span class="built_in">Variable</span>(<span class="string">&quot;label&quot;</span>);  <span class="comment">// 同上, 输入数据的标签信息</span></span><br><span class="line"></span><br><span class="line">  <span class="type">const</span> <span class="type">int</span> nLayers = <span class="number">2</span>;</span><br><span class="line">  <span class="function">vector&lt;<span class="type">int</span>&gt; <span class="title">layerSizes</span><span class="params">(&#123;<span class="number">512</span>, <span class="number">10</span>&#125;)</span></span>;</span><br><span class="line">  <span class="function">vector&lt;Symbol&gt; <span class="title">weights</span><span class="params">(nLayers)</span></span>;  <span class="comment">// 该例子中的 Symbol 是 cpp 接口中定义的 Symbol, 封装了 MXNet 的 Symbol</span></span><br><span class="line">  <span class="function">vector&lt;Symbol&gt; <span class="title">biases</span><span class="params">(nLayers)</span></span>;</span><br><span class="line">  <span class="function">vector&lt;Symbol&gt; <span class="title">outputs</span><span class="params">(nLayers)</span></span>;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 定义网络结构, 各个具体的 Symbol 的定义可参考 cpp 接口.</span></span><br><span class="line">  <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; nLayers; i++) &#123;</span><br><span class="line">    string istr = <span class="built_in">to_string</span>(i);</span><br><span class="line">    weights[i] = Symbol::<span class="built_in">Variable</span>(<span class="built_in">string</span>(<span class="string">&quot;w&quot;</span>) + istr);</span><br><span class="line">    biases[i] = Symbol::<span class="built_in">Variable</span>(<span class="built_in">string</span>(<span class="string">&quot;b&quot;</span>) + istr);</span><br><span class="line">    Symbol fc = <span class="built_in">FullyConnected</span>(<span class="built_in">string</span>(<span class="string">&quot;fc&quot;</span>) + istr,</span><br><span class="line">      i == <span class="number">0</span>? sym_x : outputs[i<span class="number">-1</span>],</span><br><span class="line">      weights[i], biases[i], layerSizes[i]);</span><br><span class="line">    outputs[i] = <span class="built_in">LeakyReLU</span>(<span class="built_in">string</span>(<span class="string">&quot;act&quot;</span>) + istr, fc, LeakyReLUActType::kLeaky);</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">auto</span> sym_out = <span class="built_in">SoftmaxOutput</span>(<span class="string">&quot;softmax&quot;</span>, outputs[nLayers - <span class="number">1</span>], sym_label);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 定义该模型要在哪个设备上计算, CPU, 哪块 GPU. CPU 默认是使用所有的 GPU 的所有核心,</span></span><br><span class="line">  <span class="comment">// GPU默认在第 0 块显卡计算, 如果选择其它显卡需要具体指定.(并不会默认使用所有的显卡)</span></span><br><span class="line">  <span class="function">Context <span class="title">ctx_dev</span><span class="params">(DeviceType::kCPU, <span class="number">0</span>)</span></span>;  </span><br><span class="line"></span><br><span class="line">  <span class="comment">//定义输入数据, 并且分配相应的 memory, 如果第三个参数是 true 的话, 执行 delay allocation, 不会立刻分配 memory</span></span><br><span class="line">  <span class="function">NDArray <span class="title">array_x</span><span class="params">(Shape(<span class="number">128</span>, <span class="number">28</span>), ctx_dev, <span class="literal">false</span>)</span></span>;</span><br><span class="line">  <span class="function">NDArray <span class="title">array_y</span><span class="params">(Shape(<span class="number">128</span>), ctx_dev, <span class="literal">false</span>)</span></span>;</span><br><span class="line"></span><br><span class="line">  mx_float* aptr_x = <span class="keyword">new</span> mx_float[<span class="number">128</span> * <span class="number">28</span>];</span><br><span class="line">  mx_float* aptr_y = <span class="keyword">new</span> mx_float[<span class="number">128</span>];</span><br><span class="line"></span><br><span class="line">  <span class="comment">// we make the data by hand, in 10 classes, with some pattern</span></span><br><span class="line">  <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; <span class="number">128</span>; i++) &#123;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> j = <span class="number">0</span>; j &lt; <span class="number">28</span>; j++) &#123;</span><br><span class="line">      aptr_x[i * <span class="number">28</span> + j] = i % <span class="number">10</span> * <span class="number">1.0f</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    aptr_y[i] = i % <span class="number">10</span>;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 把具体的数据同步到 NDArray 中, 之所以有这个显示的方法, 主要是考虑到使用 GPU 计算的使用, 需要首先把数据同步到显存上去</span></span><br><span class="line">  array_x.<span class="built_in">SyncCopyFromCPU</span>(aptr_x, <span class="number">128</span> * <span class="number">28</span>);</span><br><span class="line">  <span class="comment">// 等待数据同步完成</span></span><br><span class="line">  array_x.<span class="built_in">WaitToRead</span>();</span><br><span class="line">  array_y.<span class="built_in">SyncCopyFromCPU</span>(aptr_y, <span class="number">128</span>);</span><br><span class="line">  array_y.<span class="built_in">WaitToRead</span>();</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 定义网络的参数  NDArray</span></span><br><span class="line">  <span class="function">NDArray <span class="title">array_w_1</span><span class="params">(Shape(<span class="number">512</span>, <span class="number">28</span>), ctx_dev, <span class="literal">false</span>)</span></span>;</span><br><span class="line">  <span class="function">NDArray <span class="title">array_b_1</span><span class="params">(Shape(<span class="number">512</span>), ctx_dev, <span class="literal">false</span>)</span></span>;</span><br><span class="line">  <span class="function">NDArray <span class="title">array_w_2</span><span class="params">(Shape(<span class="number">10</span>, <span class="number">512</span>), ctx_dev, <span class="literal">false</span>)</span></span>;</span><br><span class="line">  <span class="function">NDArray <span class="title">array_b_2</span><span class="params">(Shape(<span class="number">10</span>), ctx_dev, <span class="literal">false</span>)</span></span>;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 初始化参数</span></span><br><span class="line">  array_w_1 = <span class="number">0.5f</span>;</span><br><span class="line">  array_b_1 = <span class="number">0.0f</span>;</span><br><span class="line">  array_w_2 = <span class="number">0.5f</span>;</span><br><span class="line">  array_b_2 = <span class="number">0.0f</span>;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 定义存放梯度的 NDArray</span></span><br><span class="line">  <span class="function">NDArray <span class="title">array_w_1_g</span><span class="params">(Shape(<span class="number">512</span>, <span class="number">28</span>), ctx_dev, <span class="literal">false</span>)</span></span>;</span><br><span class="line">  <span class="function">NDArray <span class="title">array_b_1_g</span><span class="params">(Shape(<span class="number">512</span>), ctx_dev, <span class="literal">false</span>)</span></span>;</span><br><span class="line">  <span class="function">NDArray <span class="title">array_w_2_g</span><span class="params">(Shape(<span class="number">10</span>, <span class="number">512</span>), ctx_dev, <span class="literal">false</span>)</span></span>;</span><br><span class="line">  <span class="function">NDArray <span class="title">array_b_2_g</span><span class="params">(Shape(<span class="number">10</span>), ctx_dev, <span class="literal">false</span>)</span></span>;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 把网络输入和参数(可以统一看做该 computation graph 计算过程中需要的数据) 放到一个 std::vector 中(为了后面的构建 executor)</span></span><br><span class="line">  std::vector&lt;NDArray&gt; in_args;</span><br><span class="line">  in_args.<span class="built_in">push_back</span>(array_x);</span><br><span class="line">  in_args.<span class="built_in">push_back</span>(array_w_1);</span><br><span class="line">  in_args.<span class="built_in">push_back</span>(array_b_1);</span><br><span class="line">  in_args.<span class="built_in">push_back</span>(array_w_2);</span><br><span class="line">  in_args.<span class="built_in">push_back</span>(array_b_2);</span><br><span class="line">  in_args.<span class="built_in">push_back</span>(array_y);</span><br><span class="line">  <span class="comment">//  与上面基本相同的意思, 注意, 顺序要和上面的 in_args 相同, 即使有些参数不需要计算梯度, 也要 push_back 一个空的 NDArray</span></span><br><span class="line">  std::vector&lt;NDArray&gt; arg_grad_store;</span><br><span class="line">  arg_grad_store.<span class="built_in">push_back</span>(<span class="built_in">NDArray</span>());</span><br><span class="line">  arg_grad_store.<span class="built_in">push_back</span>(array_w_1_g);</span><br><span class="line">  arg_grad_store.<span class="built_in">push_back</span>(array_b_1_g);</span><br><span class="line">  arg_grad_store.<span class="built_in">push_back</span>(array_w_2_g);</span><br><span class="line">  arg_grad_store.<span class="built_in">push_back</span>(array_b_2_g);</span><br><span class="line">  arg_grad_store.<span class="built_in">push_back</span>(<span class="built_in">NDArray</span>());</span><br><span class="line">  <span class="comment">// 指定梯度 memory 的更新方法, 顺序同样要和上面的严格一致. kNullOp 表示没有任何操作, kWriteTo 表示用新计算出来的值覆盖原来的值</span></span><br><span class="line">  std::vector&lt;OpReqType&gt; grad_req_type;</span><br><span class="line">  grad_req_type.<span class="built_in">push_back</span>(kNullOp);</span><br><span class="line">  grad_req_type.<span class="built_in">push_back</span>(kWriteTo);</span><br><span class="line">  grad_req_type.<span class="built_in">push_back</span>(kWriteTo);</span><br><span class="line">  grad_req_type.<span class="built_in">push_back</span>(kWriteTo);</span><br><span class="line">  grad_req_type.<span class="built_in">push_back</span>(kWriteTo);</span><br><span class="line">  grad_req_type.<span class="built_in">push_back</span>(kNullOp);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 辅助状态, 这里没有用到, 如果是有 batch normalization 的话, 该参数就需要像上面一样具体定义了</span></span><br><span class="line">  std::vector&lt;NDArray&gt; aux_states;</span><br><span class="line"></span><br><span class="line">  cout &lt;&lt; <span class="string">&quot;make the Executor&quot;</span> &lt;&lt; endl;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 构建 executor, 该步骤执行了非常多的操作, 具体讲至少有以下几个重要操作:</span></span><br><span class="line">  <span class="comment">// 1. 检查参数的上面的参数 NDArray 的 shape</span></span><br><span class="line">  <span class="comment">// 2. 构建 computation graph</span></span><br><span class="line">  <span class="comment">// 3. 构建具体的 Engine(同步还是异步, 是否使用线程池等)</span></span><br><span class="line">  <span class="comment">// 4. 推导 graph 的 topo 序</span></span><br><span class="line">  <span class="comment">// 5. 把 NDArray 参数按照图谱序绑定到具体的 node 上</span></span><br><span class="line">  Executor* exe = <span class="keyword">new</span> <span class="built_in">Executor</span>(sym_out, ctx_dev, in_args, arg_grad_store,</span><br><span class="line">                               grad_req_type, aux_states);</span><br><span class="line"></span><br><span class="line">  cout &lt;&lt; <span class="string">&quot;Training&quot;</span> &lt;&lt; endl;</span><br><span class="line">  <span class="type">int</span> max_iters = <span class="number">20000</span>;</span><br><span class="line">  mx_float learning_rate = <span class="number">0.0001</span>;</span><br><span class="line">  <span class="keyword">for</span> (<span class="type">int</span> iter = <span class="number">0</span>; iter &lt; max_iters; ++iter) &#123;</span><br><span class="line">    exe-&gt;<span class="built_in">Forward</span>(<span class="literal">true</span>);  <span class="comment">//前向计算</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (iter % <span class="number">100</span> == <span class="number">0</span>) &#123;</span><br><span class="line">      cout &lt;&lt; <span class="string">&quot;epoch &quot;</span> &lt;&lt; iter &lt;&lt; endl;</span><br><span class="line">      std::vector&lt;NDArray&gt;&amp; out = exe-&gt;outputs;</span><br><span class="line">      <span class="type">float</span>* cptr = <span class="keyword">new</span> <span class="type">float</span>[<span class="number">128</span> * <span class="number">10</span>];</span><br><span class="line">      out[<span class="number">0</span>].<span class="built_in">SyncCopyToCPU</span>(cptr, <span class="number">128</span> * <span class="number">10</span>);</span><br><span class="line">      NDArray::<span class="built_in">WaitAll</span>();</span><br><span class="line">      <span class="built_in">OutputAccuracy</span>(cptr, aptr_y);</span><br><span class="line">      <span class="keyword">delete</span>[] cptr;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// update the parameters</span></span><br><span class="line">    exe-&gt;<span class="built_in">Backward</span>(); <span class="comment">//反向计算梯度</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">1</span>; i &lt; <span class="number">5</span>; ++i) &#123;</span><br><span class="line">      in_args[i] -= arg_grad_store[i] * learning_rate; <span class="comment">//更新参数</span></span><br><span class="line">    &#125;</span><br><span class="line">    NDArray::<span class="built_in">WaitAll</span>();</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">delete</span> exe;</span><br><span class="line">  <span class="keyword">delete</span>[] aptr_x;</span><br><span class="line">  <span class="keyword">delete</span>[] aptr_y;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>上面代码需要重点注意的点:</p>
+<ol>
+<li>拓扑序非常重要, 拓扑序中, 对于某个节点 N, 该节点要么没有其它依赖, 要么仅仅依赖于该节点前面的节点, 因此, computation graph 进行拓扑排序之后, 直接按照 topo 序进行计算就可以了.(异步模式另行讨论)</li>
+<li>上面的代码中各个输入输入在 push_back 到 <code>std::vector</code> 中的时候其实是作者已经知道了该网络在转换成 computation graph 之后的拓扑序, 然后按照该拓扑序进行 push_back 的</li>
+<li>MXNet 的 cpp 借口和 Python 借口都提供了 <code>simple_bind</code> 方法, 该方法封装了上面 NDArray 参数 push_back 到 <code>std::vector</code> 的过程, 其大概过程同样是先对 computation graph 进行拓扑排序, 然后, 获取排序后的各个节点需要的参数的顺序. 因为在每个 Symbol 中都有 name 的, 因此, <code>simple_bind</code> 要求输入的 NDArray 也要有 name, 而且, NDArray 中的 name 要和 Symbol 中的 name 对应起来. 这样, 用户只需要保证 NDArray 的 name 能和 Symbol 中的 name 对应就可以了, 而不用保证其 topo 序是 match 的.</li>
+<li>上述代码每次都是使用相同的数据 forward, 也就是相当于 Gradient Descend 方法, mini batch 的 SGD 要求每次输入一个 batch 的数据. 那么, MXNet 是怎么每次输入一个 batch 的数据的呢? 每次都重新 new 一个 Executor 吗? 毕竟所有的数据都是在 new Executor 的时候传入的. 显然这样的方法会比较蠢, MXNet 当然提供了 feed 输入的方法.</li>
+</ol>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/MXNet/" rel="tag"># MXNet</a>
+              <a href="/tags/Framework/" rel="tag"># Framework</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/mxnet-source-code-overview/" rel="prev" title="MXNet 源码分析-概览">
+      <i class="fa fa-chevron-left"></i> MXNet 源码分析-概览
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/mxnet-source-code-SimpleBind/" rel="next" title="MXNet 源码分析-SimpleBind">
+      MXNet 源码分析-SimpleBind <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yushu.gao</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">92</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">32</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">94</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yushu.gao</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>

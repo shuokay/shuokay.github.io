@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"shuokay.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":false,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="MXNet 的 DataIter 输入的 Python 接口, 不仅适用于图片, 而且适用于其它的文件格式. DataIter 比 numpy.array 的巨大的优点是 DataIter 不需要一次性把数据读入到内存. 想象一下在 CNN 的训练中动辄几百 G 的训练数据, 一次性载入内存比较不现实. 另一方面, 通过 MXNet 的 IO 接口调用, 可以更灵活的控制数据的 IO 过程.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="MXNet IO 接口使用方法">
+<meta property="og:url" content="http://shuokay.com/mxnet-io/index.html">
+<meta property="og:site_name" content="Memo">
+<meta property="og:description" content="MXNet 的 DataIter 输入的 Python 接口, 不仅适用于图片, 而且适用于其它的文件格式. DataIter 比 numpy.array 的巨大的优点是 DataIter 不需要一次性把数据读入到内存. 想象一下在 CNN 的训练中动辄几百 G 的训练数据, 一次性载入内存比较不现实. 另一方面, 通过 MXNet 的 IO 接口调用, 可以更灵活的控制数据的 IO 过程.">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2016-08-16T00:11:59.000Z">
+<meta property="article:modified_time" content="2022-08-13T02:16:25.728Z">
+<meta property="article:author" content="yushu.gao">
+<meta property="article:tag" content="MXNet">
+<meta property="article:tag" content="Code">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://shuokay.com/mxnet-io/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>MXNet IO 接口使用方法 | Memo</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Memo</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="th fa-fw"></i>分类</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://shuokay.com/mxnet-io/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yushu.gao">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Memo">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          MXNet IO 接口使用方法
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2016-08-16 08:11:59" itemprop="dateCreated datePublished" datetime="2016-08-16T08:11:59+08:00">2016-08-16</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Framework/" itemprop="url" rel="index"><span itemprop="name">Framework</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Framework/MXNet/" itemprop="url" rel="index"><span itemprop="name">MXNet</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>MXNet 的 DataIter 输入的 Python 接口, 不仅适用于图片, 而且适用于其它的文件格式. DataIter 比 <code>numpy.array</code> 的巨大的优点是 DataIter 不需要一次性把数据读入到内存. 想象一下在 CNN 的训练中动辄几百 G 的训练数据, 一次性载入内存比较不现实. 另一方面, 通过 MXNet 的 IO 接口调用, 可以更灵活的控制数据的 IO 过程.</p>
+<span id="more"></span>
+
+<h1 id="单进程操作"><a href="#单进程操作" class="headerlink" title="单进程操作"></a>单进程操作</h1><p>优点: 代码简单, 容易操作<br>缺点: 每次跑一个新的 Batch 的时候, MXNet 都要停下来等待读取&#x2F;处理数据, 时间浪费非常严重</p>
+<h2 id="要定义一个-batch-中的数据"><a href="#要定义一个-batch-中的数据" class="headerlink" title="要定义一个 batch 中的数据"></a>要定义一个 batch 中的数据</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">DataBatch</span>(<span class="title class_ inherited__">object</span>):</span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, data, label</span>):</span><br><span class="line">        <span class="comment"># 这个两属性是必须的, 因为 Executor Manager 在 load 数据的时候, load 的对象就是 data 和 label.</span></span><br><span class="line">        self.data = data</span><br><span class="line">        self.label = label</span><br></pre></td></tr></table></figure>
+
+<h2 id="使用-Python-接口定义-MXNet-的-Iter"><a href="#使用-Python-接口定义-MXNet-的-Iter" class="headerlink" title="使用 Python 接口定义 MXNet 的 Iter"></a>使用 Python 接口定义 MXNet 的 Iter</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">DataIter</span>(mx.io.DataIter):</span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, count, batch_size, num_label, height, width</span>):</span><br><span class="line">        <span class="built_in">super</span>(DataIter, self).__init__()</span><br><span class="line">        self.batch_size = batch_size</span><br><span class="line">        self.count = count <span class="comment"># 图片总量</span></span><br><span class="line">        self.height = height <span class="comment"># 图片的高度</span></span><br><span class="line">        self.width = width <span class="comment"># 图片的宽度</span></span><br><span class="line">        <span class="comment"># 这非常重要, 第一个参数 &#x27;data&#x27; 一定要和网络中的 `mxnet.symbol.Variable 的 name 对应起来`</span></span><br><span class="line">        self.provide_data = [(<span class="string">&#x27;data&#x27;</span>, (batch_size, <span class="number">3</span>, height, width))]</span><br><span class="line">        self.provide_label = [(<span class="string">&#x27;softmax_label&#x27;</span>, (self.batch_size, num_label))] <span class="comment"># 同上</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__iter__</span>(<span class="params">self</span>):</span><br><span class="line">        <span class="keyword">for</span> k <span class="keyword">in</span> <span class="built_in">range</span>(self.count / self.batch_size):</span><br><span class="line">            data = []</span><br><span class="line">            label = []</span><br><span class="line">            <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(self.batch_size):</span><br><span class="line">                one_img=func_get_img_data() <span class="comment"># 获取一张图片数据, numpy.array 格式</span></span><br><span class="line">                one_label= func_get_label_data() <span class="comment"># 获取该图片的 label 数据, numpy.array 格式</span></span><br><span class="line">                data.append(one_img)</span><br><span class="line">                label.append(one_label)</span><br><span class="line"></span><br><span class="line">            data_all = [mx.nd.array(data)]</span><br><span class="line">            label_all = [mx.nd.array(label)]</span><br><span class="line">            <span class="comment"># 创建一个 Batch 的数据</span></span><br><span class="line">            data_batch = OneBatch(data_all, label_all)</span><br><span class="line">            <span class="comment"># yield 的作用是每次返回一个 batch, 而不是所有的 batch, 上文所谓的节省内存的秘密就在这里</span></span><br><span class="line">            <span class="keyword">yield</span> data_batch</span><br></pre></td></tr></table></figure>
+
+<h1 id="多进程操作"><a href="#多进程操作" class="headerlink" title="多进程操作"></a>多进程操作</h1><p>优点: 不需要 MXNet 停下来等待读取&#x2F;处理数据<br>缺点: 代码有点小麻烦<br>MXNet 中使用的是 <code>threading</code> 来操作的 Prefetching, 我这里使用 <code>multiprocessing</code></p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> multiprocessing</span><br><span class="line"><span class="keyword">class</span> <span class="title class_">DataIter</span>(mx.io.DataIter):</span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, count, batch_size, num_label, height, width</span>):</span><br><span class="line">        <span class="built_in">super</span>(DataIter, self).__init__()</span><br><span class="line">        self.batch_size = batch_size</span><br><span class="line">        self.cursor = -batch_size</span><br><span class="line">        self.batch_size = batch_size</span><br><span class="line">        self.num_data = count</span><br><span class="line">        self.height = height <span class="comment"># 图片的高度</span></span><br><span class="line">        self.width = width <span class="comment"># 图片的宽度</span></span><br><span class="line">        <span class="comment"># 这非常重要, 第一个参数 &#x27;data&#x27; 一定要和网络中的 `mxnet.symbol.Variable 的 name 对应起来`</span></span><br><span class="line">        self.provide_data = [(<span class="string">&#x27;data&#x27;</span>, (batch_size, <span class="number">3</span>, height, width))]</span><br><span class="line">        self.provide_label = [(<span class="string">&#x27;softmax_label&#x27;</span>, (self.batch_size, num_label))] <span class="comment"># 同上</span></span><br><span class="line">        <span class="comment"># 首先定义一个 Queue 对象, 用来存储 Prefetch 的数据</span></span><br><span class="line">        self.q = multiprocessing.Queue(maxsize=<span class="number">2</span>)</span><br><span class="line">        <span class="comment"># 创建4个读取数据的进程, 具体的读取方法在 self.write 中</span></span><br><span class="line">        self.pws = [multiprocessing.Process(target=self.write) <span class="keyword">for</span> <span class="keyword">in</span> <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">4</span>)]</span><br><span class="line">        <span class="keyword">for</span> pw <span class="keyword">in</span> self.pws:</span><br><span class="line">          pw.daemon = <span class="literal">True</span></span><br><span class="line">          pw.start()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">write</span>(<span class="params">self</span>):</span><br><span class="line">        <span class="keyword">while</span> <span class="literal">True</span>:</span><br><span class="line">          <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(self.batch_size):</span><br><span class="line">            <span class="comment"># 获取一张图片数据, numpy.array 格式</span></span><br><span class="line">            one_img = func_get_img_data()</span><br><span class="line">            <span class="comment"># 获取该图片的 label 数据, numpy.array 格式</span></span><br><span class="line">            one_label = func_get_label_data()</span><br><span class="line">            data.append(one_img)</span><br><span class="line">            label.append(one_label)</span><br><span class="line">          data_all = [mx.nd.array(data)]</span><br><span class="line">          label_all = [mx.nd.array(label)]</span><br><span class="line">          <span class="comment"># 创建一个 Batch 的数据</span></span><br><span class="line">          data_batch = OneBatch(data_all, label_all)</span><br><span class="line">          <span class="comment"># block=True, 允许在队列满的时候阻塞, timeout=None, 永不超时</span></span><br><span class="line">          self.q.put(obj=data_batch, block=<span class="literal">True</span>, timeout=<span class="literal">None</span>)</span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">iter_next</span>(<span class="params">self</span>):</span><br><span class="line">        self.cursor += self.batch_size</span><br><span class="line">        <span class="keyword">return</span> self.cursor &lt; self.num_data</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">next</span>(<span class="params">self</span>):</span><br><span class="line">        <span class="keyword">if</span> self.q.empty():</span><br><span class="line">            logging.debug(<span class="string">&quot;waiting for data&quot;</span>)</span><br><span class="line">        <span class="keyword">if</span> self.iter_next():</span><br><span class="line">            <span class="comment"># block=True, 允许在队列空的时候阻塞, timeout=None, 永不超时</span></span><br><span class="line">            <span class="keyword">return</span> self.q.get(block=<span class="literal">True</span>, timeout=<span class="literal">None</span>)</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            <span class="keyword">raise</span> StopIteration</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">reset</span>(<span class="params">self</span>):</span><br><span class="line">        self.cursor = -self.batch_size + (self.cursor%self.num_data) % self.batch_size</span><br></pre></td></tr></table></figure>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/MXNet/" rel="tag"># MXNet</a>
+              <a href="/tags/Code/" rel="tag"># Code</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/install-mxnet-ubuntu-1604/" rel="prev" title="Ubuntu 16.04 LTS 安装 MXNet 过程">
+      <i class="fa fa-chevron-left"></i> Ubuntu 16.04 LTS 安装 MXNet 过程
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/transfer-learning/" rel="next" title="MXNet Transfer Learning">
+      MXNet Transfer Learning <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8D%95%E8%BF%9B%E7%A8%8B%E6%93%8D%E4%BD%9C"><span class="nav-number">1.</span> <span class="nav-text">单进程操作</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%A6%81%E5%AE%9A%E4%B9%89%E4%B8%80%E4%B8%AA-batch-%E4%B8%AD%E7%9A%84%E6%95%B0%E6%8D%AE"><span class="nav-number">1.1.</span> <span class="nav-text">要定义一个 batch 中的数据</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BD%BF%E7%94%A8-Python-%E6%8E%A5%E5%8F%A3%E5%AE%9A%E4%B9%89-MXNet-%E7%9A%84-Iter"><span class="nav-number">1.2.</span> <span class="nav-text">使用 Python 接口定义 MXNet 的 Iter</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%A4%9A%E8%BF%9B%E7%A8%8B%E6%93%8D%E4%BD%9C"><span class="nav-number">2.</span> <span class="nav-text">多进程操作</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yushu.gao</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">92</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">32</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">94</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yushu.gao</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
